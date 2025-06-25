@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/call_background_gradient"
+    android:fitsSystemWindows="true"
+    tools:context=".IncomingCallActivity">
+
+    <!-- Background overlay -->
+    <View
+        android:id="@+id/background_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/call_overlay_color"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Status bar spacer -->
+    <View
+        android:id="@+id/status_bar_spacer"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/status_bar_height"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Incoming call label -->
+    <TextView
+        android:id="@+id/tv_incoming_call_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/incoming_call"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:alpha="0.9"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/status_bar_spacer" />
+
+    <!-- Caller avatar -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/iv_caller_avatar"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_marginTop="40dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/default_avatar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_incoming_call_label"
+        app:shapeAppearanceOverlay="@style/CircularImageView"
+        app:strokeColor="@color/white"
+        app:strokeWidth="4dp" />
+
+    <!-- Caller name -->
+    <TextView
+        android:id="@+id/tv_caller_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="32dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text="@string/default_caller_name"
+        android:textColor="@color/white"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/iv_caller_avatar" />
+
+    <!-- Caller phone -->
+    <TextView
+        android:id="@+id/tv_caller_phone"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="32dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="@string/default_caller_phone"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:alpha="0.9"
+        android:textStyle="normal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_caller_name" />
+
+    <!-- Call duration -->
+    <TextView
+        android:id="@+id/tv_call_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/call_duration_placeholder"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:alpha="0.8"
+        android:visibility="gone"
+        android:textStyle="normal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_caller_phone" />
+
+    <!-- Action buttons container -->
+    <LinearLayout
+        android:id="@+id/ll_action_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="80dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Decline button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_decline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="40dp"
+            android:contentDescription="@string/decline_call"
+            android:src="@drawable/ic_call_end"
+            app:backgroundTint="@color/decline_button_color"
+            app:fabSize="normal"
+            app:tint="@color/white" />
+
+        <!-- Answer button -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_answer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="40dp"
+            android:contentDescription="@string/answer_call"
+            android:src="@drawable/ic_call_answer"
+            app:backgroundTint="@color/answer_button_color"
+            app:fabSize="normal"
+            app:tint="@color/white" />
+
+    </LinearLayout>
+
+    <!-- Additional actions (optional) -->
+    <LinearLayout
+        android:id="@+id/ll_additional_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/ll_action_buttons"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Message button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_message"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="@string/message"
+            android:textColor="@color/white"
+            app:icon="@drawable/ic_message"
+            app:iconTint="@color/white" />
+
+        <!-- Remind me button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_remind_me"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="@string/remind_me"
+            android:textColor="@color/white"
+            app:icon="@drawable/ic_schedule"
+            app:iconTint="@color/white" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout> 
