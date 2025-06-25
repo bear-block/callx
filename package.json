@@ -79,7 +79,7 @@
     "prettier": "^3.0.3",
     "react": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-builder-bob": "^0.40.8",
+    "react-native-builder-bob": "^0.40.12",
     "release-it": "^17.10.0",
     "turbo": "^1.10.7",
     "typescript": "^5.8.3"
@@ -140,12 +140,7 @@
           "esm": true
         }
       ],
-      [
-        "typescript",
-        {
-          "project": "tsconfig.build.json"
-        }
-      ]
+      "typescript"
     ]
   },
   "codegenConfig": {
@@ -160,5 +155,9 @@
     "languages": "kotlin-objc",
     "type": "turbo-module",
     "version": "0.51.1"
-  }
+  },
+  "eslintIgnore": [
+    "node_modules/",
+    "lib/"
+  ]
 }
