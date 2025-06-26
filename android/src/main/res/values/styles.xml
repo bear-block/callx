@@ -27,6 +27,12 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">50%</item>
     </style>
+    
+    <!-- Perfect Circle Avatar Style -->
+    <style name="CircularAvatarStyle">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
 
     <!-- Text Styles -->
     <style name="CallTextPrimary">
