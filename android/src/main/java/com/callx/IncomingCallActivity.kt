@@ -115,11 +115,21 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleDirectAction() {
         intent?.getStringExtra("action")?.let { action ->
             val callId = intent?.getStringExtra(EXTRA_CALL_ID) ?: ""
-            android.util.Log.d("IncomingCallActivity", "🎬 Direct action: $action for call: $callId")
+            val shouldLaunchApp = intent?.getBooleanExtra("launch_app", false) ?: false
+            
+            android.util.Log.d("IncomingCallActivity", "🎬 Direct action: $action for call: $callId, launch_app: $shouldLaunchApp")
             when (action) {
                 "answer" -> {
-                    android.util.Log.d("IncomingCallActivity", "📞 Direct answer action - stopping notification ringtone")
+                    android.util.Log.d("IncomingCallActivity", "📞 Direct answer action - dismissing notification")
+                    // Dismiss notification first
                     CallxModule.onCallAnswered(callId, "")
+                    
+                    // Launch app if requested (from notification)
+                    if (shouldLaunchApp) {
+                        android.util.Log.d("IncomingCallActivity", "🚀 Launching main app after answer")
+                        launchMainApp()
+                    }
+                    
                     finish()
                     return
                 }
@@ -160,7 +170,8 @@ class IncomingCallActivity : AppCompatActivity() {
                 controller.systemBarsBehavior = 
                     android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
-            // Ensure content extends behind system bars
+            // Ensure content extends behind system bars (suppress deprecated warning)
+            @Suppress("DEPRECATION")
             window.setDecorFitsSystemWindows(false)
         } else {
             // Legacy API for older Android versions
@@ -267,11 +278,12 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleAnswerCall() {
         stopRingtoneAndVibration()
         animateButtonPress(answerButton) {
-            android.util.Log.d("IncomingCallActivity", "📞 Call answered - notifying module to stop notification ringtone")
+            android.util.Log.d("IncomingCallActivity", "📞 Call answered - launching main app")
             // Send answer event to module - this will stop notification ringtone
             CallxModule.onCallAnswered(callId, callerNameText)
             
-            // TODO: Transition to in-call UI or finish activity
+            // Launch main app and finish this activity
+            launchMainApp()
             finish()
         }
     }
@@ -289,14 +301,14 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun handleMessageAction() {
-        // TODO: Implement quick message functionality
-        // For now, decline the call and open messaging
+        // Note: Quick message functionality not implemented yet
+        // Declining call for now - could be extended to show message templates
         handleDeclineCall()
     }
 
     private fun handleRemindMeAction() {
-        // TODO: Implement remind me functionality
-        // For now, decline the call
+        // Note: Remind me functionality not implemented yet  
+        // Declining call for now - could be extended to set reminders
         handleDeclineCall()
     }
 
@@ -541,12 +553,78 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
+    // Launch main app when call is answered
+    private fun launchMainApp() {
+        try {
+            android.util.Log.d("IncomingCallActivity", "🚀 Launching main app...")
+            
+            // Check if device is locked
+            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+            val isLocked = keyguardManager.isKeyguardLocked
+            
+            android.util.Log.d("IncomingCallActivity", "🔒 Device locked: $isLocked")
+            
+            val packageManager = packageManager
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            
+            if (launchIntent != null) {
+                val mainAppIntent = Intent(launchIntent).apply {
+                    // Base flags to bring app to foreground
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                           Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                           Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    
+                                         // Note: Intent flags cannot directly unlock screen
+                     // The target activity (MainActivity) needs to handle unlock
+                    
+                    // Add call data for the app to handle
+                    putExtra("call_action", "answer")
+                    putExtra("call_id", callId)
+                    putExtra("caller_name", callerNameText)
+                    putExtra("from_incoming_call", true)
+                    putExtra("device_was_locked", isLocked)
+                }
+                
+                // For locked devices, try to request unlock
+                if (isLocked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    android.util.Log.d("IncomingCallActivity", "🔓 Requesting keyguard dismiss...")
+                    keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
+                        override fun onDismissSucceeded() {
+                            android.util.Log.d("IncomingCallActivity", "✅ Keyguard dismissed - launching app")
+                            startActivity(mainAppIntent)
+                        }
+                        
+                        override fun onDismissError() {
+                            android.util.Log.d("IncomingCallActivity", "❌ Keyguard dismiss failed - launching anyway")
+                            startActivity(mainAppIntent)
+                        }
+                        
+                        override fun onDismissCancelled() {
+                            android.util.Log.d("IncomingCallActivity", "🚫 Keyguard dismiss cancelled - launching anyway")
+                            startActivity(mainAppIntent)
+                        }
+                    })
+                } else {
+                    // Not locked or older Android - launch directly
+                    startActivity(mainAppIntent)
+                }
+                
+                android.util.Log.d("IncomingCallActivity", "✅ Main app launch initiated (locked: $isLocked)")
+            } else {
+                android.util.Log.e("IncomingCallActivity", "❌ Could not find main app launch intent")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("IncomingCallActivity", "❌ Error launching main app", e)
+        }
+    }
+
     override fun onDestroy() {
         android.util.Log.d("IncomingCallActivity", "🏁 Activity destroying - cleaning up media")
         stopRingtoneAndVibration()
         super.onDestroy()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         // Prevent back button from closing call screen
         // User must explicitly answer or decline

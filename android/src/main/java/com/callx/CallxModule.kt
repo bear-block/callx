@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableMap
@@ -16,7 +15,6 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import org.json.JSONObject
-import org.json.JSONException
 
 // Data classes
 data class CallData(
@@ -136,7 +134,6 @@ class CallxModule(reactContext: ReactApplicationContext) :
     try {
       if (currentCall?.callId == callId) {
         currentCall = null
-        // TODO: Dismiss notification/activity
         dismissIncomingCall()
       }
       promise.resolve(null)
@@ -242,6 +239,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  // Legacy testing method - kept for backward compatibility
   override fun multiply(a: Double, b: Double): Double {
     return a * b
   }
@@ -444,11 +442,8 @@ class CallxModule(reactContext: ReactApplicationContext) :
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
       
-      // Create answer intent
-      val answerIntent = Intent(context, IncomingCallActivity::class.java).apply {
-        putExtra("action", "answer")
-        putExtra(IncomingCallActivity.EXTRA_CALL_ID, callData.callId)
-      }
+      // Create answer intent that launches main app
+      val answerIntent = createAnswerIntent(context, callData.callId)
       val answerPendingIntent = PendingIntent.getActivity(
         context,
         1,
@@ -558,6 +553,17 @@ class CallxModule(reactContext: ReactApplicationContext) :
         .emit(eventName, data)
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to send event to JS: $eventName", e)
+    }
+  }
+
+  // Create intent to answer call and launch main app
+  private fun createAnswerIntent(context: Context, callId: String): Intent {
+    // Always go through IncomingCallActivity to properly dismiss notification
+    return Intent(context, IncomingCallActivity::class.java).apply {
+      putExtra("action", "answer")
+      putExtra("launch_app", true) // Special flag to launch app after answer
+      putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId)
+      flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     }
   }
 

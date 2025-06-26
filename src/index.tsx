@@ -15,11 +15,17 @@ interface CallEventListeners {
   onCallDeclined?: CallEventListener;
 }
 
+/**
+ * CallxManager - Main class for managing incoming call functionality
+ * Provides a high-level interface for handling call UI, FCM messages, and call events
+ */
 class CallxManager {
   private listeners: CallEventListeners = {};
 
   /**
    * Initialize Callx with configuration
+   * @param config Configuration object including triggers, fields, and event listeners
+   * @returns Promise that resolves when initialization is complete
    */
   async initialize(config: CallxConfig & CallEventListeners): Promise<void> {
     // Store event listeners

@@ -17,7 +17,6 @@ import messaging from '@react-native-firebase/messaging';
 
 export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [_isInitializing, _setIsInitializing] = useState(true);
   const [currentCall, setCurrentCall] = useState<CallData | null>(null);
   const [isCallActive, setIsCallActive] = useState(false);
   const [fcmToken, setFcmToken] = useState<string>('');
