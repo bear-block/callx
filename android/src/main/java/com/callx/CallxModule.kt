@@ -99,12 +99,18 @@ class CallxModule(reactContext: ReactApplicationContext) :
   // Configuration methods
   override fun initialize(config: ReadableMap?, promise: Promise) {
     try {
+      android.util.Log.d(NAME, "🚀 Initializing Callx with config: $config")
       if (config != null) {
         configuration = parseConfiguration(config)
+        android.util.Log.d(NAME, "🔧 Configuration loaded:")
+        android.util.Log.d(NAME, "   - Triggers: ${configuration.triggers}")
+        android.util.Log.d(NAME, "   - Fields: ${configuration.fields}")
       }
       isInitialized = true
+      android.util.Log.d(NAME, "✅ Callx initialized successfully")
       promise.resolve(null)
     } catch (e: Exception) {
+      android.util.Log.e(NAME, "❌ Initialization failed", e)
       promise.reject("INITIALIZATION_ERROR", "Failed to initialize Callx: ${e.message}", e)
     }
   }
@@ -268,8 +274,58 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   // Private helper methods
   private fun parseConfiguration(config: ReadableMap): CallxConfiguration {
-    // Basic parsing - we'll improve this later
-    return CallxConfiguration()
+    try {
+      android.util.Log.d(NAME, "🔧 Parsing configuration from ReadableMap")
+      
+      // Parse triggers
+      val triggers = mutableMapOf<String, TriggerConfig>()
+      if (config.hasKey("triggers") && config.getMap("triggers") != null) {
+        val triggersMap = config.getMap("triggers")!!
+        val iterator = triggersMap.keySetIterator()
+        while (iterator.hasNextKey()) {
+          val triggerName = iterator.nextKey()
+          val triggerData = triggersMap.getMap(triggerName)
+          if (triggerData != null) {
+            val field = triggerData.getString("field") ?: ""
+            val value = triggerData.getString("value") ?: ""
+            triggers[triggerName] = TriggerConfig(field, value)
+            android.util.Log.d(NAME, "   - Trigger '$triggerName': field='$field', value='$value'")
+          }
+        }
+      }
+      
+      // Parse fields
+      val fields = mutableMapOf<String, FieldConfig>()
+      if (config.hasKey("fields") && config.getMap("fields") != null) {
+        val fieldsMap = config.getMap("fields")!!
+        val iterator = fieldsMap.keySetIterator()
+        while (iterator.hasNextKey()) {
+          val fieldName = iterator.nextKey()
+          val fieldData = fieldsMap.getMap(fieldName)
+          if (fieldData != null) {
+            val field = fieldData.getString("field") ?: ""
+            val fallback = fieldData.getString("fallback")
+            fields[fieldName] = FieldConfig(field, fallback)
+            android.util.Log.d(NAME, "   - Field '$fieldName': field='$field', fallback='$fallback'")
+          }
+        }
+      }
+      
+      // Parse notification config (use defaults for now)
+      val notification = NotificationConfig()
+      
+      val result = CallxConfiguration(
+        triggers = triggers.ifEmpty { CallxConfiguration().triggers },
+        fields = fields.ifEmpty { CallxConfiguration().fields },
+        notification = notification
+      )
+      
+      android.util.Log.d(NAME, "✅ Configuration parsed successfully")
+      return result
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "❌ Error parsing configuration, using defaults", e)
+      return CallxConfiguration()
+    }
   }
 
   private fun parseCallData(data: ReadableMap): CallData {
@@ -368,26 +424,36 @@ class CallxModule(reactContext: ReactApplicationContext) :
     if (fieldConfig == null) return null
     
     try {
+      android.util.Log.d(NAME, "🔍 Getting field '${fieldConfig.field}' from JSON: $json")
+      
       val fieldPath = fieldConfig.field.split(".")
       var current: Any? = json
       
       for (pathSegment in fieldPath) {
+        android.util.Log.d(NAME, "🔍 Processing path segment: '$pathSegment', current type: ${current?.javaClass?.simpleName}")
         when (current) {
           is JSONObject -> {
+            android.util.Log.d(NAME, "🔍 JSON has keys: ${current.keys().asSequence().toList()}")
             current = if (current.has(pathSegment)) {
-              current.get(pathSegment)
+              val value = current.get(pathSegment)
+              android.util.Log.d(NAME, "🔍 Found '$pathSegment' = $value")
+              value
             } else {
+              android.util.Log.d(NAME, "🔍 '$pathSegment' not found in JSON")
               null
             }
           }
           else -> {
+            android.util.Log.d(NAME, "🔍 Current is not JSONObject, breaking")
             current = null
             break
           }
         }
       }
       
-      return current?.toString() ?: fieldConfig.fallback
+      val result = current?.toString() ?: fieldConfig.fallback
+      android.util.Log.d(NAME, "🔍 Final result for '${fieldConfig.field}': '$result'")
+      return result
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Error getting field from JSON: ${fieldConfig.field}", e)
       return fieldConfig.fallback

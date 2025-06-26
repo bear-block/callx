@@ -122,15 +122,26 @@ export default function App() {
       // Handle foreground messages
       const unsubscribe = messaging().onMessage(async (remoteMessage) => {
         console.log('📱 FCM Foreground message:', remoteMessage);
+        console.log(
+          '📱 Full message structure:',
+          JSON.stringify(remoteMessage, null, 2)
+        );
 
         // Handle both data-only and notification+data messages
         const messageData = remoteMessage.data || {};
         const notificationData = remoteMessage.notification || {};
 
         console.log('📊 Message data:', messageData);
+        console.log('📊 Message data type:', typeof messageData);
+        console.log('📊 Message data keys:', Object.keys(messageData));
         console.log('🔔 Notification:', notificationData);
 
         if (messageData.type === 'call.started') {
+          console.log('🎯 Processing call.started message');
+          await CallxInstance.handleFcmMessage(messageData);
+          await refreshCallStatus();
+        } else if (messageData.type === 'call.ended') {
+          console.log('🎯 Processing call.ended message');
           await CallxInstance.handleFcmMessage(messageData);
           await refreshCallStatus();
         } else if (
@@ -147,15 +158,47 @@ export default function App() {
             });
             await refreshCallStatus();
           }
+        } else {
+          console.log('⚠️ FCM message not recognized as call:');
+          console.log('   - messageData.type:', messageData.type);
+          console.log('   - messageData keys:', Object.keys(messageData));
+          console.log('   - notification title:', notificationData.title);
+          console.log(
+            '   - Full messageData:',
+            JSON.stringify(messageData, null, 2)
+          );
+
+          // Try to process anyway if it has call data
+          if (messageData.callId && messageData.callerName) {
+            console.log(
+              '🔧 Attempting to process as call despite missing type'
+            );
+            await CallxInstance.handleFcmMessage({
+              type: 'call.started',
+              ...messageData,
+            });
+            await refreshCallStatus();
+          } else if (messageData.type) {
+            console.log('🔧 Has type but not call.started, trying anyway...');
+            await CallxInstance.handleFcmMessage(messageData);
+            await refreshCallStatus();
+          }
         }
       });
 
       // Handle background messages
       messaging().setBackgroundMessageHandler(async (remoteMessage) => {
         console.log('📱 FCM Background message:', remoteMessage);
+        console.log(
+          '📱 Background full message:',
+          JSON.stringify(remoteMessage, null, 2)
+        );
 
         const messageData = remoteMessage.data || {};
         const notificationData = remoteMessage.notification || {};
+
+        console.log('📊 Background message data:', messageData);
+        console.log('📊 Background data keys:', Object.keys(messageData));
 
         if (messageData.type === 'call.started') {
           await CallxInstance.handleFcmMessage(messageData);
@@ -187,33 +230,33 @@ export default function App() {
       await CallxInstance.initialize({
         triggers: {
           incoming: {
-            field: 'data.type',
+            field: 'type',
             value: 'call.started',
           },
           ended: {
-            field: 'data.type',
+            field: 'type',
             value: 'call.ended',
           },
           missed: {
-            field: 'data.type',
+            field: 'type',
             value: 'call.missed',
           },
         },
         fields: {
           callId: {
-            field: 'data.callId',
+            field: 'callId',
             fallback: 'unknown-call',
           },
           callerName: {
-            field: 'data.callerName',
+            field: 'callerName',
             fallback: 'Unknown Caller',
           },
           callerPhone: {
-            field: 'data.callerPhone',
+            field: 'callerPhone',
             fallback: 'No Number',
           },
           callerAvatar: {
-            field: 'data.callerAvatar',
+            field: 'callerAvatar',
             fallback: 'https://picsum.photos/200/200',
           },
         },
@@ -321,20 +364,27 @@ export default function App() {
   const testFcmMessage = async () => {
     try {
       const fcmData = {
-        data: {
-          type: 'call.started',
-          callId: 'fcm-call-' + Date.now(),
-          callerName: 'FCM Test Caller',
-          callerPhone: '+0987654321',
-          callerAvatar: 'https://picsum.photos/300/300',
-        },
+        type: 'call.started',
+        callId: 'fcm-call-' + Date.now(),
+        callerName: 'FCM Test Caller',
+        callerPhone: '+0987654321',
+        callerAvatar: 'https://picsum.photos/300/300',
       };
 
+      console.log(
+        '🧪 Test FCM Data being sent:',
+        JSON.stringify(fcmData, null, 2)
+      );
+      console.log('🧪 Calling handleFcmMessage...');
+
       await CallxInstance.handleFcmMessage(fcmData);
+
+      console.log('🧪 handleFcmMessage completed');
       await refreshCallStatus();
       Alert.alert('✅ Success', 'FCM message processed!');
     } catch (error) {
-      console.error('Error handling FCM:', error);
+      console.error('❌ Test FCM Error:', error);
+      console.error('❌ Error stack:', (error as Error)?.stack);
       Alert.alert('❌ Error', `Failed to handle FCM: ${error}`);
     }
   };

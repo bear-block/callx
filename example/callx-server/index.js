@@ -234,6 +234,28 @@ app.post('/api/test-notification', async (req, res) => {
   }
 });
 
+app.post('/api/test-data-only', async (req, res) => {
+  try {
+    const {
+      token,
+      testData = { type: 'test.message', content: 'Hello from server' },
+    } = req.body;
+
+    if (!token) return res.status(400).json({ error: 'Token required' });
+    if (!serviceAccount)
+      return res.status(500).json({ error: 'Not configured' });
+
+    // Send ONLY data (no notification)
+    const result = await sendFCM(token, testData, null);
+
+    console.log(`📊 Test data-only message sent:`, testData);
+    res.json({ success: true, result, dataSent: testData });
+  } catch (error) {
+    console.error('❌ Test data-only error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/broadcast', async (req, res) => {
   try {
     const {
