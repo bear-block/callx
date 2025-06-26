@@ -32,9 +32,9 @@
     }
   },
   "notification": {
-    "channelId": "callx_test_calls",
-    "channelName": "Test Calls",
-    "channelDescription": "Test notifications for Callx",
+    "channelId": "callx_incoming_calls_v2",
+    "channelName": "Incoming Calls v2",
+    "channelDescription": "Incoming call notifications with ringtone",
     "importance": "high",
     "sound": "default"
   }
