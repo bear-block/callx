@@ -15,6 +15,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import org.json.JSONObject
+import com.callx.NativeCallxSpec
 
 // Data classes
 data class CallData(
