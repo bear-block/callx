@@ -99,18 +99,12 @@ class CallxModule(reactContext: ReactApplicationContext) :
   // Configuration methods
   override fun initialize(config: ReadableMap?, promise: Promise) {
     try {
-      android.util.Log.d(NAME, "🚀 Initializing Callx with config: $config")
       if (config != null) {
         configuration = parseConfiguration(config)
-        android.util.Log.d(NAME, "🔧 Configuration loaded:")
-        android.util.Log.d(NAME, "   - Triggers: ${configuration.triggers}")
-        android.util.Log.d(NAME, "   - Fields: ${configuration.fields}")
       }
       isInitialized = true
-      android.util.Log.d(NAME, "✅ Callx initialized successfully")
       promise.resolve(null)
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "❌ Initialization failed", e)
       promise.reject("INITIALIZATION_ERROR", "Failed to initialize Callx: ${e.message}", e)
     }
   }
@@ -175,53 +169,34 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  // FCM handling - changed parameter type to Object
   override fun handleFcmMessage(data: ReadableMap, promise: Promise) {
     try {
-      android.util.Log.d(NAME, "🔥 handleFcmMessage called with data: $data")
-      
       val fcmData = readableMapToJson(data)
-      android.util.Log.d(NAME, "📊 FCM JSON data: $fcmData")
-      
       val callData = extractCallDataFromFcm(fcmData)
-      android.util.Log.d(NAME, "📞 Extracted call data: $callData")
       
       if (callData != null) {
         val triggerType = detectTriggerType(fcmData)
-        android.util.Log.d(NAME, "🎯 Detected trigger type: $triggerType")
         
         when (triggerType) {
           "incoming" -> {
-            android.util.Log.d(NAME, "📲 Processing incoming call trigger")
             currentCall = callData
             showIncomingCallActivity(callData)
             sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
           }
           "ended" -> {
-            android.util.Log.d(NAME, "📵 Processing call ended trigger")
             currentCall = null
             dismissIncomingCall()
             sendEventToJS("onCallEnded", callDataToWritableMap(callData))
           }
           "missed" -> {
-            android.util.Log.d(NAME, "📵 Processing call missed trigger")
             currentCall = null
             sendEventToJS("onCallMissed", callDataToWritableMap(callData))
           }
-          null -> {
-            android.util.Log.w(NAME, "⚠️ No trigger detected for FCM data")
-          }
-          else -> {
-            android.util.Log.w(NAME, "⚠️ Unknown trigger type: $triggerType")
-          }
         }
-      } else {
-        android.util.Log.w(NAME, "⚠️ Could not extract call data from FCM")
       }
       
       promise.resolve(null)
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "❌ FCM handle error", e)
       promise.reject("FCM_HANDLE_ERROR", "Failed to handle FCM message: ${e.message}", e)
     }
   }
@@ -267,64 +242,49 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  // Legacy method for testing
   override fun multiply(a: Double, b: Double): Double {
     return a * b
   }
 
   // Private helper methods
   private fun parseConfiguration(config: ReadableMap): CallxConfiguration {
-    try {
-      android.util.Log.d(NAME, "🔧 Parsing configuration from ReadableMap")
+    return try {
+      val triggers = mutableMapOf<String, TriggerConfig>()
+      val fields = mutableMapOf<String, FieldConfig>()
       
       // Parse triggers
-      val triggers = mutableMapOf<String, TriggerConfig>()
-      if (config.hasKey("triggers") && config.getMap("triggers") != null) {
-        val triggersMap = config.getMap("triggers")!!
+      config.getMap("triggers")?.let { triggersMap ->
         val iterator = triggersMap.keySetIterator()
         while (iterator.hasNextKey()) {
           val triggerName = iterator.nextKey()
-          val triggerData = triggersMap.getMap(triggerName)
-          if (triggerData != null) {
+          triggersMap.getMap(triggerName)?.let { triggerData ->
             val field = triggerData.getString("field") ?: ""
             val value = triggerData.getString("value") ?: ""
             triggers[triggerName] = TriggerConfig(field, value)
-            android.util.Log.d(NAME, "   - Trigger '$triggerName': field='$field', value='$value'")
           }
         }
       }
       
       // Parse fields
-      val fields = mutableMapOf<String, FieldConfig>()
-      if (config.hasKey("fields") && config.getMap("fields") != null) {
-        val fieldsMap = config.getMap("fields")!!
+      config.getMap("fields")?.let { fieldsMap ->
         val iterator = fieldsMap.keySetIterator()
         while (iterator.hasNextKey()) {
           val fieldName = iterator.nextKey()
-          val fieldData = fieldsMap.getMap(fieldName)
-          if (fieldData != null) {
+          fieldsMap.getMap(fieldName)?.let { fieldData ->
             val field = fieldData.getString("field") ?: ""
             val fallback = fieldData.getString("fallback")
             fields[fieldName] = FieldConfig(field, fallback)
-            android.util.Log.d(NAME, "   - Field '$fieldName': field='$field', fallback='$fallback'")
           }
         }
       }
       
-      // Parse notification config (use defaults for now)
-      val notification = NotificationConfig()
-      
-      val result = CallxConfiguration(
+      CallxConfiguration(
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
         fields = fields.ifEmpty { CallxConfiguration().fields },
-        notification = notification
+        notification = NotificationConfig()
       )
-      
-      android.util.Log.d(NAME, "✅ Configuration parsed successfully")
-      return result
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "❌ Error parsing configuration, using defaults", e)
-      return CallxConfiguration()
+      CallxConfiguration()
     }
   }
 
@@ -382,14 +342,13 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   private fun extractCallDataFromFcm(fcmData: JSONObject): CallData? {
-    try {
-      // Extract call data using field configuration
+    return try {
       val callId = getFieldFromJson(fcmData, configuration.fields["callId"]) ?: "unknown-call"
       val callerName = getFieldFromJson(fcmData, configuration.fields["callerName"]) ?: "Unknown Caller"
       val callerPhone = getFieldFromJson(fcmData, configuration.fields["callerPhone"]) ?: "No Number"
       val callerAvatar = getFieldFromJson(fcmData, configuration.fields["callerAvatar"])
       
-      return CallData(
+      CallData(
         callId = callId,
         callerName = callerName,
         callerPhone = callerPhone,
@@ -397,88 +356,77 @@ class CallxModule(reactContext: ReactApplicationContext) :
         timestamp = System.currentTimeMillis()
       )
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Error extracting call data from FCM", e)
-      return null
+      null
     }
   }
 
   private fun detectTriggerType(fcmData: JSONObject): String? {
-    try {
-      android.util.Log.d(NAME, "🔍 Detecting trigger type from FCM data")
+    return try {
       for ((triggerName, triggerConfig) in configuration.triggers) {
         val fieldValue = getFieldFromJson(fcmData, FieldConfig(triggerConfig.field))
-        android.util.Log.d(NAME, "🎯 Checking trigger '$triggerName': field='${triggerConfig.field}', expected='${triggerConfig.value}', actual='$fieldValue'")
         if (fieldValue == triggerConfig.value) {
-          android.util.Log.d(NAME, "✅ Trigger matched: $triggerName")
           return triggerName
         }
       }
-      android.util.Log.w(NAME, "⚠️ No triggers matched")
+      null
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Error detecting trigger type", e)
+      null
     }
-    return null
   }
 
   private fun getFieldFromJson(json: JSONObject, fieldConfig: FieldConfig?): String? {
     if (fieldConfig == null) return null
     
-    try {
-      android.util.Log.d(NAME, "🔍 Getting field '${fieldConfig.field}' from JSON: $json")
-      
+    return try {
       val fieldPath = fieldConfig.field.split(".")
       var current: Any? = json
       
       for (pathSegment in fieldPath) {
-        android.util.Log.d(NAME, "🔍 Processing path segment: '$pathSegment', current type: ${current?.javaClass?.simpleName}")
-        when (current) {
-          is JSONObject -> {
-            android.util.Log.d(NAME, "🔍 JSON has keys: ${current.keys().asSequence().toList()}")
-            current = if (current.has(pathSegment)) {
-              val value = current.get(pathSegment)
-              android.util.Log.d(NAME, "🔍 Found '$pathSegment' = $value")
-              value
-            } else {
-              android.util.Log.d(NAME, "🔍 '$pathSegment' not found in JSON")
-              null
-            }
-          }
-          else -> {
-            android.util.Log.d(NAME, "🔍 Current is not JSONObject, breaking")
-            current = null
-            break
-          }
+        current = when (current) {
+          is JSONObject -> if (current.has(pathSegment)) current.get(pathSegment) else null
+          else -> null
         }
+        if (current == null) break
       }
       
-      val result = current?.toString() ?: fieldConfig.fallback
-      android.util.Log.d(NAME, "🔍 Final result for '${fieldConfig.field}': '$result'")
-      return result
+      current?.toString() ?: fieldConfig.fallback
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Error getting field from JSON: ${fieldConfig.field}", e)
-      return fieldConfig.fallback
+      fieldConfig.fallback
     }
   }
 
   private fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val ringtoneUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+      
       val channel = NotificationChannel(
         CHANNEL_ID,
-        configuration.notification.channelName,
+        "Incoming Calls",
         NotificationManager.IMPORTANCE_HIGH
       ).apply {
-        description = configuration.notification.channelDescription
+        description = "Incoming call notifications"
         setShowBadge(true)
         lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+        enableVibration(true)
+        vibrationPattern = longArrayOf(0, 1000, 1000, 1000, 1000)
+        setSound(ringtoneUri, null)
+        setBypassDnd(true)
       }
+      
       notificationManager.createNotificationChannel(channel)
-      android.util.Log.d(NAME, "Notification channel created: $CHANNEL_ID")
     }
   }
 
   private fun showIncomingCallActivity(callData: CallData) {
     try {
       val context = reactApplicationContext
+      
+      // Create caller avatar
+      val callerAvatarBitmap = try {
+        createDefaultAvatarBitmap(context, callData.callerName)
+      } catch (e: Exception) {
+        null
+      }
       
       // Create full screen intent
       val fullScreenIntent = IncomingCallActivity.createIntent(
@@ -520,26 +468,47 @@ class CallxModule(reactContext: ReactApplicationContext) :
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
       
-      // Build notification with full screen intent
+      // Build notification
+      val ringtoneUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+      val currentTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+      
       val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.ic_menu_call)
-        .setContentTitle("Incoming call")
-        .setContentText("${callData.callerName} is calling")
-        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setSmallIcon(android.R.drawable.sym_call_incoming)
+        .setContentTitle(callData.callerName)
+        .setContentText("📱 ${callData.callerPhone}")
+        .setSubText("Incoming call • $currentTime")
+        .setLargeIcon(callerAvatarBitmap)
+        .setPriority(NotificationCompat.PRIORITY_MAX)
         .setCategory(NotificationCompat.CATEGORY_CALL)
-        .setAutoCancel(true)
+        .setAutoCancel(false)
         .setOngoing(true)
+        .setTimeoutAfter(60000)
         .setFullScreenIntent(fullScreenPendingIntent, true)
         .setContentIntent(fullScreenPendingIntent)
         .addAction(android.R.drawable.ic_menu_call, "Answer", answerPendingIntent)
         .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Decline", declinePendingIntent)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setColorized(true)
+        .setColor(0xFF2196F3.toInt()) // Blue accent for action buttons
+        .setStyle(
+          NotificationCompat.BigTextStyle()
+            .bigText("📞 Incoming call from ${callData.callerName}\n📱 ${callData.callerPhone}\n\n🔔 Tap to answer or use buttons below")
+            .setBigContentTitle("Incoming Call")
+            .setSummaryText("Callx • $currentTime")
+        )
+        .setSound(ringtoneUri)
+        .setVibrate(longArrayOf(0, 1000, 1000, 1000, 1000))
+        .setDefaults(0)
+        .setSilent(false)
         .build()
       
-      // Show notification
-      notificationManager.notify(NOTIFICATION_ID, notification)
+      // Add looping flags  
+      notification.flags = notification.flags or 
+        android.app.Notification.FLAG_INSISTENT or
+        android.app.Notification.FLAG_NO_CLEAR or
+        android.app.Notification.FLAG_ONGOING_EVENT
       
-      android.util.Log.d(NAME, "Full screen notification shown for: ${callData.callerName}")
+      notificationManager.notify(NOTIFICATION_ID, notification)
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to show incoming call notification", e)
     }
@@ -548,19 +517,16 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private fun dismissIncomingCall() {
     try {
       notificationManager.cancel(NOTIFICATION_ID)
-      android.util.Log.d(NAME, "Incoming call notification dismissed")
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to dismiss notification", e)
     }
   }
 
   private fun handleAnswerCall(callData: CallData) {
-    android.util.Log.d(NAME, "Call answered: ${callData.callId}")
     sendEventToJS("onCallAnswered", callDataToWritableMap(callData))
   }
 
   private fun handleDeclineCall(callData: CallData) {
-    android.util.Log.d(NAME, "Call declined: ${callData.callId}")
     sendEventToJS("onCallDeclined", callDataToWritableMap(callData))
   }
 
@@ -569,6 +535,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     currentCall?.let { call ->
       if (call.callId == callId) {
         handleAnswerCall(call)
+        dismissIncomingCall()
         currentCall = null
       }
     }
@@ -578,6 +545,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     currentCall?.let { call ->
       if (call.callId == callId) {
         handleDeclineCall(call)
+        dismissIncomingCall()
         currentCall = null
       }
     }
@@ -592,4 +560,68 @@ class CallxModule(reactContext: ReactApplicationContext) :
       android.util.Log.e(NAME, "Failed to send event to JS: $eventName", e)
     }
   }
+
+  // Create a beautiful default avatar with caller initials
+  private fun createDefaultAvatarBitmap(context: Context, callerName: String): android.graphics.Bitmap {
+    val size = 128 // Avatar size in pixels
+    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    
+    // Get initials from caller name
+    val initials = getInitials(callerName)
+    
+    // Background colors for avatar (Material Design colors)
+    val backgroundColors = listOf(
+      0xFF1976D2.toInt(), // Blue
+      0xFF388E3C.toInt(), // Green  
+      0xFF7B1FA2.toInt(), // Purple
+      0xFFD32F2F.toInt(), // Red
+      0xFFF57C00.toInt(), // Orange
+      0xFF5D4037.toInt(), // Brown
+      0xFF455A64.toInt()  // Blue Grey
+    )
+    
+    // Pick color based on name hash for consistency
+    val colorIndex = Math.abs(callerName.hashCode()) % backgroundColors.size
+    val backgroundColor = backgroundColors[colorIndex]
+    
+    // Draw circular background
+    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    paint.color = backgroundColor
+    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+    
+    // Draw initials text
+    paint.color = android.graphics.Color.WHITE
+    paint.textSize = size * 0.4f // 40% of avatar size
+    paint.textAlign = android.graphics.Paint.Align.CENTER
+    paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
+    
+    // Calculate text position (center vertically)
+    val textMetrics = paint.fontMetrics
+    val textHeight = textMetrics.descent - textMetrics.ascent
+    val textY = size / 2f + textHeight / 2f - textMetrics.descent
+    
+    canvas.drawText(initials, size / 2f, textY, paint)
+    
+    return bitmap
+  }
+  
+  // Extract initials from name (max 2 characters)
+  private fun getInitials(name: String): String {
+    return try {
+      val cleanName = name.trim()
+      if (cleanName.isEmpty()) return "?"
+      
+      val words = cleanName.split(" ").filter { it.isNotEmpty() }
+      when {
+        words.isEmpty() -> "?"
+        words.size == 1 -> words[0].take(2).uppercase()
+        else -> "${words[0].first()}${words[1].first()}".uppercase()
+      }
+    } catch (e: Exception) {
+      "?"
+    }
+  }
+
+
 }

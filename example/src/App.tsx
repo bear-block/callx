@@ -296,7 +296,6 @@ export default function App() {
       });
 
       setIsInitialized(true);
-      Alert.alert('✅ Success', 'Callx initialized successfully!');
     } catch (error) {
       console.error('❌ Initialization error:', error);
       Alert.alert('❌ Error', `Failed to initialize: ${error}`);

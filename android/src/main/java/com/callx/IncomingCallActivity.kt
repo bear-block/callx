@@ -56,7 +56,8 @@ class IncomingCallActivity : AppCompatActivity() {
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     
-
+    // Flag to check if launched from notification
+    private var launchedFromNotification: Boolean = false
 
     companion object {
         const val EXTRA_CALL_ID = "call_id"
@@ -114,13 +115,16 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleDirectAction() {
         intent?.getStringExtra("action")?.let { action ->
             val callId = intent?.getStringExtra(EXTRA_CALL_ID) ?: ""
+            android.util.Log.d("IncomingCallActivity", "🎬 Direct action: $action for call: $callId")
             when (action) {
                 "answer" -> {
+                    android.util.Log.d("IncomingCallActivity", "📞 Direct answer action - stopping notification ringtone")
                     CallxModule.onCallAnswered(callId, "")
                     finish()
                     return
                 }
                 "decline" -> {
+                    android.util.Log.d("IncomingCallActivity", "❌ Direct decline action - stopping notification ringtone")
                     CallxModule.onCallDeclined(callId, "")
                     finish()
                     return
@@ -190,6 +194,14 @@ class IncomingCallActivity : AppCompatActivity() {
             callerNameText = intent.getStringExtra(EXTRA_CALLER_NAME) ?: "Unknown Caller"
             callerPhoneText = intent.getStringExtra(EXTRA_CALLER_PHONE) ?: "No Number"
             callerAvatarUrl = intent.getStringExtra(EXTRA_CALLER_AVATAR)
+            
+            // Check if launched from notification (full screen intent)
+            // This happens when app is in background/killed and notification launches activity
+            launchedFromNotification = (intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK) != 0
+            
+            android.util.Log.d("IncomingCallActivity", "🔍 Launch detection:")
+            android.util.Log.d("IncomingCallActivity", "   - Intent flags: ${intent.flags}")
+            android.util.Log.d("IncomingCallActivity", "   - Launched from notification: $launchedFromNotification")
         }
     }
 
@@ -255,7 +267,8 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleAnswerCall() {
         stopRingtoneAndVibration()
         animateButtonPress(answerButton) {
-            // Send answer event to module
+            android.util.Log.d("IncomingCallActivity", "📞 Call answered - notifying module to stop notification ringtone")
+            // Send answer event to module - this will stop notification ringtone
             CallxModule.onCallAnswered(callId, callerNameText)
             
             // TODO: Transition to in-call UI or finish activity
@@ -266,7 +279,8 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleDeclineCall() {
         stopRingtoneAndVibration()
         animateButtonPress(declineButton) {
-            // Send decline event to module
+            android.util.Log.d("IncomingCallActivity", "❌ Call declined - notifying module to stop notification ringtone")
+            // Send decline event to module - this will stop notification ringtone
             CallxModule.onCallDeclined(callId, callerNameText)
             
             // Finish activity
@@ -437,42 +451,58 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun startRingtoneAndVibration() {
         try {
-            // Start ringtone
-            val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            mediaPlayer = MediaPlayer().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .setLegacyStreamType(AudioManager.STREAM_RING)
-                        .build()
-                )
-                setDataSource(this@IncomingCallActivity, ringtoneUri)
-                isLooping = true
-                prepareAsync()
-                setOnPreparedListener { 
-                    start()
+            android.util.Log.d("IncomingCallActivity", "🎵 Starting ringtone and vibration...")
+            android.util.Log.d("IncomingCallActivity", "   - Launched from notification: $launchedFromNotification")
+            
+            // Only start ringtone if NOT launched from notification
+            // Because notification already has looping ringtone with FLAG_INSISTENT
+            if (!launchedFromNotification) {
+                android.util.Log.d("IncomingCallActivity", "🎵 Starting activity ringtone (foreground launch)")
+                // Start ringtone
+                val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                mediaPlayer = MediaPlayer().apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .setLegacyStreamType(AudioManager.STREAM_RING)
+                            .build()
+                    )
+                    setDataSource(this@IncomingCallActivity, ringtoneUri)
+                    isLooping = true
+                    prepareAsync()
+                    setOnPreparedListener { 
+                        start()
+                    }
                 }
+            } else {
+                android.util.Log.d("IncomingCallActivity", "🔇 Skipping activity ringtone (notification already playing looping ringtone)")
             }
             
-            // Start vibration
-            vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vibratorManager.defaultVibrator
+            // Only start vibration if NOT launched from notification (to avoid overlapping)
+            // Because notification already has vibration pattern
+            if (!launchedFromNotification) {
+                android.util.Log.d("IncomingCallActivity", "📳 Starting activity vibration (foreground launch)")
+                vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                    vibratorManager.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                }
+                
+                // Vibration pattern: [delay, vibrate, pause, vibrate, ...]
+                val vibrationPattern = longArrayOf(0, 1000, 1000, 1000, 1000)
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val vibrationEffect = VibrationEffect.createWaveform(vibrationPattern, 0)
+                    vibrator?.vibrate(vibrationEffect)
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(vibrationPattern, 0)
+                }
             } else {
-                @Suppress("DEPRECATION")
-                getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            }
-            
-            // Vibration pattern: [delay, vibrate, pause, vibrate, ...]
-            val vibrationPattern = longArrayOf(0, 1000, 1000, 1000, 1000)
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val vibrationEffect = VibrationEffect.createWaveform(vibrationPattern, 0)
-                vibrator?.vibrate(vibrationEffect)
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(vibrationPattern, 0)
+                android.util.Log.d("IncomingCallActivity", "📳 Skipping activity vibration (notification already vibrating)")
             }
             
         } catch (e: Exception) {
@@ -482,22 +512,37 @@ class IncomingCallActivity : AppCompatActivity() {
     
     private fun stopRingtoneAndVibration() {
         try {
-            mediaPlayer?.apply {
-                if (isPlaying) {
-                    stop()
-                }
-                release()
-            }
-            mediaPlayer = null
+            android.util.Log.d("IncomingCallActivity", "🔇 Stopping ringtone and vibration...")
             
-            vibrator?.cancel()
-            vibrator = null
+            // Only stop ringtone if we started it (not launched from notification)
+            if (!launchedFromNotification && mediaPlayer != null) {
+                android.util.Log.d("IncomingCallActivity", "🔇 Stopping activity ringtone")
+                mediaPlayer?.apply {
+                    if (isPlaying) {
+                        stop()
+                    }
+                    release()
+                }
+                mediaPlayer = null
+            } else {
+                android.util.Log.d("IncomingCallActivity", "🔇 No activity ringtone to stop (using notification ringtone)")
+            }
+            
+            // Only stop vibration if we started it (not launched from notification)
+            if (!launchedFromNotification && vibrator != null) {
+                android.util.Log.d("IncomingCallActivity", "📳 Stopping activity vibration")
+                vibrator?.cancel()
+                vibrator = null
+            } else {
+                android.util.Log.d("IncomingCallActivity", "📳 No activity vibration to stop (using notification vibration)")
+            }
         } catch (e: Exception) {
             android.util.Log.e("IncomingCallActivity", "Error stopping ringtone/vibration", e)
         }
     }
 
     override fun onDestroy() {
+        android.util.Log.d("IncomingCallActivity", "🏁 Activity destroying - cleaning up media")
         stopRingtoneAndVibration()
         super.onDestroy()
     }
@@ -505,5 +550,6 @@ class IncomingCallActivity : AppCompatActivity() {
     override fun onBackPressed() {
         // Prevent back button from closing call screen
         // User must explicitly answer or decline
+        android.util.Log.d("IncomingCallActivity", "⬅️ Back button pressed - ignoring (must answer/decline)")
     }
 } 
