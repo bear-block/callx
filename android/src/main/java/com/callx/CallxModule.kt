@@ -86,6 +86,9 @@ class CallxModule(reactContext: ReactApplicationContext) :
     fun onCallDeclined(callId: String, callerName: String) {
       moduleInstance?.handleCallDeclined(callId, callerName)
     }
+
+    // Public access for Firebase service
+    fun getInstance(): CallxModule? = moduleInstance
   }
 
   init {
@@ -424,6 +427,19 @@ class CallxModule(reactContext: ReactApplicationContext) :
       }
       
       notificationManager.createNotificationChannel(channel)
+    }
+  }
+
+  // Public method for Firebase service to call
+  fun showIncomingCallFromService(callData: CallData) {
+    currentCall = callData
+    showIncomingCallActivity(callData)
+    // Notify JS layer if app is active
+    try {
+      sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
+    } catch (e: Exception) {
+      // JS layer might not be available in background, ignore
+      android.util.Log.d(NAME, "JS layer not available, skipping event")
     }
   }
 

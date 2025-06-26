@@ -118,100 +118,34 @@ export default function App() {
         console.log('🔄 FCM Token refreshed:', refreshedToken);
       });
 
-      // Handle foreground messages
+      // Handle foreground messages (optional - native service handles most cases)
       const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-        console.log('📱 FCM Foreground message:', remoteMessage);
-        console.log(
-          '📱 Full message structure:',
-          JSON.stringify(remoteMessage, null, 2)
-        );
+        console.log('📱 FCM Foreground message (JS layer):', remoteMessage);
 
-        // Handle both data-only and notification+data messages
+        // Native service will handle the heavy lifting
+        // JS layer only needs to update UI state if needed
         const messageData = remoteMessage.data || {};
-        const notificationData = remoteMessage.notification || {};
 
-        console.log('📊 Message data:', messageData);
-        console.log('📊 Message data type:', typeof messageData);
-        console.log('📊 Message data keys:', Object.keys(messageData));
-        console.log('🔔 Notification:', notificationData);
-
-        if (messageData.type === 'call.started') {
-          console.log('🎯 Processing call.started message');
-          await CallxInstance.handleFcmMessage(messageData);
-          await refreshCallStatus();
-        } else if (messageData.type === 'call.ended') {
-          console.log('🎯 Processing call.ended message');
-          await CallxInstance.handleFcmMessage(messageData);
-          await refreshCallStatus();
-        } else if (
-          notificationData.title === 'Incoming Call' ||
-          notificationData.body?.includes('call')
+        if (
+          messageData.type === 'call.started' ||
+          messageData.type === 'call.ended'
         ) {
-          // Fallback: detect call from notification content
-          console.log('🔍 Detected call from notification content');
-          // Extract data from custom data fields if available
-          if (messageData.callId || messageData.callerName) {
-            await CallxInstance.handleFcmMessage({
-              type: 'call.started',
-              ...messageData,
-            });
-            await refreshCallStatus();
-          }
-        } else {
-          console.log('⚠️ FCM message not recognized as call:');
-          console.log('   - messageData.type:', messageData.type);
-          console.log('   - messageData keys:', Object.keys(messageData));
-          console.log('   - notification title:', notificationData.title);
-          console.log(
-            '   - Full messageData:',
-            JSON.stringify(messageData, null, 2)
-          );
-
-          // Try to process anyway if it has call data
-          if (messageData.callId && messageData.callerName) {
-            console.log(
-              '🔧 Attempting to process as call despite missing type'
-            );
-            await CallxInstance.handleFcmMessage({
-              type: 'call.started',
-              ...messageData,
-            });
-            await refreshCallStatus();
-          } else if (messageData.type) {
-            console.log('🔧 Has type but not call.started, trying anyway...');
-            await CallxInstance.handleFcmMessage(messageData);
-            await refreshCallStatus();
-          }
+          console.log('🔄 Refreshing call status from foreground FCM');
+          await refreshCallStatus();
         }
       });
 
-      // Handle background messages
+      // Handle background messages (mostly handled by native service now)
       messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-        console.log('📱 FCM Background message:', remoteMessage);
-        console.log(
-          '📱 Background full message:',
-          JSON.stringify(remoteMessage, null, 2)
-        );
+        console.log('📱 FCM Background message (JS layer):', remoteMessage);
 
+        // Native service handles the actual processing
+        // This is just for logging or any JS-specific logic
         const messageData = remoteMessage.data || {};
-        const notificationData = remoteMessage.notification || {};
-
-        console.log('📊 Background message data:', messageData);
         console.log('📊 Background data keys:', Object.keys(messageData));
 
-        if (messageData.type === 'call.started') {
-          await CallxInstance.handleFcmMessage(messageData);
-        } else if (
-          notificationData.title === 'Incoming Call' ||
-          notificationData.body?.includes('call')
-        ) {
-          if (messageData.callId || messageData.callerName) {
-            await CallxInstance.handleFcmMessage({
-              type: 'call.started',
-              ...messageData,
-            });
-          }
-        }
+        // No need to process - native service handles it
+        console.log('✅ Background message delegated to native service');
       });
 
       return unsubscribe;
