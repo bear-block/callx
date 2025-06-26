@@ -13,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.imageview.ShapeableImageView
-import java.util.*
 
 class IncomingCallActivity : AppCompatActivity() {
 
@@ -21,7 +20,6 @@ class IncomingCallActivity : AppCompatActivity() {
     private lateinit var callerAvatar: ShapeableImageView
     private lateinit var callerName: TextView
     private lateinit var callerPhone: TextView
-    private lateinit var callDuration: TextView
     private lateinit var answerButton: FloatingActionButton
     private lateinit var declineButton: FloatingActionButton
     private lateinit var messageButton: MaterialButton
@@ -32,10 +30,6 @@ class IncomingCallActivity : AppCompatActivity() {
     private var callerNameText: String = ""
     private var callerPhoneText: String = ""
     private var callerAvatarUrl: String? = null
-
-    // Timer for call duration
-    private var callStartTime: Long = 0
-    private var durationTimer: Timer? = null
 
     companion object {
         const val EXTRA_CALL_ID = "call_id"
@@ -65,6 +59,9 @@ class IncomingCallActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Check for direct action first
+        handleDirectAction()
+        
         // Set content view first
         setContentView(R.layout.activity_incoming_call)
         
@@ -82,9 +79,24 @@ class IncomingCallActivity : AppCompatActivity() {
         
         // Setup button listeners
         setupButtonListeners()
-        
-        // Start call timer
-        startCallTimer()
+    }
+
+    private fun handleDirectAction() {
+        intent?.getStringExtra("action")?.let { action ->
+            val callId = intent?.getStringExtra(EXTRA_CALL_ID) ?: ""
+            when (action) {
+                "answer" -> {
+                    CallxModule.onCallAnswered(callId, "")
+                    finish()
+                    return
+                }
+                "decline" -> {
+                    CallxModule.onCallDeclined(callId, "")
+                    finish()
+                    return
+                }
+            }
+        }
     }
 
     private fun setupFullScreenCall() {
@@ -128,7 +140,6 @@ class IncomingCallActivity : AppCompatActivity() {
         callerAvatar = findViewById(R.id.iv_caller_avatar)
         callerName = findViewById(R.id.tv_caller_name)
         callerPhone = findViewById(R.id.tv_caller_phone)
-        callDuration = findViewById(R.id.tv_call_duration)
         answerButton = findViewById(R.id.fab_answer)
         declineButton = findViewById(R.id.fab_decline)
         messageButton = findViewById(R.id.btn_message)
@@ -151,9 +162,6 @@ class IncomingCallActivity : AppCompatActivity() {
         
         // Load caller avatar
         loadCallerAvatar()
-        
-        // Initially hide call duration
-        callDuration.visibility = View.GONE
     }
 
     private fun loadCallerAvatar() {
@@ -191,32 +199,7 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
-    private fun startCallTimer() {
-        callStartTime = System.currentTimeMillis()
-        durationTimer = Timer().apply {
-            scheduleAtFixedRate(object : TimerTask() {
-                override fun run() {
-                    runOnUiThread {
-                        updateCallDuration()
-                    }
-                }
-            }, 1000, 1000) // Update every second
-        }
-    }
-
-    private fun updateCallDuration() {
-        val elapsed = System.currentTimeMillis() - callStartTime
-        val seconds = (elapsed / 1000) % 60
-        val minutes = (elapsed / (1000 * 60)) % 60
-        
-        callDuration.text = String.format("%02d:%02d", minutes, seconds)
-        callDuration.visibility = View.VISIBLE
-    }
-
     private fun handleAnswerCall() {
-        // Stop timer
-        durationTimer?.cancel()
-        
         // Send answer event to module
         CallxModule.onCallAnswered(callId, callerNameText)
         
@@ -225,9 +208,6 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun handleDeclineCall() {
-        // Stop timer
-        durationTimer?.cancel()
-        
         // Send decline event to module
         CallxModule.onCallDeclined(callId, callerNameText)
         
@@ -249,7 +229,6 @@ class IncomingCallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        durationTimer?.cancel()
     }
 
     override fun onBackPressed() {

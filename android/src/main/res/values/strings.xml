@@ -10,7 +10,6 @@
     <!-- Default Values -->
     <string name="default_caller_name">Unknown Caller</string>
     <string name="default_caller_phone">No Number</string>
-    <string name="call_duration_placeholder">00:00</string>
     
     <!-- Button Labels -->
     <string name="answer_call">Answer</string>

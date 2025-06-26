@@ -21,6 +21,32 @@ A React Native library for managing incoming calls on Android through FCM (Fireb
 npm install callx
 ```
 
+## Development & Testing
+
+### Callx Server (Web UI)
+
+For easy testing during development, Callx includes a web server for sending FCM test calls:
+
+```bash
+# Start the test server
+yarn server
+
+# Or directly
+cd example/callx-server
+npm start
+
+# Open web UI
+open http://localhost:3001
+```
+
+Features:
+- 📱 **Device Registration** - Register FCM tokens from your React Native app
+- 📞 **Call Controls** - Start/end calls with custom data through web UI
+- 📡 **Broadcast Testing** - Send test calls to multiple devices
+- 🎯 **Real-time Status** - Monitor active calls and registered devices
+
+See [example/callx-server/README.md](example/callx-server/README.md) for detailed setup instructions.
+
 ## Setup
 
 ### React Native CLI

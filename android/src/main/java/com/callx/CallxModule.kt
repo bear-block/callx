@@ -1,6 +1,13 @@
 package com.callx
 
 import android.content.Intent
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableMap
@@ -60,9 +67,14 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private var configuration: CallxConfiguration = CallxConfiguration()
   private var currentCall: CallData? = null
   private var isInitialized: Boolean = false
+  private val notificationManager: NotificationManager by lazy {
+    reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+  }
 
   companion object {
     const val NAME = "Callx"
+    const val CHANNEL_ID = "callx_incoming_calls"
+    const val NOTIFICATION_ID = 1001
     private var moduleInstance: CallxModule? = null
 
     // Static methods for activity callbacks
@@ -77,6 +89,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   init {
     moduleInstance = this
+    createNotificationChannel()
   }
 
   override fun getName(): String {
@@ -159,31 +172,50 @@ class CallxModule(reactContext: ReactApplicationContext) :
   // FCM handling - changed parameter type to Object
   override fun handleFcmMessage(data: ReadableMap, promise: Promise) {
     try {
+      android.util.Log.d(NAME, "🔥 handleFcmMessage called with data: $data")
+      
       val fcmData = readableMapToJson(data)
+      android.util.Log.d(NAME, "📊 FCM JSON data: $fcmData")
+      
       val callData = extractCallDataFromFcm(fcmData)
+      android.util.Log.d(NAME, "📞 Extracted call data: $callData")
       
       if (callData != null) {
         val triggerType = detectTriggerType(fcmData)
+        android.util.Log.d(NAME, "🎯 Detected trigger type: $triggerType")
+        
         when (triggerType) {
           "incoming" -> {
+            android.util.Log.d(NAME, "📲 Processing incoming call trigger")
             currentCall = callData
             showIncomingCallActivity(callData)
             sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
           }
           "ended" -> {
+            android.util.Log.d(NAME, "📵 Processing call ended trigger")
             currentCall = null
             dismissIncomingCall()
             sendEventToJS("onCallEnded", callDataToWritableMap(callData))
           }
           "missed" -> {
+            android.util.Log.d(NAME, "📵 Processing call missed trigger")
             currentCall = null
             sendEventToJS("onCallMissed", callDataToWritableMap(callData))
           }
+          null -> {
+            android.util.Log.w(NAME, "⚠️ No trigger detected for FCM data")
+          }
+          else -> {
+            android.util.Log.w(NAME, "⚠️ Unknown trigger type: $triggerType")
+          }
         }
+      } else {
+        android.util.Log.w(NAME, "⚠️ Could not extract call data from FCM")
       }
       
       promise.resolve(null)
     } catch (e: Exception) {
+      android.util.Log.e(NAME, "❌ FCM handle error", e)
       promise.reject("FCM_HANDLE_ERROR", "Failed to handle FCM message: ${e.message}", e)
     }
   }
@@ -261,43 +293,199 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   private fun readableMapToJson(readableMap: ReadableMap): JSONObject {
-    // Basic implementation - convert ReadableMap to JSONObject
     val json = JSONObject()
-    // TODO: Implement proper conversion
+    try {
+      val iterator = readableMap.keySetIterator()
+      while (iterator.hasNextKey()) {
+        val key = iterator.nextKey()
+        val value = readableMap.getType(key)
+        when (value) {
+          com.facebook.react.bridge.ReadableType.String -> {
+            json.put(key, readableMap.getString(key))
+          }
+          com.facebook.react.bridge.ReadableType.Number -> {
+            json.put(key, readableMap.getDouble(key))
+          }
+          com.facebook.react.bridge.ReadableType.Boolean -> {
+            json.put(key, readableMap.getBoolean(key))
+          }
+          com.facebook.react.bridge.ReadableType.Map -> {
+            readableMap.getMap(key)?.let { nestedMap ->
+              json.put(key, readableMapToJson(nestedMap))
+            }
+          }
+          else -> {
+            // Skip arrays and null for now
+          }
+        }
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error converting ReadableMap to JSON", e)
+    }
     return json
   }
 
   private fun extractCallDataFromFcm(fcmData: JSONObject): CallData? {
-    // TODO: Extract call data using field configuration
-    return null
+    try {
+      // Extract call data using field configuration
+      val callId = getFieldFromJson(fcmData, configuration.fields["callId"]) ?: "unknown-call"
+      val callerName = getFieldFromJson(fcmData, configuration.fields["callerName"]) ?: "Unknown Caller"
+      val callerPhone = getFieldFromJson(fcmData, configuration.fields["callerPhone"]) ?: "No Number"
+      val callerAvatar = getFieldFromJson(fcmData, configuration.fields["callerAvatar"])
+      
+      return CallData(
+        callId = callId,
+        callerName = callerName,
+        callerPhone = callerPhone,
+        callerAvatar = callerAvatar,
+        timestamp = System.currentTimeMillis()
+      )
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error extracting call data from FCM", e)
+      return null
+    }
   }
 
   private fun detectTriggerType(fcmData: JSONObject): String? {
-    // TODO: Detect trigger type based on configuration
+    try {
+      android.util.Log.d(NAME, "🔍 Detecting trigger type from FCM data")
+      for ((triggerName, triggerConfig) in configuration.triggers) {
+        val fieldValue = getFieldFromJson(fcmData, FieldConfig(triggerConfig.field))
+        android.util.Log.d(NAME, "🎯 Checking trigger '$triggerName': field='${triggerConfig.field}', expected='${triggerConfig.value}', actual='$fieldValue'")
+        if (fieldValue == triggerConfig.value) {
+          android.util.Log.d(NAME, "✅ Trigger matched: $triggerName")
+          return triggerName
+        }
+      }
+      android.util.Log.w(NAME, "⚠️ No triggers matched")
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error detecting trigger type", e)
+    }
     return null
+  }
+
+  private fun getFieldFromJson(json: JSONObject, fieldConfig: FieldConfig?): String? {
+    if (fieldConfig == null) return null
+    
+    try {
+      val fieldPath = fieldConfig.field.split(".")
+      var current: Any? = json
+      
+      for (pathSegment in fieldPath) {
+        when (current) {
+          is JSONObject -> {
+            current = if (current.has(pathSegment)) {
+              current.get(pathSegment)
+            } else {
+              null
+            }
+          }
+          else -> {
+            current = null
+            break
+          }
+        }
+      }
+      
+      return current?.toString() ?: fieldConfig.fallback
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error getting field from JSON: ${fieldConfig.field}", e)
+      return fieldConfig.fallback
+    }
+  }
+
+  private fun createNotificationChannel() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val channel = NotificationChannel(
+        CHANNEL_ID,
+        configuration.notification.channelName,
+        NotificationManager.IMPORTANCE_HIGH
+      ).apply {
+        description = configuration.notification.channelDescription
+        setShowBadge(true)
+        lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+      }
+      notificationManager.createNotificationChannel(channel)
+      android.util.Log.d(NAME, "Notification channel created: $CHANNEL_ID")
+    }
   }
 
   private fun showIncomingCallActivity(callData: CallData) {
     try {
       val context = reactApplicationContext
-      val intent = IncomingCallActivity.createIntent(
+      
+      // Create full screen intent
+      val fullScreenIntent = IncomingCallActivity.createIntent(
         context,
         callData.callId,
         callData.callerName,
         callData.callerPhone,
         callData.callerAvatar
       )
-      context.startActivity(intent)
       
-      android.util.Log.d(NAME, "Showing incoming call activity for: ${callData.callerName}")
+      val fullScreenPendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        fullScreenIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+      
+      // Create answer intent
+      val answerIntent = Intent(context, IncomingCallActivity::class.java).apply {
+        putExtra("action", "answer")
+        putExtra(IncomingCallActivity.EXTRA_CALL_ID, callData.callId)
+      }
+      val answerPendingIntent = PendingIntent.getActivity(
+        context,
+        1,
+        answerIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+      
+      // Create decline intent
+      val declineIntent = Intent(context, IncomingCallActivity::class.java).apply {
+        putExtra("action", "decline")
+        putExtra(IncomingCallActivity.EXTRA_CALL_ID, callData.callId)
+      }
+      val declinePendingIntent = PendingIntent.getActivity(
+        context,
+        2,
+        declineIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+      )
+      
+      // Build notification with full screen intent
+      val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        .setSmallIcon(android.R.drawable.ic_menu_call)
+        .setContentTitle("Incoming call")
+        .setContentText("${callData.callerName} is calling")
+        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setCategory(NotificationCompat.CATEGORY_CALL)
+        .setAutoCancel(true)
+        .setOngoing(true)
+        .setFullScreenIntent(fullScreenPendingIntent, true)
+        .setContentIntent(fullScreenPendingIntent)
+        .addAction(android.R.drawable.ic_menu_call, "Answer", answerPendingIntent)
+        .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Decline", declinePendingIntent)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .build()
+      
+      // Show notification
+      notificationManager.notify(NOTIFICATION_ID, notification)
+      
+      android.util.Log.d(NAME, "Full screen notification shown for: ${callData.callerName}")
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Failed to show incoming call activity", e)
+      android.util.Log.e(NAME, "Failed to show incoming call notification", e)
     }
   }
 
   private fun dismissIncomingCall() {
-    // TODO: Dismiss notification/activity
-    android.util.Log.d(NAME, "Dismissing incoming call")
+    try {
+      notificationManager.cancel(NOTIFICATION_ID)
+      android.util.Log.d(NAME, "Incoming call notification dismissed")
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to dismiss notification", e)
+    }
   }
 
   private fun handleAnswerCall(callData: CallData) {
