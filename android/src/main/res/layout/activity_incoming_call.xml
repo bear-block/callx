@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/call_background_gradient"
-    android:fitsSystemWindows="true"
     tools:context=".IncomingCallActivity">
 
     <!-- Background overlay -->
@@ -19,21 +18,12 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Status bar spacer -->
-    <View
-        android:id="@+id/status_bar_spacer"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/status_bar_height"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <!-- Incoming call label -->
     <TextView
         android:id="@+id/tv_incoming_call_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="64dp"
         android:text="@string/incoming_call"
         android:textColor="@color/white"
         android:textSize="16sp"
@@ -41,7 +31,7 @@
         android:alpha="0.9"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/status_bar_spacer" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Caller avatar container -->
     <FrameLayout
@@ -129,7 +119,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginBottom="80dp"
+        android:layout_marginBottom="120dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">

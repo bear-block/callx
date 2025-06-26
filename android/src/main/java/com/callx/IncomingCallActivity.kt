@@ -145,22 +145,30 @@ class IncomingCallActivity : AppCompatActivity() {
         // Keep screen on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        // Full screen flags
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        
-        // Hide navigation and status bars for immersive experience
+        // Full screen flags - remove layout flags and use modern approach
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.hide(
-                android.view.WindowInsets.Type.statusBars() or
-                android.view.WindowInsets.Type.navigationBars()
-            )
+            // Modern API - hide status and navigation bars completely
+            window.insetsController?.let { controller ->
+                controller.hide(
+                    android.view.WindowInsets.Type.statusBars() or
+                    android.view.WindowInsets.Type.navigationBars()
+                )
+                controller.systemBarsBehavior = 
+                    android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+            // Ensure content extends behind system bars
+            window.setDecorFitsSystemWindows(false)
         } else {
+            // Legacy API for older Android versions
             @Suppress("DEPRECATION")
             window.decorView?.let { decorView ->
                 decorView.systemUiVisibility = (
                     View.SYSTEM_UI_FLAG_FULLSCREEN or
                     View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                 )
             }
         }
