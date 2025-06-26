@@ -14,6 +14,8 @@ A React Native library for managing incoming calls on Android through FCM (Fireb
 - 🎛️ **Dual Handling Modes**: Native automatic handling or custom manual control
 - 🔊 **Event Listeners**: JavaScript listeners for answer/decline call actions
 - 🎪 **Customizable UI**: Support for custom themes and branding
+- 🔒 **Lock Screen Management**: Security & UX control for over lock screen display
+- 🛡️ **Enterprise Ready**: Configurable security modes for different app requirements
 
 ## Installation
 
@@ -40,6 +42,7 @@ open http://localhost:3001
 ```
 
 Features:
+
 - 📱 **Device Registration** - Register FCM tokens from your React Native app
 - 📞 **Call Controls** - Start/end calls with custom data through web UI
 - 📡 **Broadcast Testing** - Send test calls to multiple devices
@@ -47,21 +50,71 @@ Features:
 
 See [example/callx-server/README.md](example/callx-server/README.md) for detailed setup instructions.
 
+## 🔒 Lock Screen Management
+
+Callx provides comprehensive lock screen management for security and UX control:
+
+### Quick Start
+
+```typescript
+import CallxInstance from 'callx';
+
+// Hide app from lock screen after call ends (recommended)
+await CallxInstance.hideFromLockScreen();
+
+// Move app to background without lock screen changes
+await CallxInstance.moveAppToBackground();
+```
+
+### Security Modes
+
+- **🔐 HIGH SECURITY**: Show caller info but require unlock to interact
+- **🔓 STANDARD**: Show over lock screen, allow immediate interaction
+- **🔒 SECURE**: Don't show over lock screen, require unlock first
+- **📱 MINIMAL**: Standard behavior
+
+### Documentation
+
+- **📚 [Complete Guide](LOCKSCREEN_MANAGEMENT.md)** - Comprehensive documentation
+- **📋 [API Reference](LOCKSCREEN_API_REFERENCE.md)** - Quick method reference
+- **🔧 Configuration examples and best practices**
+
+### Example Usage
+
+```typescript
+// Setup with lock screen management
+await CallxInstance.initialize({
+  onCallEnded: async (callData) => {
+    // Hide from lock screen for security
+    await CallxInstance.hideFromLockScreen();
+  },
+  onCallDeclined: async (callData) => {
+    // Also hide when call is declined
+    await CallxInstance.hideFromLockScreen();
+  },
+});
+```
+
+Perfect for **banking**, **healthcare**, and **enterprise** apps requiring enhanced security.
+
 ## Setup
 
 ### React Native CLI
 
 1. **Install the library:**
+
 ```sh
 npm install callx
 ```
 
 2. **Link the library (if not using auto-linking):**
+
 ```sh
 npx react-native link callx
 ```
 
 3. **Add Firebase dependencies to `android/app/build.gradle`:**
+
 ```gradle
 dependencies {
     // ... other dependencies
@@ -71,6 +124,7 @@ dependencies {
 ```
 
 4. **Add Google Services plugin to `android/build.gradle`:**
+
 ```gradle
 buildscript {
     dependencies {
@@ -81,6 +135,7 @@ buildscript {
 ```
 
 5. **Apply Google Services plugin in `android/app/build.gradle`:**
+
 ```gradle
 apply plugin: 'com.google.gms.google-services'
 ```
@@ -90,6 +145,7 @@ apply plugin: 'com.google.gms.google-services'
 ### Expo
 
 1. **Install the library:**
+
 ```sh
 npx expo install callx
 ```
@@ -110,7 +166,7 @@ npx expo install callx
                 "value": "call.started"
               },
               "ended": {
-                "field": "data.type", 
+                "field": "data.type",
                 "value": "call.ended"
               },
               "missed": {
@@ -168,51 +224,51 @@ export default {
             triggers: {
               incoming: {
                 field: 'data.type',
-                value: 'call.started'
+                value: 'call.started',
               },
               ended: {
                 field: 'data.type',
-                value: 'call.ended'
+                value: 'call.ended',
               },
               missed: {
                 field: 'data.type',
-                value: 'call.missed'
-              }
+                value: 'call.missed',
+              },
             },
             fields: {
               callId: {
                 field: 'data.callId',
-                fallback: 'unknown-call'
+                fallback: 'unknown-call',
               },
               callerName: {
                 field: 'data.callerName',
-                fallback: 'Unknown Caller'
+                fallback: 'Unknown Caller',
               },
               callerPhone: {
                 field: 'data.callerPhone',
-                fallback: 'No Number'
+                fallback: 'No Number',
               },
               callerAvatar: {
                 field: 'data.callerAvatar',
-                fallback: null
-              }
+                fallback: null,
+              },
             },
             notification: {
               channelId: 'callx_incoming_calls',
               channelName: 'Incoming Calls',
               channelDescription: 'Notifications for incoming calls',
               importance: 'high',
-              sound: 'default'
+              sound: 'default',
             },
             handling: {
               mode: 'native',
-              enableCustomUI: false
-            }
-          }
-        }
-      ]
-    ]
-  }
+              enableCustomUI: false,
+            },
+          },
+        },
+      ],
+    ],
+  },
 };
 ```
 
@@ -254,13 +310,13 @@ Callx provides JavaScript event listeners for call actions:
 ### Setup Event Listeners
 
 ```javascript
-import { 
-  initialize, 
-  onAnswerCall, 
-  onDeclineCall, 
-  onIncomingCall, 
-  onEndedCall, 
-  onMissedCall 
+import {
+  initialize,
+  onAnswerCall,
+  onDeclineCall,
+  onIncomingCall,
+  onEndedCall,
+  onMissedCall,
 } from 'callx';
 
 // Initialize Callx
@@ -268,13 +324,13 @@ await initialize({
   triggers: {
     incoming: { field: 'type', value: 'incoming_call' },
     ended: { field: 'type', value: 'call_ended' },
-    missed: { field: 'type', value: 'call_missed' }
+    missed: { field: 'type', value: 'call_missed' },
   },
   callerData: {
     callId: 'id',
     callerName: 'name',
     callerNumber: 'phone',
-    callerAvatar: 'avatar'
+    callerAvatar: 'avatar',
   },
   handlingMode: 'native',
   notification: {
@@ -282,8 +338,8 @@ await initialize({
     channelName: 'Incoming Calls',
     channelDescription: 'Notifications for incoming calls',
     sound: 'default',
-    vibration: true
-  }
+    vibration: true,
+  },
 });
 
 // Set up event listeners
@@ -333,11 +389,11 @@ onMissedCall((callId) => {
 ```javascript
 import React, { useEffect } from 'react';
 import { Alert } from 'react-native';
-import { 
-  initialize, 
-  onAnswerCall, 
-  onDeclineCall, 
-  showIncomingCall 
+import {
+  initialize,
+  onAnswerCall,
+  onDeclineCall,
+  showIncomingCall
 } from 'callx';
 
 const App = () => {
@@ -410,7 +466,7 @@ import { Callx } from 'callx';
 Callx.initialize({
   handling: {
     mode: 'native', // Default - automatic handling
-    enableCustomUI: false
+    enableCustomUI: false,
   },
   // Listeners for additional custom logic
   onIncomingCall: (callData) => {
@@ -424,7 +480,7 @@ Callx.initialize({
   onCallMissed: (callData) => {
     console.log('Call missed:', callData);
     // Native UI will be dismissed automatically
-  }
+  },
 });
 ```
 
@@ -438,7 +494,7 @@ import { Callx } from 'callx';
 Callx.initialize({
   handling: {
     mode: 'custom', // Custom handling
-    enableCustomUI: true
+    enableCustomUI: true,
   },
   // Required listeners for custom handling
   onIncomingCall: (callData) => {
@@ -455,7 +511,7 @@ Callx.initialize({
     console.log('Call missed:', callData);
     // Show your custom missed call notification
     showCustomMissedCallNotification(callData);
-  }
+  },
 });
 ```
 
@@ -469,7 +525,7 @@ import { Callx } from 'callx';
 Callx.initialize({
   handling: {
     mode: 'hybrid', // Native + custom UI
-    enableCustomUI: true
+    enableCustomUI: true,
   },
   onIncomingCall: (callData) => {
     console.log('Incoming call:', callData);
@@ -480,7 +536,7 @@ Callx.initialize({
     console.log('Call ended:', callData);
     // Hide your custom overlay
     hideCustomCallOverlay();
-  }
+  },
 });
 ```
 
@@ -508,11 +564,11 @@ Your FCM payload should follow this structure:
 
 ### Configuration Options
 
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `field` | string | Field path in FCM data | `data.type` |
-| `value` | string | Expected value to trigger the action | `call.started` |
-| `fallback` | any | Fallback value when field is missing | `null` |
+| Option     | Type   | Description                          | Default        |
+| ---------- | ------ | ------------------------------------ | -------------- |
+| `field`    | string | Field path in FCM data               | `data.type`    |
+| `value`    | string | Expected value to trigger the action | `call.started` |
+| `fallback` | any    | Fallback value when field is missing | `null`         |
 
 ### Call States
 
@@ -593,7 +649,7 @@ import { Callx } from 'callx';
 Callx.initialize({
   handling: {
     mode: 'custom',
-    enableCustomUI: true
+    enableCustomUI: true,
   },
   onIncomingCall: (callData) => {
     console.log('Incoming call:', callData);
@@ -610,7 +666,7 @@ Callx.initialize({
     console.log('Call missed:', callData);
     // Show your custom missed call notification
     global.showMissedCall(callData);
-  }
+  },
 });
 
 const App = () => {
@@ -657,11 +713,20 @@ const App = () => {
   return (
     <View style={{ flex: 1 }}>
       {/* Your app content */}
-      
+
       {/* Custom incoming call modal */}
       <Modal visible={showCallModal} transparent>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}
+          >
             <Text style={{ fontSize: 24, fontWeight: 'bold' }}>
               Incoming Call
             </Text>
@@ -672,10 +737,20 @@ const App = () => {
               {incomingCall?.callerPhone}
             </Text>
             <View style={{ flexDirection: 'row', marginTop: 20 }}>
-              <TouchableOpacity onPress={answerCall} style={{ backgroundColor: 'green', padding: 10, marginRight: 10 }}>
+              <TouchableOpacity
+                onPress={answerCall}
+                style={{
+                  backgroundColor: 'green',
+                  padding: 10,
+                  marginRight: 10,
+                }}
+              >
                 <Text style={{ color: 'white' }}>Answer</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={declineCall} style={{ backgroundColor: 'red', padding: 10 }}>
+              <TouchableOpacity
+                onPress={declineCall}
+                style={{ backgroundColor: 'red', padding: 10 }}
+              >
                 <Text style={{ color: 'white' }}>Decline</Text>
               </TouchableOpacity>
             </View>
@@ -700,7 +775,7 @@ import { Callx } from 'callx';
 Callx.initialize({
   handling: {
     mode: 'hybrid',
-    enableCustomUI: true
+    enableCustomUI: true,
   },
   onIncomingCall: (callData) => {
     console.log('Incoming call:', callData);
@@ -712,7 +787,7 @@ Callx.initialize({
     console.log('Call ended:', callData);
     // Hide your custom overlay
     global.hideCallOverlay();
-  }
+  },
 });
 
 const App = () => {
@@ -737,10 +812,19 @@ const App = () => {
   return (
     <View style={{ flex: 1 }}>
       {/* Your app content */}
-      
+
       {/* Custom overlay on top of native UI */}
       {callOverlay && (
-        <View style={{ position: 'absolute', top: 50, right: 20, backgroundColor: 'white', padding: 10, borderRadius: 5 }}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 50,
+            right: 20,
+            backgroundColor: 'white',
+            padding: 10,
+            borderRadius: 5,
+          }}
+        >
           <Text>Custom overlay for: {callOverlay.callerName}</Text>
         </View>
       )}
@@ -762,7 +846,7 @@ import { useCallStore } from './stores/callStore';
 Callx.initialize({
   handling: {
     mode: 'custom',
-    enableCustomUI: true
+    enableCustomUI: true,
   },
   onIncomingCall: (callData) => {
     console.log('Incoming call:', callData);
@@ -776,19 +860,20 @@ Callx.initialize({
   onCallMissed: (callData) => {
     console.log('Call missed:', callData);
     global.callStore?.addMissedCall(callData);
-  }
+  },
 });
 
 const App = () => {
-  const { incomingCall, showCallModal, answerCall, declineCall } = useCallStore();
+  const { incomingCall, showCallModal, answerCall, declineCall } =
+    useCallStore();
 
   return (
     <View style={{ flex: 1 }}>
       {/* Your app content */}
-      
+
       {/* Call modal using state management */}
       {showCallModal && incomingCall && (
-        <CallModal 
+        <CallModal
           call={incomingCall}
           onAnswer={answerCall}
           onDecline={declineCall}

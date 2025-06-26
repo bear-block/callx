@@ -69,6 +69,10 @@ export interface Spec extends TurboModule {
   getCurrentCall(): Promise<CallData | null>;
   isCallActive(): Promise<boolean>;
 
+  // Lock screen management
+  hideFromLockScreen(): Promise<boolean>;
+  moveAppToBackground(): Promise<boolean>;
+
   // Legacy multiply method (for testing)
   multiply(a: number, b: number): number;
 }

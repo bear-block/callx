@@ -558,63 +558,103 @@ class IncomingCallActivity : AppCompatActivity() {
         try {
             android.util.Log.d("IncomingCallActivity", "🚀 Launching main app...")
             
+            // Get target package from config
+            val targetPackage = getTargetPackageName()
+            android.util.Log.d("IncomingCallActivity", "📦 Target package: $targetPackage")
+            
             // Check if device is locked
             val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
             val isLocked = keyguardManager.isKeyguardLocked
             
             android.util.Log.d("IncomingCallActivity", "🔒 Device locked: $isLocked")
             
+            // Create direct intent to MainActivity (more reliable than launch intent)
+            val mainAppIntent = Intent().apply {
+                setClassName(targetPackage, "${targetPackage}.MainActivity")
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                
+                // Strong flags for locked screen launch
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                       Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                       Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                       Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                       Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                
+                // Add call data for the app to handle
+                putExtra("call_action", "answer")
+                putExtra("call_id", callId)
+                putExtra("caller_name", callerNameText)
+                putExtra("from_incoming_call", true)
+                putExtra("device_was_locked", isLocked)
+            }
+            
+            // Always launch directly - MainActivity will handle lockscreen
+            android.util.Log.d("IncomingCallActivity", "🚀 Starting MainActivity directly...")
+            startActivity(mainAppIntent)
+            
+            // Additional: Try to bring app to foreground (CallKeep style)
+            bringAppToForeground(targetPackage)
+            
+            android.util.Log.d("IncomingCallActivity", "✅ Main app launch initiated")
+        } catch (e: Exception) {
+            android.util.Log.e("IncomingCallActivity", "❌ Error launching main app", e)
+            // Fallback to generic approach
+            fallbackLaunchApp()
+        }
+    }
+
+    private fun getTargetPackageName(): String {
+        // Try to load from config first, fallback to current package
+        return try {
+            val inputStream = assets.open("callx.json")
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            inputStream.close()
+            
+            val jsonConfig = org.json.JSONObject(jsonString)
+            if (jsonConfig.has("app") && jsonConfig.getJSONObject("app").has("packageName")) {
+                jsonConfig.getJSONObject("app").getString("packageName")
+            } else {
+                packageName // fallback
+            }
+        } catch (e: Exception) {
+            packageName // fallback
+        }
+    }
+
+    private fun bringAppToForeground(targetPackage: String) {
+        try {
+            // Get ActivityManager to bring app to foreground
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            
+            // For Android 5.1+ (API 22+), try to move task to front
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                val tasks = activityManager.appTasks
+                for (task in tasks) {
+                    val taskInfo = task.taskInfo
+                    if (taskInfo.baseActivity?.packageName == targetPackage) {
+                        android.util.Log.d("IncomingCallActivity", "🔄 Moving task to front")
+                        task.moveToFront()
+                        break
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("IncomingCallActivity", "Could not bring app to foreground: ${e.message}")
+        }
+    }
+
+    private fun fallbackLaunchApp() {
+        try {
+            android.util.Log.d("IncomingCallActivity", "🔄 Fallback launch...")
             val packageManager = packageManager
             val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
             
             if (launchIntent != null) {
-                val mainAppIntent = Intent(launchIntent).apply {
-                    // Base flags to bring app to foreground
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
-                           Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                           Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    
-                                         // Note: Intent flags cannot directly unlock screen
-                     // The target activity (MainActivity) needs to handle unlock
-                    
-                    // Add call data for the app to handle
-                    putExtra("call_action", "answer")
-                    putExtra("call_id", callId)
-                    putExtra("caller_name", callerNameText)
-                    putExtra("from_incoming_call", true)
-                    putExtra("device_was_locked", isLocked)
-                }
-                
-                // For locked devices, try to request unlock
-                if (isLocked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    android.util.Log.d("IncomingCallActivity", "🔓 Requesting keyguard dismiss...")
-                    keyguardManager.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
-                        override fun onDismissSucceeded() {
-                            android.util.Log.d("IncomingCallActivity", "✅ Keyguard dismissed - launching app")
-                            startActivity(mainAppIntent)
-                        }
-                        
-                        override fun onDismissError() {
-                            android.util.Log.d("IncomingCallActivity", "❌ Keyguard dismiss failed - launching anyway")
-                            startActivity(mainAppIntent)
-                        }
-                        
-                        override fun onDismissCancelled() {
-                            android.util.Log.d("IncomingCallActivity", "🚫 Keyguard dismiss cancelled - launching anyway")
-                            startActivity(mainAppIntent)
-                        }
-                    })
-                } else {
-                    // Not locked or older Android - launch directly
-                    startActivity(mainAppIntent)
-                }
-                
-                android.util.Log.d("IncomingCallActivity", "✅ Main app launch initiated (locked: $isLocked)")
-            } else {
-                android.util.Log.e("IncomingCallActivity", "❌ Could not find main app launch intent")
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                startActivity(launchIntent)
             }
         } catch (e: Exception) {
-            android.util.Log.e("IncomingCallActivity", "❌ Error launching main app", e)
+            android.util.Log.e("IncomingCallActivity", "❌ Fallback launch failed", e)
         }
     }
 

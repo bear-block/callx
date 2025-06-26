@@ -113,6 +113,21 @@ class CallxManager {
     return await Callx.isCallActive();
   }
 
+  /**
+   * Hide app from lock screen after call ends
+   * Removes app from over lock screen and moves to background
+   */
+  async hideFromLockScreen(): Promise<boolean> {
+    return await Callx.hideFromLockScreen();
+  }
+
+  /**
+   * Move app to background (simulate home button press)
+   */
+  async moveAppToBackground(): Promise<boolean> {
+    return await Callx.moveAppToBackground();
+  }
+
   // Legacy method for testing
   multiply(a: number, b: number): number {
     return Callx.multiply(a, b);

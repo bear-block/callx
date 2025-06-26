@@ -284,6 +284,38 @@ export default function App() {
     }
   };
 
+  const hideFromLockScreen = async () => {
+    try {
+      const result = await CallxInstance.hideFromLockScreen();
+      if (result) {
+        Alert.alert(
+          '✅ Success',
+          'App successfully hidden from lock screen and moved to background'
+        );
+      } else {
+        Alert.alert('⚠️ Warning', 'Failed to hide app from lock screen');
+      }
+    } catch (error) {
+      console.error('Error hiding app from lock screen:', error);
+      Alert.alert('❌ Error', `Failed to hide from lock screen: ${error}`);
+    }
+  };
+
+  const moveToBackground = async () => {
+    try {
+      const result = await CallxInstance.moveAppToBackground();
+      if (result) {
+        console.log('✅ App successfully moved to background');
+        // Note: This will minimize the app, so user won't see the alert immediately
+      } else {
+        Alert.alert('⚠️ Warning', 'Failed to move app to background');
+      }
+    } catch (error) {
+      console.error('Error moving app to background:', error);
+      Alert.alert('❌ Error', `Failed to move to background: ${error}`);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
@@ -429,8 +461,22 @@ export default function App() {
               >
                 <Text style={styles.buttonText}>📵 End Call</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.infoButton]}
+                onPress={hideFromLockScreen}
+              >
+                <Text style={styles.buttonText}>🔒 Hide from Lock Screen</Text>
+              </TouchableOpacity>
             </>
           )}
+
+          <TouchableOpacity
+            style={[styles.button, styles.warningButton]}
+            onPress={moveToBackground}
+          >
+            <Text style={styles.buttonText}>🏠 Move to Background</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.primaryButton]}

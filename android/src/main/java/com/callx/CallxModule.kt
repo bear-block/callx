@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
+import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.Promise
@@ -251,6 +252,49 @@ class CallxModule(reactContext: ReactApplicationContext) :
       promise.resolve(currentCall != null)
     } catch (e: Exception) {
       promise.reject("IS_ACTIVE_ERROR", "Failed to check call status: ${e.message}", e)
+    }
+  }
+
+  // Lock screen management methods
+  override fun hideFromLockScreen(promise: Promise) {
+    try {
+      val currentActivity = reactApplicationContext.currentActivity
+      if (currentActivity != null) {
+        android.util.Log.d(NAME, "🔒 Hiding app from lock screen...")
+        
+        // Clear lock screen visibility flags
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+          currentActivity.setShowWhenLocked(false)
+          currentActivity.setTurnScreenOn(false)
+        } else {
+          @Suppress("DEPRECATION")
+          currentActivity.window.clearFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+          )
+        }
+        
+        // Move app to background (simulate home button press)
+        moveAppToBackgroundInternal()
+        
+        android.util.Log.d(NAME, "✅ App successfully hidden from lock screen")
+        promise.resolve(true)
+      } else {
+        promise.reject("NO_ACTIVITY", "No current activity available")
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to hide app from lock screen: ${e.message}", e)
+      promise.reject("HIDE_ERROR", "Failed to hide app from lock screen: ${e.message}", e)
+    }
+  }
+
+  override fun moveAppToBackground(promise: Promise) {
+    try {
+      moveAppToBackgroundInternal()
+      promise.resolve(true)
+    } catch (e: Exception) {
+      promise.reject("BACKGROUND_ERROR", "Failed to move app to background: ${e.message}", e)
     }
   }
 
@@ -727,6 +771,20 @@ class CallxModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Error parsing JSON configuration: ${e.message}")
       CallxConfiguration()
+    }
+  }
+
+  // Helper method to move app to background (simulate home button press)
+  private fun moveAppToBackgroundInternal() {
+    try {
+      val context = reactApplicationContext
+      val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_HOME)
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+      }
+      context.startActivity(homeIntent)
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to move app to background: ${e.message}", e)
     }
   }
 

@@ -37,5 +37,11 @@
     "channelDescription": "Incoming call notifications with ringtone",
     "importance": "high",
     "sound": "default"
+  },
+  "app": {
+    "packageName": "com.bearblock.example.callx",
+    "mainActivity": "com.bearblock.example.callx.MainActivity",
+    "showOverLockscreen": true,
+    "requireUnlock": false
   }
 }
