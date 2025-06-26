@@ -16,6 +16,8 @@ import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import org.json.JSONObject
 import com.callx.NativeCallxSpec
+import java.io.IOException
+import java.io.InputStream
 
 // Data classes
 data class CallData(
@@ -89,18 +91,21 @@ class CallxModule(reactContext: ReactApplicationContext) :
   init {
     moduleInstance = this
     createNotificationChannel()
+    // Load configuration from assets
+    loadConfigurationFromAssets()
   }
 
   override fun getName(): String {
     return NAME
   }
 
-  // Configuration methods
   override fun initialize(config: ReadableMap?, promise: Promise) {
     try {
-      if (config != null) {
+      // Only override assets config if JS provides triggers/fields/notification
+      if (config != null && (config.hasKey("triggers") || config.hasKey("fields") || config.hasKey("notification"))) {
         configuration = parseConfiguration(config)
       }
+      // Otherwise use configuration loaded from assets in init()
       isInitialized = true
       promise.resolve(null)
     } catch (e: Exception) {
@@ -190,11 +195,17 @@ class CallxModule(reactContext: ReactApplicationContext) :
             currentCall = null
             sendEventToJS("onCallMissed", callDataToWritableMap(callData))
           }
+          else -> {
+            android.util.Log.w(NAME, "Unknown trigger type: $triggerType")
+          }
         }
+      } else {
+        android.util.Log.w(NAME, "Could not extract call data from FCM")
       }
       
       promise.resolve(null)
     } catch (e: Exception) {
+      android.util.Log.e(NAME, "FCM handling error: ${e.message}", e)
       promise.reject("FCM_HANDLE_ERROR", "Failed to handle FCM message: ${e.message}", e)
     }
   }
@@ -630,5 +641,77 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  // Load configuration from callx.json in assets
+  private fun loadConfigurationFromAssets() {
+    try {
+      val assetManager = reactApplicationContext.assets
+      val inputStream: InputStream = assetManager.open("callx.json")
+      val jsonString = inputStream.bufferedReader().use { it.readText() }
+      inputStream.close()
+      
+      val jsonConfig = JSONObject(jsonString)
+      configuration = parseJsonConfiguration(jsonConfig)
+      android.util.Log.d(NAME, "Loaded configuration from callx.json")
+    } catch (e: IOException) {
+      android.util.Log.w(NAME, "callx.json not found in assets, using default configuration")
+      configuration = CallxConfiguration()
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to load callx.json: ${e.message}")
+      configuration = CallxConfiguration()
+    }
+  }
+
+  // Parse configuration from JSON object
+  private fun parseJsonConfiguration(json: JSONObject): CallxConfiguration {
+    return try {
+      val triggers = mutableMapOf<String, TriggerConfig>()
+      val fields = mutableMapOf<String, FieldConfig>()
+      
+      // Parse triggers
+      if (json.has("triggers")) {
+        val triggersJson = json.getJSONObject("triggers")
+        triggersJson.keys().forEach { triggerName ->
+          val triggerData = triggersJson.getJSONObject(triggerName)
+          val field = triggerData.getString("field")
+          val value = triggerData.getString("value")
+          triggers[triggerName] = TriggerConfig(field, value)
+        }
+      }
+      
+      // Parse fields
+      if (json.has("fields")) {
+        val fieldsJson = json.getJSONObject("fields")
+        fieldsJson.keys().forEach { fieldName ->
+          val fieldData = fieldsJson.getJSONObject(fieldName)
+          val field = fieldData.getString("field")
+          val fallback = if (fieldData.has("fallback")) fieldData.getString("fallback") else null
+          fields[fieldName] = FieldConfig(field, fallback)
+        }
+      }
+      
+      // Parse notification config
+      val notificationConfig = if (json.has("notification")) {
+        val notificationJson = json.getJSONObject("notification")
+        NotificationConfig(
+          channelId = notificationJson.optString("channelId", "callx_incoming_calls"),
+          channelName = notificationJson.optString("channelName", "Incoming Calls"),
+          channelDescription = notificationJson.optString("channelDescription", "Notifications for incoming calls"),
+          importance = notificationJson.optString("importance", "high"),
+          sound = notificationJson.optString("sound", "default")
+        )
+      } else {
+        NotificationConfig()
+      }
+      
+      CallxConfiguration(
+        triggers = triggers.ifEmpty { CallxConfiguration().triggers },
+        fields = fields.ifEmpty { CallxConfiguration().fields },
+        notification = notificationConfig
+      )
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Error parsing JSON configuration: ${e.message}")
+      CallxConfiguration()
+    }
+  }
 
 }

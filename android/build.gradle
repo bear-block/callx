@@ -33,6 +33,8 @@ android {
   defaultConfig {
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
     targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+    versionCode 1
+    versionName "1.0"
   }
 
   buildFeatures {
@@ -61,6 +63,10 @@ android {
         "generated/jni"
       ]
     }
+  }
+
+  kotlinOptions {
+    jvmTarget = "17"
   }
 }
 
@@ -111,3 +117,5 @@ react {
   libraryName = "Callx"
   codegenJavaPackageName = "com.callx"
 }
+
+

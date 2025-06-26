@@ -28,6 +28,8 @@ export interface NotificationConfigData {
 }
 
 export interface CallxConfig {
+  // NOTE: All configuration fields are optional
+  // They can be pre-configured via callx.json at build time
   triggers?: {
     incoming?: TriggerConfigData;
     ended?: TriggerConfigData;

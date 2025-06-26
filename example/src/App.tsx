@@ -226,46 +226,9 @@ export default function App() {
 
   const initializeCallx = async () => {
     try {
+      // Config is now baked into native code from callx.json
+      // Only need to set event listeners
       await CallxInstance.initialize({
-        triggers: {
-          incoming: {
-            field: 'type',
-            value: 'call.started',
-          },
-          ended: {
-            field: 'type',
-            value: 'call.ended',
-          },
-          missed: {
-            field: 'type',
-            value: 'call.missed',
-          },
-        },
-        fields: {
-          callId: {
-            field: 'callId',
-            fallback: 'unknown-call',
-          },
-          callerName: {
-            field: 'callerName',
-            fallback: 'Unknown Caller',
-          },
-          callerPhone: {
-            field: 'callerPhone',
-            fallback: 'No Number',
-          },
-          callerAvatar: {
-            field: 'callerAvatar',
-            fallback: 'https://picsum.photos/200/200',
-          },
-        },
-        notification: {
-          channelId: 'callx_test_calls',
-          channelName: 'Test Calls',
-          channelDescription: 'Test notifications for Callx',
-          importance: 'high',
-          sound: 'default',
-        },
         onIncomingCall: (callData) => {
           console.log('📞 Incoming call received:', callData);
           Alert.alert('Incoming Call', `${callData.callerName} is calling...`);

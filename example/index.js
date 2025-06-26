@@ -13,20 +13,9 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
     console.log('📊 [index.js] Background data:', messageData);
 
     // Initialize CallxInstance if needed (for first-time killed app)
+    // Config is now baked into native code from callx.json at build time
     try {
-      await CallxInstance.initialize({
-        triggers: {
-          incoming: { field: 'type', value: 'call.started' },
-          ended: { field: 'type', value: 'call.ended' },
-          missed: { field: 'type', value: 'call.missed' },
-        },
-        fields: {
-          callId: { field: 'callId', fallback: 'unknown-call' },
-          callerName: { field: 'callerName', fallback: 'Unknown Caller' },
-          callerPhone: { field: 'callerPhone', fallback: 'No Number' },
-          callerAvatar: { field: 'callerAvatar', fallback: null },
-        },
-      });
+      await CallxInstance.initialize({});
       console.log('✅ [index.js] CallxInstance initialized for background');
     } catch (error) {
       console.error(
