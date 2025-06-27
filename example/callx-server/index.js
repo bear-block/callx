@@ -15,8 +15,13 @@ app.use(express.static('public'));
 
 // In-memory storage
 let fcmTokens = new Set();
-let activeCalls = new Map();
+let activeCalls = new Map(); // callId -> call data
+let deviceCalls = new Map(); // token -> Set of callIds for that device
 let serviceAccount = null;
+
+// Configuration
+const CALL_TIMEOUT_SECONDS = 60; // Auto-miss calls after 60 seconds
+const MAX_CALLS_PER_DEVICE = 5; // Maximum simultaneous calls per device
 
 // Load Firebase service account
 function loadServiceAccount() {
@@ -123,20 +128,88 @@ app.get('/api/devices', (req, res) => {
   res.json({ tokens: Array.from(fcmTokens) });
 });
 
+// Helper function to clean up call from device tracking
+function removeCallFromDevice(callId, token) {
+  const deviceCallSet = deviceCalls.get(token);
+  if (deviceCallSet) {
+    deviceCallSet.delete(callId);
+    if (deviceCallSet.size === 0) {
+      deviceCalls.delete(token);
+    } else {
+      deviceCalls.set(token, deviceCallSet);
+    }
+  }
+}
+
+// Helper function to update queue positions after call removal
+async function updateQueuePositions(token) {
+  const deviceCallSet = deviceCalls.get(token);
+  if (!deviceCallSet || deviceCallSet.size === 0) return;
+
+  const deviceCallsArray = Array.from(deviceCallSet)
+    .map((callId) => activeCalls.get(callId))
+    .filter(Boolean);
+
+  // Sort by start time to maintain FIFO order
+  deviceCallsArray.sort((a, b) => a.startTime - b.startTime);
+
+  // Update queue positions and send notifications if needed
+  for (let i = 0; i < deviceCallsArray.length; i++) {
+    const call = deviceCallsArray[i];
+    const newPosition = i + 1;
+
+    if (call.queuePosition !== newPosition) {
+      call.queuePosition = newPosition;
+      activeCalls.set(call.callId, call);
+
+      // Send queue update to device (optional)
+      if (serviceAccount && newPosition === 1) {
+        try {
+          await sendFCM(token, {
+            type: 'call.queue_updated',
+            callId: call.callId,
+            newPosition: newPosition.toString(),
+            totalCalls: deviceCallsArray.length.toString(),
+            message: 'You are now first in queue',
+          });
+        } catch (error) {
+          console.error(
+            `Failed to send queue update for ${call.callId}:`,
+            error.message
+          );
+        }
+      }
+    }
+  }
+}
+
 app.post('/api/call/start', async (req, res) => {
   try {
     const {
       token,
-      callId = `call-${Date.now()}`,
+      callId = `call-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       callerName = 'Test Call',
       callerPhone = '+84123456789',
       callerAvatar = 'https://picsum.photos/200/200',
       withNotification = false,
+      priority = 'normal', // normal, high, urgent
     } = req.body;
 
     if (!token) return res.status(400).json({ error: 'Token required' });
     if (!serviceAccount)
       return res.status(500).json({ error: 'Not configured' });
+
+    // Check if device has too many active calls
+    const deviceCallSet = deviceCalls.get(token) || new Set();
+    if (deviceCallSet.size >= MAX_CALLS_PER_DEVICE) {
+      return res.status(429).json({
+        error: `Device has maximum calls (${MAX_CALLS_PER_DEVICE})`,
+        activeCallsCount: deviceCallSet.size,
+      });
+    }
+
+    // Calculate call position in queue for this device
+    const queuePosition = deviceCallSet.size + 1;
 
     const data = {
       type: 'call.started',
@@ -144,28 +217,54 @@ app.post('/api/call/start', async (req, res) => {
       callerName,
       callerPhone,
       callerAvatar,
+      priority,
+      queuePosition: queuePosition.toString(),
+      totalCalls: queuePosition.toString(),
     };
 
     const notification = withNotification
       ? {
-          title: 'Incoming Call',
-          body: `${callerName} is calling...`,
+          title:
+            queuePosition === 1
+              ? 'Incoming Call'
+              : `Incoming Call (${queuePosition})`,
+          body:
+            queuePosition === 1
+              ? `${callerName} is calling...`
+              : `${callerName} is calling... (${queuePosition} of ${queuePosition})`,
         }
       : null;
 
     const result = await sendFCM(token, data, notification);
 
-    activeCalls.set(callId, {
+    // Store call data
+    const callData = {
       callId,
       callerName,
       callerPhone,
       callerAvatar,
+      priority,
+      queuePosition,
       startTime: new Date(),
       token,
-    });
+    };
 
-    console.log(`📞 Call started: ${callId} -> ${callerName}`);
-    res.json({ success: true, callId, result });
+    activeCalls.set(callId, callData);
+
+    // Update device call tracking
+    deviceCallSet.add(callId);
+    deviceCalls.set(token, deviceCallSet);
+
+    console.log(
+      `📞 Call started: ${callId} -> ${callerName} (${priority}) [Queue: ${queuePosition}/${queuePosition}]`
+    );
+    res.json({
+      success: true,
+      callId,
+      queuePosition,
+      deviceActiveCallsCount: deviceCallSet.size,
+      result,
+    });
   } catch (error) {
     console.error('❌ Start call error:', error.message);
     res.status(500).json({ error: error.message });
@@ -179,29 +278,251 @@ app.post('/api/call/end', async (req, res) => {
 
     if (!call) return res.status(404).json({ error: 'Call not found' });
 
+    const duration = Math.floor((new Date() - call.startTime) / 1000);
+
     if (serviceAccount) {
+      // Send end call FCM with complete call data (matching start call structure)
       await sendFCM(call.token, {
         type: 'call.ended',
-        callId,
-        duration: Math.floor((new Date() - call.startTime) / 1000),
+        callId: call.callId,
+        callerName: call.callerName,
+        callerPhone: call.callerPhone,
+        callerAvatar: call.callerAvatar,
+        duration: duration.toString(),
+        endTime: new Date().toISOString(),
       });
     }
 
+    // Clean up call tracking
     activeCalls.delete(callId);
-    console.log(`📵 Call ended: ${callId}`);
-    res.json({ success: true });
+    removeCallFromDevice(callId, call.token);
+
+    // Update remaining calls queue positions
+    await updateQueuePositions(call.token);
+
+    console.log(
+      `📵 Call ended: ${callId} (${call.callerName}) - Duration: ${duration}s [Queue cleanup complete]`
+    );
+
+    const remainingCalls = deviceCalls.get(call.token)?.size || 0;
+    res.json({
+      success: true,
+      callId,
+      callerName: call.callerName,
+      duration,
+      remainingCallsOnDevice: remainingCalls,
+    });
   } catch (error) {
     console.error('❌ End call error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
 
+app.post('/api/call/missed', async (req, res) => {
+  try {
+    const { callId } = req.body;
+    const call = activeCalls.get(callId);
+
+    if (!call) return res.status(404).json({ error: 'Call not found' });
+
+    const duration = Math.floor((new Date() - call.startTime) / 1000);
+
+    if (serviceAccount) {
+      // Send missed call FCM with complete call data
+      await sendFCM(call.token, {
+        type: 'call.missed',
+        callId: call.callId,
+        callerName: call.callerName,
+        callerPhone: call.callerPhone,
+        callerAvatar: call.callerAvatar,
+        missedTime: new Date().toISOString(),
+        duration: duration.toString(),
+      });
+    }
+
+    // Clean up call tracking
+    activeCalls.delete(callId);
+    removeCallFromDevice(callId, call.token);
+
+    // Update remaining calls queue positions
+    await updateQueuePositions(call.token);
+
+    console.log(
+      `📵 Call missed: ${callId} (${call.callerName}) - Duration: ${duration}s [Queue cleanup complete]`
+    );
+
+    const remainingCalls = deviceCalls.get(call.token)?.size || 0;
+    res.json({
+      success: true,
+      callId,
+      callerName: call.callerName,
+      duration,
+      remainingCallsOnDevice: remainingCalls,
+    });
+  } catch (error) {
+    console.error('❌ Missed call error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/calls/end-all', async (req, res) => {
+  try {
+    if (!serviceAccount)
+      return res.status(500).json({ error: 'Not configured' });
+
+    const results = [];
+    for (const [callId, call] of activeCalls) {
+      try {
+        const duration = Math.floor((new Date() - call.startTime) / 1000);
+
+        await sendFCM(call.token, {
+          type: 'call.ended',
+          callId: call.callId,
+          callerName: call.callerName,
+          callerPhone: call.callerPhone,
+          callerAvatar: call.callerAvatar,
+          duration: duration.toString(),
+          endTime: new Date().toISOString(),
+          reason: 'mass_end',
+        });
+
+        results.push({
+          callId,
+          callerName: call.callerName,
+          duration,
+          success: true,
+        });
+      } catch (error) {
+        results.push({
+          callId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    activeCalls.clear();
+    deviceCalls.clear(); // Clear all device call tracking
+    console.log(
+      `📵 Mass end: ${results.filter((r) => r.success).length} calls ended [All queues cleared]`
+    );
+    res.json({ success: true, results });
+  } catch (error) {
+    console.error('❌ Mass end error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Auto-expire calls (mark as missed after timeout)
+async function checkExpiredCalls() {
+  const now = new Date();
+  const expiredCalls = [];
+
+  for (const [callId, call] of activeCalls) {
+    const duration = Math.floor((now - call.startTime) / 1000);
+    if (duration >= CALL_TIMEOUT_SECONDS) {
+      expiredCalls.push({ callId, call, duration });
+    }
+  }
+
+  for (const { callId, call, duration } of expiredCalls) {
+    try {
+      if (serviceAccount) {
+        await sendFCM(call.token, {
+          type: 'call.missed',
+          callId: call.callId,
+          callerName: call.callerName,
+          callerPhone: call.callerPhone,
+          callerAvatar: call.callerAvatar,
+          missedTime: new Date().toISOString(),
+          duration: duration.toString(),
+          reason: 'timeout',
+        });
+      }
+
+      // Clean up call tracking
+      activeCalls.delete(callId);
+      removeCallFromDevice(callId, call.token);
+
+      // Update remaining calls queue positions
+      await updateQueuePositions(call.token);
+
+      console.log(
+        `⏰ Call auto-expired: ${callId} (${call.callerName}) - ${duration}s [Queue cleanup complete]`
+      );
+    } catch (error) {
+      console.error(`❌ Auto-expire error for ${callId}:`, error.message);
+    }
+  }
+}
+
+// Run auto-expire check every 10 seconds
+setInterval(checkExpiredCalls, 10000);
+
 app.get('/api/calls', (req, res) => {
   const calls = Array.from(activeCalls.values()).map((call) => ({
     ...call,
     duration: Math.floor((new Date() - call.startTime) / 1000),
+    remainingTime: Math.max(
+      0,
+      CALL_TIMEOUT_SECONDS - Math.floor((new Date() - call.startTime) / 1000)
+    ),
   }));
-  res.json({ calls });
+
+  // Group calls by device for better organization
+  const deviceGroups = {};
+  calls.forEach((call) => {
+    const deviceKey = call.token.substring(0, 20) + '...';
+    if (!deviceGroups[deviceKey]) {
+      deviceGroups[deviceKey] = {
+        token: call.token,
+        calls: [],
+        totalCalls: 0,
+      };
+    }
+    deviceGroups[deviceKey].calls.push(call);
+    deviceGroups[deviceKey].totalCalls++;
+  });
+
+  // Sort calls within each device by queue position
+  Object.values(deviceGroups).forEach((group) => {
+    group.calls.sort((a, b) => a.queuePosition - b.queuePosition);
+  });
+
+  res.json({
+    calls,
+    deviceGroups,
+    timeout: CALL_TIMEOUT_SECONDS,
+    maxCallsPerDevice: MAX_CALLS_PER_DEVICE,
+    totalActiveDevices: Object.keys(deviceGroups).length,
+  });
+});
+
+// New endpoint: Get calls for specific device
+app.get('/api/calls/device/:token', (req, res) => {
+  const { token } = req.params;
+  const deviceCallSet = deviceCalls.get(token) || new Set();
+
+  const deviceCallsArray = Array.from(deviceCallSet)
+    .map((callId) => activeCalls.get(callId))
+    .filter(Boolean)
+    .map((call) => ({
+      ...call,
+      duration: Math.floor((new Date() - call.startTime) / 1000),
+      remainingTime: Math.max(
+        0,
+        CALL_TIMEOUT_SECONDS - Math.floor((new Date() - call.startTime) / 1000)
+      ),
+    }))
+    .sort((a, b) => a.queuePosition - b.queuePosition);
+
+  res.json({
+    token,
+    calls: deviceCallsArray,
+    totalCalls: deviceCallsArray.length,
+    maxCalls: MAX_CALLS_PER_DEVICE,
+    canAcceptMore: deviceCallsArray.length < MAX_CALLS_PER_DEVICE,
+  });
 });
 
 app.post('/api/test-notification', async (req, res) => {
@@ -261,6 +582,7 @@ app.post('/api/broadcast', async (req, res) => {
     const {
       callerName = 'Broadcast',
       callerPhone = '+84999999999',
+      priority = 'normal',
       withNotification = false,
     } = req.body;
 
@@ -274,31 +596,61 @@ app.post('/api/broadcast', async (req, res) => {
       try {
         const callId = `broadcast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
+        // Check device call limit
+        const deviceCallSet = deviceCalls.get(token) || new Set();
+        if (deviceCallSet.size >= MAX_CALLS_PER_DEVICE) {
+          results.push({
+            token: token.substring(0, 20) + '...',
+            success: false,
+            error: `Max calls reached (${MAX_CALLS_PER_DEVICE})`,
+          });
+          continue;
+        }
+
+        const queuePosition = deviceCallSet.size + 1;
+
         const data = {
           type: 'call.started',
           callId,
           callerName,
           callerPhone,
           callerAvatar: 'https://picsum.photos/250/250',
+          priority,
+          queuePosition: queuePosition.toString(),
+          totalCalls: queuePosition.toString(),
         };
 
         const notification = withNotification
           ? {
-              title: 'Incoming Call',
-              body: `${callerName} is calling...`,
+              title:
+                queuePosition === 1
+                  ? 'Incoming Call'
+                  : `Incoming Call (${queuePosition})`,
+              body:
+                queuePosition === 1
+                  ? `${callerName} is calling...`
+                  : `${callerName} is calling... (${queuePosition} of ${queuePosition})`,
             }
           : null;
 
         await sendFCM(token, data, notification);
 
-        activeCalls.set(callId, {
+        const callData = {
           callId,
           callerName,
           callerPhone,
           callerAvatar: 'https://picsum.photos/250/250',
+          priority,
+          queuePosition,
           startTime: new Date(),
           token,
-        });
+        };
+
+        activeCalls.set(callId, callData);
+
+        // Update device call tracking
+        deviceCallSet.add(callId);
+        deviceCalls.set(token, deviceCallSet);
 
         results.push({
           token: token.substring(0, 20) + '...',
