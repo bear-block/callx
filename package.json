@@ -1,7 +1,7 @@
 {
   "name": "callx",
-  "version": "0.1.0",
-  "description": "later",
+  "version": "0.1.0-beta.1",
+  "description": "React Native library for handling incoming call UI with Firebase Cloud Messaging integration. Display beautiful full-screen call notifications on Android lock screen.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -20,6 +20,7 @@
     "cpp",
     "*.podspec",
     "react-native.config.js",
+    "app.plugin.js",
     "!ios/build",
     "!android/build",
     "!android/gradle",
@@ -42,8 +43,19 @@
   },
   "keywords": [
     "react-native",
+    "incoming-call",
+    "call-notification",
+    "firebase",
+    "fcm",
+    "push-notification",
+    "lock-screen",
+    "android",
     "ios",
-    "android"
+    "call-ui",
+    "voip",
+    "full-screen-notification",
+    "expo",
+    "expo-plugin"
   ],
   "repository": {
     "type": "git",
