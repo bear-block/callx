@@ -1,6 +1,8 @@
 # Firebase config
 android/app/google-services.json
 ios/GoogleService-Info.plist
+# Callx server
+callx-server/firebase-service-account.json
 
 # React Native
 node_modules/
@@ -29,3 +31,4 @@ ios/Pods/
 # OS
 .DS_Store
 Thumbs.db 
+
