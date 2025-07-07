@@ -298,6 +298,26 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  // FCM token retrieval
+  override fun getFCMToken(promise: Promise) {
+    try {
+      com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+        .addOnCompleteListener { task ->
+          if (!task.isSuccessful) {
+            promise.reject("FCM_TOKEN_ERROR", "Failed to get FCM token: ${task.exception?.message}", task.exception)
+            return@addOnCompleteListener
+          }
+
+          // Get new FCM token
+          val token = task.result
+          android.util.Log.d(NAME, "FCM token retrieved: ${token?.take(20)}...")
+          promise.resolve(token ?: "")
+        }
+    } catch (e: Exception) {
+      promise.reject("FCM_TOKEN_ERROR", "Failed to get FCM token: ${e.message}", e)
+    }
+  }
+
   // Legacy testing method - kept for backward compatibility
   override fun multiply(a: Double, b: Double): Double {
     return a * b

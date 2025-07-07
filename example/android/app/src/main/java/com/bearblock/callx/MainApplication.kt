@@ -1,4 +1,4 @@
-package com.bearblock.example.callx
+package com.bearblock.callx
 
 import android.app.Application
 import com.facebook.react.PackageList

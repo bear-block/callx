@@ -78,6 +78,13 @@ class CallxManager {
   }
 
   /**
+   * Get current FCM token
+   */
+  async getFCMToken(): Promise<string> {
+    return await Callx.getFCMToken();
+  }
+
+  /**
    * Set field mapping for FCM data extraction
    */
   async setFieldMapping(

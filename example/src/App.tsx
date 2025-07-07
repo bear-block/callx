@@ -47,11 +47,11 @@ export default function App() {
       console.log('1️⃣ Requesting permissions...');
       await requestPermissions();
 
-      console.log('2️⃣ Initializing FCM...');
-      await initializeFCM();
-
-      console.log('3️⃣ Initializing Callx...');
+      console.log('2️⃣ Initializing Callx...');
       await initializeCallx();
+
+      console.log('3️⃣ Initializing FCM (with Callx integration)...');
+      await initializeFCM();
 
       console.log('✅ App initialization complete!');
     } catch (error) {
@@ -107,10 +107,24 @@ export default function App() {
     try {
       console.log('🔧 Starting FCM initialization...');
 
-      // Get FCM token
-      const token = await messaging().getToken();
-      setFcmToken(token);
-      console.log('🔥 FCM Token:', token);
+      // Get FCM token using Callx library (Android only)
+      if (Platform.OS === 'android' && isInitialized) {
+        try {
+          const token = await CallxInstance.getFCMToken();
+          setFcmToken(token);
+          console.log('🔥 FCM Token (via Callx):', token);
+        } catch (error) {
+          console.log('⚠️ Fallback: Using Firebase SDK directly');
+          const token = await messaging().getToken();
+          setFcmToken(token);
+          console.log('🔥 FCM Token (fallback):', token);
+        }
+      } else {
+        // Fallback for iOS or uninitialized state
+        const token = await messaging().getToken();
+        setFcmToken(token);
+        console.log('🔥 FCM Token (direct Firebase):', token);
+      }
 
       // Listen for token refresh
       messaging().onTokenRefresh((refreshedToken) => {
@@ -483,6 +497,25 @@ export default function App() {
             onPress={initializeCallx}
           >
             <Text style={styles.buttonText}>🔄 Re-Initialize</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.infoButton]}
+            onPress={async () => {
+              try {
+                const token = await CallxInstance.getFCMToken();
+                setFcmToken(token);
+                Alert.alert(
+                  '✅ Success',
+                  `FCM Token retrieved via Callx:\n${token.substring(0, 50)}...`
+                );
+              } catch (error) {
+                Alert.alert('❌ Error', `Failed to get FCM token: ${error}`);
+              }
+            }}
+            disabled={!isInitialized}
+          >
+            <Text style={styles.buttonText}>🔥 Get FCM Token</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

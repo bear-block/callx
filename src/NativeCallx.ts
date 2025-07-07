@@ -57,6 +57,9 @@ export interface Spec extends TurboModule {
   // FCM handling - using simpler Object type instead of Record
   handleFcmMessage(data: Object): Promise<void>;
 
+  // FCM token retrieval
+  getFCMToken(): Promise<string>;
+
   // Configuration methods
   setFieldMapping(
     field: string,

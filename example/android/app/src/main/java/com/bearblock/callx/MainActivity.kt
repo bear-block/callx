@@ -1,4 +1,4 @@
-package com.bearblock.example.callx
+package com.bearblock.callx
 
 import android.app.KeyguardManager
 import android.content.Context

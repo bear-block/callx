@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.bearblock.example.callx"
+    namespace "com.bearblock.callx"
     defaultConfig {
-        applicationId "com.bearblock.example.callx"
+        applicationId "com.bearblock.callx"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -113,7 +113,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
     
     // Firebase dependencies
-    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation platform('com.google.firebase:firebase-bom:33.16.0')
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
 
