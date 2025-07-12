@@ -75,9 +75,6 @@ export interface Spec extends TurboModule {
   // Lock screen management
   hideFromLockScreen(): Promise<boolean>;
   moveAppToBackground(): Promise<boolean>;
-
-  // Legacy multiply method (for testing)
-  multiply(a: number, b: number): number;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('Callx');

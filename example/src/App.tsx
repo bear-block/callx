@@ -12,7 +12,7 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import CallxInstance, { multiply, type CallData } from 'callx';
+import CallxInstance, { type CallData } from '@bear-block/callx';
 import messaging from '@react-native-firebase/messaging';
 
 export default function App() {
@@ -26,9 +26,6 @@ export default function App() {
     callerPhone: '+1234567890',
     callerAvatar: 'https://picsum.photos/200/200',
   });
-
-  // Legacy test
-  const multiplyResult = multiply(3, 7);
 
   useEffect(() => {
     // Delay initialization to prevent hanging
@@ -345,9 +342,6 @@ export default function App() {
           </Text>
           <Text style={styles.statusText}>
             📞 Call Active: {isCallActive ? 'Yes' : 'No'}
-          </Text>
-          <Text style={styles.statusText}>
-            🧮 Multiply Test: 3 × 7 = {multiplyResult}
           </Text>
         </View>
 

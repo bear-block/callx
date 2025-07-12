@@ -318,11 +318,6 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  // Legacy testing method - kept for backward compatibility
-  override fun multiply(a: Double, b: Double): Double {
-    return a * b
-  }
-
   // Private helper methods
   private fun parseConfiguration(config: ReadableMap): CallxConfiguration {
     return try {

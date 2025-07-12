@@ -134,11 +134,6 @@ class CallxManager {
   async moveAppToBackground(): Promise<boolean> {
     return await Callx.moveAppToBackground();
   }
-
-  // Legacy method for testing
-  multiply(a: number, b: number): number {
-    return Callx.multiply(a, b);
-  }
 }
 
 // Export singleton instance
@@ -146,8 +141,3 @@ export const CallxInstance = new CallxManager();
 
 // Default export
 export default CallxInstance;
-
-// Legacy multiply function for backward compatibility
-export function multiply(a: number, b: number): number {
-  return Callx.multiply(a, b);
-}
