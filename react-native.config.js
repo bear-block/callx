@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+
 module.exports = {
   dependencies: {
     callx: {
@@ -20,6 +23,15 @@ module.exports = {
           // Auto-add to project level build.gradle
           projectBuildGradle: {
             classpath: 'com.google.gms:google-services:4.4.0',
+          },
+          // Auto-copy callx.json to assets
+          assets: {
+            copy: [
+              {
+                from: 'callx.json',
+                to: 'src/main/assets/callx.json',
+              },
+            ],
           },
         },
       },
