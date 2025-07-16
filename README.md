@@ -501,3 +501,110 @@ messaging().onMessage(async (message) => {
 [![GitHub forks](https://img.shields.io/github/forks/bear-block/callx?style=social)](https://github.com/bear-block/callx)
 
 </div>
+
+---
+
+## 🛠️ React Native CLI Setup (Android)
+
+> **Good news!** Most Android setup steps (Firebase dependencies, Google Services plugin, copying `callx.json`) are handled automatically via autolinking. You only need to do a few manual steps:
+
+### 1. Install dependencies
+
+```sh
+yarn add @bear-block/callx @react-native-firebase/app @react-native-firebase/messaging
+```
+
+---
+
+### 2. Add Firebase config file
+
+- Download `google-services.json` from Firebase Console
+- Place it in your project at: `android/app/google-services.json`
+
+---
+
+### 3. Update Application class
+
+- Open `android/app/src/main/java/com/yourapp/MainApplication.kt`
+- Change your class to extend `CallxApplication`:
+
+```kotlin
+import com.callx.CallxApplication
+
+class MainApplication : CallxApplication(), ReactApplication {
+  // ... keep your existing overrides ...
+}
+```
+
+---
+
+### 4. Add FCM Service to AndroidManifest.xml
+
+> **Required!** This step is not handled by autolinking. You must add the FCM service manually so Callx can receive background notifications.
+
+- Open `android/app/src/main/AndroidManifest.xml`
+- Add the following inside the `<application>` tag:
+
+```xml
+<service
+  android:name="com.callx.CallxFirebaseMessagingService"
+  android:directBootAware="true"
+  android:exported="false">
+  <intent-filter android:priority="1">
+    <action android:name="com.google.firebase.MESSAGING_EVENT" />
+  </intent-filter>
+</service>
+```
+
+---
+
+### 5. (Optional) Custom FCM mapping
+
+- If you want to customize FCM payload mapping, create `callx.json` in your project root.
+- The autolinking will copy it to the correct place for you.
+
+---
+
+### 6. iOS Setup
+
+- Download `GoogleService-Info.plist` from Firebase Console
+- Place it in `ios/YourApp/`
+- Run:
+
+```sh
+cd ios
+pod install
+```
+
+---
+
+### 7. JS/TS Usage
+
+```js
+import CallxInstance from '@bear-block/callx';
+
+await CallxInstance.initialize({
+  onIncomingCall: (callData) => {
+    // Handle incoming call
+  },
+  onCallEnded: (callData) => {
+    // Handle call ended
+  },
+});
+```
+
+---
+
+### 8. Checklist
+
+- [ ] Installed all dependencies
+- [ ] Added Firebase config files (Android/iOS)
+- [ ] Updated Application class (Android)
+- [ ] Ran `pod install` (iOS)
+- [ ] Initialized Callx in JS/TS
+- [ ] (Optional) Added `callx.json` for custom mapping
+- [ ] Added FCM service to AndroidManifest.xml
+
+---
+
+> **Note:** If you use a custom project structure or monorepo and autolinking does not work, see the manual setup guide in the documentation.
