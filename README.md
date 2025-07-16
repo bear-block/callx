@@ -154,7 +154,7 @@ graph LR
 
 For automatic initialization, extend `CallxApplication`:
 
-## 🔧 Configuration
+## 📋 Configuration
 
 ### Handling Modes
 
@@ -164,9 +164,23 @@ For automatic initialization, extend `CallxApplication`:
 | **Custom**           | None                 | You             | Full custom UI    |
 | **Hybrid**           | Native + custom      | Both            | Overlay, advanced |
 
-### Custom FCM Mapping
+### callx.json Configuration
 
-Create `callx.json` in your project root for custom FCM data structure:
+`callx.json` is the main configuration file for Callx. It defines how FCM messages are mapped to call events and how the call UI behaves.
+
+#### **File Location & Priority**
+
+Callx uses a **priority-based configuration system** (OVERRIDE, not merge):
+
+```
+1. JS Config (initialize() method) - HIGHEST PRIORITY ⭐
+2. App's callx.json (in assets) - MEDIUM PRIORITY 📱
+3. Library's default callx.json - LOWEST PRIORITY 📚
+```
+
+**Important:** Configurations are **OVERRIDDEN**, not merged. Higher priority configs completely replace lower priority ones.
+
+#### **Complete Configuration Structure**
 
 ```json
 {
@@ -178,6 +192,10 @@ Create `callx.json` in your project root for custom FCM data structure:
     "ended": {
       "field": "type",
       "value": "call.ended"
+    },
+    "missed": {
+      "field": "type",
+      "value": "call.missed"
     }
   },
   "fields": {
@@ -192,16 +210,311 @@ Create `callx.json` in your project root for custom FCM data structure:
     "callerPhone": {
       "field": "callerPhone",
       "fallback": "No Number"
+    },
+    "callerAvatar": {
+      "field": "callerAvatar",
+      "fallback": "https://picsum.photos/200/200"
     }
   },
   "notification": {
-    "channelId": "callx_incoming_calls",
-    "channelName": "Incoming Calls",
+    "channelId": "callx_incoming_calls_v2",
+    "channelName": "Incoming Calls v2",
+    "channelDescription": "Incoming call notifications with ringtone",
     "importance": "high",
     "sound": "default"
+  },
+  "app": {
+    "packageName": "com.yourapp",
+    "mainActivity": "MainActivity",
+    "showOverLockscreen": true,
+    "requireUnlock": false
   }
 }
 ```
+
+**Note:** Callx supports **nested field paths** for complex FCM structures. You can use dot notation like `data.type`, `custom.event`, `payload.call.id`, etc.
+
+#### **Configuration Sections**
+
+<details>
+<summary><strong>🎯 Triggers</strong></summary>
+
+Define when Callx should show the call UI based on FCM message content:
+
+```json
+"triggers": {
+  "incoming": {
+    "field": "type",          // FCM field to check (supports nested paths)
+    "value": "call.started"   // Value that triggers incoming call
+  },
+  "ended": {
+    "field": "type",
+    "value": "call.ended"     // Value that triggers call end
+  },
+  "missed": {
+    "field": "type",
+    "value": "call.missed"    // Value that triggers missed call
+  }
+}
+```
+
+**Supported nested paths:** `type`, `data.type`, `custom.event`, `payload.call.type`, etc.
+
+**Supported trigger types:**
+
+- `incoming` - Shows full-screen call UI
+- `ended` - Dismisses call UI and sends event
+- `missed` - Sends missed call event (no UI)
+
+</details>
+
+<details>
+<summary><strong>📊 Fields</strong></summary>
+
+Map FCM data fields to call information displayed in the UI:
+
+```json
+"fields": {
+  "callId": {
+    "field": "callId",                // FCM field path (supports nested paths)
+    "fallback": "unknown-call"        // Default if field missing
+  },
+  "callerName": {
+    "field": "callerName",
+    "fallback": "Unknown Caller"
+  },
+  "callerPhone": {
+    "field": "callerPhone",
+    "fallback": "No Number"
+  },
+  "callerAvatar": {
+    "field": "callerAvatar",
+    "fallback": "https://picsum.photos/200/200"
+  }
+}
+```
+
+**Supported nested paths:** `callId`, `data.callId`, `call.id`, `payload.call.id`, etc.
+
+**Required fields:**
+
+- `callId` - Unique identifier for the call
+- `callerName` - Name displayed in call UI
+- `callerPhone` - Phone number displayed in call UI
+
+**Optional fields:**
+
+- `callerAvatar` - Avatar image URL (falls back to initials)
+
+</details>
+
+<details>
+<summary><strong>🔔 Notification</strong></summary>
+
+Configure notification channel for incoming calls:
+
+```json
+"notification": {
+  "channelId": "callx_incoming_calls_v2",
+  "channelName": "Incoming Calls v2",
+  "channelDescription": "Incoming call notifications with ringtone",
+  "importance": "high",        // "high" | "default" | "low"
+  "sound": "default"           // "default" | "none" | custom sound
+}
+```
+
+**Importance levels:**
+
+- `high` - Shows over lock screen (recommended)
+- `default` - Normal notification behavior
+- `low` - Minimal notification
+
+</details>
+
+<details>
+<summary><strong>📱 App</strong></summary>
+
+Configure app-specific settings for lockscreen behavior:
+
+```json
+"app": {
+  "packageName": "com.yourapp",     // Your app's package name
+  "mainActivity": "MainActivity",    // Your MainActivity class name
+  "showOverLockscreen": true,       // Show over lock screen
+  "requireUnlock": false            // Require unlock before interaction
+}
+```
+
+**Settings:**
+
+- `packageName` - Used to launch your app when call is answered
+- `mainActivity` - Class name of your MainActivity (usually "MainActivity")
+- `showOverLockscreen` - Whether to show over lock screen
+- `requireUnlock` - Whether to require unlock before user can interact
+
+</details>
+
+#### **Configuration Priority Examples**
+
+<details>
+<summary><strong>Example 1: App's callx.json overrides library default</strong></summary>
+
+**Library default:**
+
+```json
+{
+  "triggers": {
+    "incoming": { "field": "type", "value": "call.started" }
+  }
+}
+```
+
+**App's callx.json:**
+
+```json
+{
+  "triggers": {
+    "incoming": { "field": "data.type", "value": "incoming_call" }
+  }
+}
+```
+
+**Result:** App's config is used (OVERRIDE)
+
+</details>
+
+<details>
+<summary><strong>Example 2: JS config overrides callx.json</strong></summary>
+
+**App's callx.json:**
+
+```json
+{
+  "triggers": {
+    "incoming": { "field": "type", "value": "incoming_call" }
+  }
+}
+```
+
+**JS initialize():**
+
+```js
+await CallxInstance.initialize({
+  triggers: {
+    incoming: { field: 'type', value: 'call.started' },
+  },
+});
+```
+
+**Result:** JS config is used (OVERRIDE), callx.json is ignored
+
+</details>
+
+#### **FCM Message Examples**
+
+<details>
+<summary><strong>Standard FCM Structure</strong></summary>
+
+```json
+{
+  "type": "call.started",
+  "callId": "call-123",
+  "callerName": "John Doe",
+  "callerPhone": "+1234567890",
+  "callerAvatar": "https://example.com/avatar.jpg"
+}
+```
+
+**Mapped to:**
+
+```json
+{
+  "callId": "call-123",
+  "callerName": "John Doe",
+  "callerPhone": "+1234567890",
+  "callerAvatar": "https://example.com/avatar.jpg"
+}
+```
+
+</details>
+
+<details>
+<summary><strong>Custom FCM Structure</strong></summary>
+
+```json
+{
+  "custom": {
+    "event": "incoming_call",
+    "call": {
+      "id": "call-456",
+      "from": "Jane Smith",
+      "number": "+0987654321"
+    }
+  }
+}
+```
+
+**With callx.json:**
+
+```json
+{
+  "triggers": {
+    "incoming": { "field": "custom.event", "value": "incoming_call" }
+  },
+  "fields": {
+    "callId": { "field": "custom.call.id", "fallback": "unknown" },
+    "callerName": { "field": "custom.call.from", "fallback": "Unknown" },
+    "callerPhone": { "field": "custom.call.number", "fallback": "No Number" }
+  }
+}
+```
+
+**This demonstrates nested field support:** `custom.event`, `custom.call.id`, etc.
+
+</details>
+
+#### **Best Practices**
+
+✅ **Do:**
+
+- Use descriptive field names in your FCM messages
+- Provide meaningful fallback values
+- Test with different FCM message structures
+- Use dot notation for nested fields (e.g., `data.type`, `custom.event`)
+- Keep configuration simple and readable
+
+❌ **Don't:**
+
+- Use deeply nested FCM structures (harder to map)
+- Rely on optional fields without fallbacks
+- Mix different FCM structures in the same app
+- Use generic field names like "id" or "name"
+
+#### **Troubleshooting**
+
+<details>
+<summary><strong>Common Issues</strong></summary>
+
+**Problem:** Call UI doesn't show
+
+- **Check:** FCM message structure matches callx.json triggers
+- **Check:** Field paths are correct (use `type` for root level, `data.type` for nested)
+
+**Problem:** Wrong data displayed
+
+- **Check:** Field mappings in callx.json
+- **Check:** Fallback values are appropriate
+
+**Problem:** App doesn't launch when answering
+
+- **Check:** `packageName` and `mainActivity` in app section
+- **Check:** MainActivity extends CallxReactActivity
+
+**Problem:** Lockscreen behavior unexpected
+
+- **Check:** `showOverLockscreen` and `requireUnlock` settings
+- **Check:** Notification importance is set to "high"
+</details>
 
 ---
 
