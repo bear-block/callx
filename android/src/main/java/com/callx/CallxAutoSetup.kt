@@ -94,15 +94,45 @@ object CallxAutoSetup {
      */
     private fun hookActivityMethods(activity: Activity, helper: CallxActivityHelper) {
         try {
-            // Hook onCreate
-            val onCreateMethod = activity.javaClass.getDeclaredMethod("onCreate", Bundle::class.java)
-            val originalOnCreate = onCreateMethod.invoke(activity, null)
+            Log.d(TAG, "🔗 Attempting to hook activity methods for: ${activity.javaClass.simpleName}")
             
-            // Hook onNewIntent
-            val onNewIntentMethod = activity.javaClass.getDeclaredMethod("onNewIntent", android.content.Intent::class.java)
-            val originalOnNewIntent = onNewIntentMethod.invoke(activity, null)
+            // Store original methods for later use
+            val originalOnCreate = activity.javaClass.getDeclaredMethod("onCreate", Bundle::class.java)
+            val originalOnNewIntent = activity.javaClass.getDeclaredMethod("onNewIntent", android.content.Intent::class.java)
             
-            Log.d(TAG, "🔗 Activity methods hooked successfully")
+            // Create proxy methods that call original + our logic
+            val proxyOnCreate = Proxy.newProxyInstance(
+                activity.javaClass.classLoader,
+                arrayOf(originalOnCreate.declaringClass)
+            ) { _, method, args ->
+                if (method.name == "onCreate") {
+                    Log.d(TAG, "🔧 Intercepted onCreate for: ${activity.javaClass.simpleName}")
+                    // Call original onCreate
+                    originalOnCreate.invoke(activity, args)
+                    // Call our logic
+                    helper.handleCallAnswerFromCreate()
+                } else {
+                    method.invoke(activity, args)
+                }
+            }
+            
+            val proxyOnNewIntent = Proxy.newProxyInstance(
+                activity.javaClass.classLoader,
+                arrayOf(originalOnNewIntent.declaringClass)
+            ) { _, method, args ->
+                if (method.name == "onNewIntent") {
+                    Log.d(TAG, "🔧 Intercepted onNewIntent for: ${activity.javaClass.simpleName}")
+                    // Call original onNewIntent
+                    originalOnNewIntent.invoke(activity, args)
+                    // Call our logic with intent
+                    val intent = args?.get(0) as? android.content.Intent
+                    helper.handleCallAnswerWithIntent(intent)
+                } else {
+                    method.invoke(activity, args)
+                }
+            }
+            
+            Log.d(TAG, "✅ Activity methods hooked successfully for: ${activity.javaClass.simpleName}")
         } catch (e: Exception) {
             Log.w(TAG, "⚠️ Could not hook activity methods (this is normal for some activities): ${e.message}")
         }

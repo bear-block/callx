@@ -39,8 +39,8 @@
     "sound": "default"
   },
   "app": {
-    "packageName": "com.bearblock.example.callx",
-    "mainActivity": "com.bearblock.example.callx.MainActivity",
+    "packageName": "com.bearblock.callx",
+    "mainActivity": "MainActivity",
     "showOverLockscreen": true,
     "requireUnlock": false
   }

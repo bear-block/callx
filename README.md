@@ -35,12 +35,26 @@
        </intent-filter>
      </service>
      ```
-4. **(Optional) Custom FCM mapping:**
+4. **REQUIRED: Extend CallxReactActivity for automatic lockscreen handling:**
+   - Open `android/app/src/main/java/com/yourapp/MainActivity.kt`
+   - Change from `ReactActivity` to `CallxReactActivity`:
+
+     ```kotlin
+     import com.callx.CallxReactActivity
+
+     class MainActivity : CallxReactActivity() {
+       // ... rest of your code
+     }
+     ```
+
+     > **Note:** This is **REQUIRED** for Callx to work properly. The library will throw an error if MainActivity doesn't extend CallxReactActivity.
+
+5. **(Optional) Custom FCM mapping:**
    - Create `callx.json` in your project root for custom mapping.
-5. **iOS:**
+6. **iOS:**
    - Download `GoogleService-Info.plist` and place in `ios/YourApp/` _(iOS support coming soon)_
    - Run `cd ios && pod install` _(iOS support coming soon)_
-6. **JS/TS Usage:**
+7. **JS/TS Usage:**
    ```js
    import CallxInstance from '@bear-block/callx';
    await CallxInstance.initialize({
@@ -78,6 +92,12 @@
    ```sh
    npx expo prebuild
    ```
+   > **Note:** The Expo plugin automatically:
+   >
+   > - Copies `callx.json` to Android assets
+   > - Adds FCM service to AndroidManifest.xml
+   > - Adds Firebase dependencies to Gradle files
+   > - **REQUIRED:** Modifies MainActivity to extend `CallxReactActivity` for automatic lockscreen handling
 6. **JS/TS Usage:**
    ```js
    import CallxInstance from '@bear-block/callx';
@@ -101,9 +121,9 @@
 | ---------------------------------------------------- | --------------------------------------- | ---------------------------------------- | ------------------------------------ |
 | Native Android call UI with gradients and animations | Seamless FCM push notification handling | Full-screen notifications on lock screen | Works out of the box with Expo & CLI |
 
-| 🛠️ **Multiple Modes**                     | 🔧 **Customizable**                        | 📊 **Production Ready**                  | 🚀 **High Performance**                |
-| ----------------------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------- |
-| Native, Custom, and Hybrid handling modes | Flexible FCM data mapping via `callx.json` | Comprehensive error handling & debugging | Optimized for real-time call scenarios |
+| 🛠️ **Native UI**                 | 🔧 **Customizable**                        | 📊 **Production Ready**                  | 🚀 **High Performance**                |
+| -------------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------- |
+| Beautiful native Android call UI | Flexible FCM data mapping via `callx.json` | Comprehensive error handling & debugging | Optimized for real-time call scenarios |
 
 </div>
 
@@ -248,6 +268,34 @@ interface CallData {
 
 ---
 
+## 🔧 Setup Comparison
+
+### Manual vs Automatic Setup
+
+| Setup Type                   | React Native CLI                                 | Expo                                |
+| ---------------------------- | ------------------------------------------------ | ----------------------------------- |
+| **FCM Service**              | Manual (AndroidManifest.xml)                     | ✅ Automatic (Plugin)               |
+| **Firebase Dependencies**    | Manual (Gradle files)                            | ✅ Automatic (Plugin)               |
+| **callx.json Copy**          | Manual or react-native.config.js                 | ✅ Automatic (Plugin)               |
+| **MainActivity Inheritance** | **REQUIRED:** Manual (extend CallxReactActivity) | ✅ **REQUIRED:** Automatic (Plugin) |
+
+### Why Extend CallxReactActivity?
+
+Extending `CallxReactActivity` provides:
+
+- ✅ **Automatic lockscreen handling** - App shows over lock screen
+- ✅ **Reliable intent processing** - Handles call answer intents properly
+- ✅ **Better timing** - Reduces delays in showing call UI
+- ✅ **Production stability** - More reliable on different devices
+
+**Without extending CallxReactActivity:**
+
+- ❌ **Library will throw an error** - Callx requires MainActivity to extend CallxReactActivity
+- ❌ **App will crash on initialization** - Verification happens during module initialization
+- ❌ **No lockscreen support** - Cannot handle lockscreen notifications properly
+
+---
+
 ## 🚀 Best Practices
 
 ### Production Setup
@@ -366,14 +414,13 @@ await CallxInstance.initialize({
 
 ```js
 await CallxInstance.initialize({
-  handling: { mode: 'custom', enableCustomUI: true },
   onIncomingCall: (callData) => {
-    // Show your custom UI
-    showCustomCallUI(callData);
+    // Handle incoming call event
+    console.log('Incoming call:', callData);
   },
   onCallEnded: (callData) => {
-    // Hide your custom UI
-    hideCustomCallUI();
+    // Handle call ended event
+    console.log('Call ended:', callData);
   },
 });
 ```
@@ -382,14 +429,13 @@ await CallxInstance.initialize({
 
 ```js
 await CallxInstance.initialize({
-  handling: { mode: 'hybrid', enableCustomUI: true },
   onIncomingCall: (callData) => {
-    // Show overlay on top of native UI
-    showCallOverlay(callData);
+    // Handle incoming call from FCM
+    console.log('FCM incoming call:', callData);
   },
   onCallEnded: (callData) => {
-    // Hide overlay
-    hideCallOverlay();
+    // Handle call ended from FCM
+    console.log('FCM call ended:', callData);
   },
 });
 ```
@@ -427,10 +473,10 @@ await CallxInstance.initialize({
 - ✅ Run `npx expo prebuild --clean`
 - ✅ Check plugin configuration in `app.json`
 
-**Custom mode UI not showing?**
+**Native UI not showing?**
 
-- ✅ You must implement all UI logic yourself
-- ✅ Check `enableCustomUI: true` in config
+- ✅ Check FCM configuration
+- ✅ Verify `callx.json` is properly loaded
 
 </details>
 

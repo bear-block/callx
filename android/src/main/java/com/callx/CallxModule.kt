@@ -107,6 +107,9 @@ class CallxModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to auto-setup Callx: ${e.message}")
     }
+    
+    // Verify MainActivity extends CallxReactActivity
+    verifyMainActivityInheritance()
   }
 
   override fun getName(): String {
@@ -810,6 +813,46 @@ class CallxModule(reactContext: ReactApplicationContext) :
       context.startActivity(homeIntent)
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to move app to background: ${e.message}", e)
+    }
+  }
+
+  // Verify that MainActivity extends CallxReactActivity (REQUIRED)
+  private fun verifyMainActivityInheritance() {
+    try {
+      val packageName = reactApplicationContext.packageName
+      val mainActivityClass = Class.forName("$packageName.MainActivity")
+      
+      // Check if MainActivity extends CallxReactActivity
+      val superclass = mainActivityClass.superclass
+      if (superclass?.name != "com.callx.CallxReactActivity") {
+        val errorMessage = """
+          Callx requires MainActivity to extend CallxReactActivity.
+          
+          For React Native CLI:
+          - Open android/app/src/main/java/com/yourapp/MainActivity.kt
+          - Change: class MainActivity : ReactActivity()
+          - To: class MainActivity : CallxReactActivity()
+          - Add: import com.callx.CallxReactActivity
+          
+          For Expo:
+          - The plugin should handle this automatically
+          - Run: npx expo prebuild
+          
+          This is required for proper lockscreen handling.
+        """.trimIndent()
+        
+        android.util.Log.e(NAME, errorMessage)
+        throw RuntimeException("Callx setup error: $errorMessage")
+      }
+      
+      android.util.Log.d(NAME, "✓ MainActivity extends CallxReactActivity")
+    } catch (e: ClassNotFoundException) {
+      val errorMessage = "MainActivity not found. Callx requires MainActivity to extend CallxReactActivity."
+      android.util.Log.e(NAME, errorMessage)
+      throw RuntimeException("Callx setup error: $errorMessage")
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to verify MainActivity inheritance: ${e.message}")
+      throw RuntimeException("Callx setup error: ${e.message}")
     }
   }
 

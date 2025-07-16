@@ -569,8 +569,9 @@ class IncomingCallActivity : AppCompatActivity() {
             android.util.Log.d("IncomingCallActivity", "🔒 Device locked: $isLocked")
             
             // Create direct intent to MainActivity (more reliable than launch intent)
+            val targetMainActivity = getTargetMainActivity()
             val mainAppIntent = Intent().apply {
-                setClassName(targetPackage, "${targetPackage}.MainActivity")
+                setClassName(targetPackage, "${targetPackage}.${targetMainActivity}")
                 addCategory(Intent.CATEGORY_LAUNCHER)
                 
                 // Strong flags for locked screen launch
@@ -590,7 +591,17 @@ class IncomingCallActivity : AppCompatActivity() {
             
             // Always launch directly - MainActivity will handle lockscreen
             android.util.Log.d("IncomingCallActivity", "🚀 Starting MainActivity directly...")
-            startActivity(mainAppIntent)
+            android.util.Log.d("IncomingCallActivity", "📦 Intent: $mainAppIntent")
+            android.util.Log.d("IncomingCallActivity", "📦 Intent extras: ${mainAppIntent.extras}")
+            
+            try {
+                startActivity(mainAppIntent)
+                android.util.Log.d("IncomingCallActivity", "✅ MainActivity launched successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("IncomingCallActivity", "❌ Failed to launch MainActivity: ${e.message}")
+                // Fallback to launch intent
+                fallbackLaunchApp()
+            }
             
             // Additional: Try to bring app to foreground (CallKeep style)
             bringAppToForeground(targetPackage)
@@ -618,6 +629,24 @@ class IncomingCallActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             packageName // fallback
+        }
+    }
+
+    private fun getTargetMainActivity(): String {
+        // Try to load from config first, fallback to MainActivity
+        return try {
+            val inputStream = assets.open("callx.json")
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            inputStream.close()
+            
+            val jsonConfig = org.json.JSONObject(jsonString)
+            if (jsonConfig.has("app") && jsonConfig.getJSONObject("app").has("mainActivity")) {
+                jsonConfig.getJSONObject("app").getString("mainActivity")
+            } else {
+                "MainActivity" // fallback
+            }
+        } catch (e: Exception) {
+            "MainActivity" // fallback
         }
     }
 

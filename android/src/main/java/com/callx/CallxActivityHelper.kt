@@ -24,15 +24,39 @@ class CallxActivityHelper(private val activity: Activity) {
      * Call this in onCreate() and onNewIntent()
      */
     fun handleCallAnswer() {
-        activity.intent?.let { intent ->
+        Log.d(TAG, "🔧 handleCallAnswer called")
+        handleCallAnswerWithIntent(activity.intent)
+    }
+
+    /**
+     * Handle call answer from onCreate (when activity is first created)
+     */
+    fun handleCallAnswerFromCreate() {
+        Log.d(TAG, "🔧 handleCallAnswerFromCreate called")
+        // Delay a bit to ensure activity is fully created
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            handleCallAnswerWithIntent(activity.intent)
+        }, 100)
+    }
+
+    /**
+     * Handle call answer with specific intent
+     */
+    fun handleCallAnswerWithIntent(intent: android.content.Intent?) {
+        Log.d(TAG, "🔧 handleCallAnswerWithIntent called with: $intent")
+        
+        intent?.let { 
             val fromIncomingCall = intent.getBooleanExtra("from_incoming_call", false)
             val deviceWasLocked = intent.getBooleanExtra("device_was_locked", false)
+            
+            Log.d(TAG, "📱 Intent extras - fromIncomingCall: $fromIncomingCall, deviceWasLocked: $deviceWasLocked")
             
             if (fromIncomingCall && deviceWasLocked) {
                 Log.d(TAG, "🚀 App launched from locked screen call answer")
                 
                 // Check configuration to decide lock screen behavior
                 val config = loadCallxConfig()
+                Log.d(TAG, "⚙️ Config - showOverLockscreen: ${config.showOverLockscreen}, requireUnlock: ${config.requireUnlock}")
                 
                 when {
                     config.showOverLockscreen && config.requireUnlock -> {
@@ -57,7 +81,11 @@ class CallxActivityHelper(private val activity: Activity) {
                         // Do nothing special - standard app behavior
                     }
                 }
+            } else {
+                Log.d(TAG, "❌ Not from incoming call or device not locked")
             }
+        } ?: run {
+            Log.d(TAG, "❌ No intent available")
         }
     }
 

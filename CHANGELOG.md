@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0-beta.6] - 2024-12-19
+
+### Added
+
+- **REQUIRED:** Enforced CallxReactActivity inheritance for both Expo and React Native CLI
+- Added verification in CallxModule to ensure MainActivity extends CallxReactActivity
+- Enhanced Expo plugin to automatically modify MainActivity.kt
+- Added clear error messages with setup instructions when inheritance is missing
+- Updated plugin to throw errors for missing MainActivity instead of warnings
+
+### Changed
+
+- **BREAKING:** MainActivity must now extend CallxReactActivity (no longer optional)
+- Updated README to mark CallxReactActivity inheritance as REQUIRED
+- Enhanced Expo plugin configuration in package.json
+- Improved error handling with detailed setup instructions
+- Updated setup comparison to reflect mandatory inheritance
+
+### Fixed
+
+- Expo plugin configuration for proper discovery by Expo CLI
+- Added app.plugin export in package.json exports
+- Added expo configuration section in package.json
+- Fixed plugin discovery issues in Expo projects
+
 ## [0.1.0-beta.1] - 2024-12-19
 
 ### Added

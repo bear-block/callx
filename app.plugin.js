@@ -36,6 +36,80 @@ function copyCallxJson(projectRoot) {
   }
 }
 
+function modifyMainActivity(projectRoot) {
+  const mainActivityPath = path.join(projectRoot, 'android/app/src/main/java');
+
+  // Tìm file MainActivity.kt
+  let mainActivityFile = null;
+  const findMainActivity = (dir) => {
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const fullPath = path.join(dir, file);
+        if (fs.statSync(fullPath).isDirectory()) {
+          findMainActivity(fullPath);
+        } else if (file === 'MainActivity.kt') {
+          mainActivityFile = fullPath;
+          return;
+        }
+      }
+    }
+  };
+
+  findMainActivity(mainActivityPath);
+
+  if (!mainActivityFile) {
+    throw new Error(
+      '[callx] MainActivity.kt not found. Callx requires MainActivity to extend CallxReactActivity.'
+    );
+  }
+
+  let content = fs.readFileSync(mainActivityFile, 'utf8');
+
+  // Check if already extends CallxReactActivity
+  if (content.includes('CallxReactActivity')) {
+    console.log('[callx] MainActivity already extends CallxReactActivity. ✓');
+    return;
+  }
+
+  // Add import
+  if (!content.includes('import com.callx.CallxReactActivity')) {
+    content = content.replace(
+      /import com\.facebook\.react\.ReactActivity/,
+      'import com.facebook.react.ReactActivity\nimport com.callx.CallxReactActivity'
+    );
+  }
+
+  // Change inheritance from ReactActivity to CallxReactActivity
+  content = content.replace(
+    /class\s+MainActivity\s*:\s*ReactActivity/,
+    'class MainActivity : CallxReactActivity'
+  );
+
+  // Add explanatory comment
+  const comment = `
+/**
+ * MainActivity - REQUIRED: Extends CallxReactActivity for automatic lockscreen handling
+ * This is required for Callx to work properly with lockscreen notifications.
+ */`;
+
+  if (
+    !content.includes(
+      'Extends CallxReactActivity for automatic lockscreen handling'
+    )
+  ) {
+    content = content.replace(
+      /class\s+MainActivity\s*:\s*CallxReactActivity/,
+      `${comment}\nclass MainActivity : CallxReactActivity`
+    );
+  }
+
+  fs.writeFileSync(mainActivityFile, content);
+  console.log(
+    `[callx] ✓ Modified ${mainActivityFile} to extend CallxReactActivity (REQUIRED)`
+  );
+}
+
 function withCallxAndroidManifest(config) {
   return withAndroidManifest(config, (modConfig) => {
     const app = modConfig.modResults.manifest.application?.[0];
@@ -104,6 +178,7 @@ const withCallx = (config) => {
     'android',
     async (modConfig) => {
       copyCallxJson(modConfig.projectRoot);
+      modifyMainActivity(modConfig.projectRoot);
       return modConfig;
     },
   ]);

@@ -1,4 +1,10 @@
 {
+  "app": {
+    "packageName": "com.bearblock.callx",
+    "mainActivity": "MainActivity",
+    "showOverLockscreen": true,
+    "requireUnlock": false
+  },
   "triggers": {
     "incoming": {
       "field": "type",
