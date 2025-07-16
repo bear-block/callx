@@ -19,6 +19,7 @@ import org.json.JSONObject
 import com.callx.NativeCallxSpec
 import java.io.IOException
 import java.io.InputStream
+import android.app.Application
 
 // Data classes
 data class CallData(
@@ -97,6 +98,15 @@ class CallxModule(reactContext: ReactApplicationContext) :
     createNotificationChannel()
     // Load configuration from assets
     loadConfigurationFromAssets()
+    // Auto-setup Callx lifecycle (auto setup, no need to extend Application)
+    try {
+      val app = reactContext.applicationContext as? Application
+      if (app != null) {
+        CallxAutoSetup.initialize(app)
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "Failed to auto-setup Callx: ${e.message}")
+    }
   }
 
   override fun getName(): String {
