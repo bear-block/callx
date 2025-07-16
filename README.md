@@ -1,220 +1,333 @@
-# Callx
+# Callx - React Native Incoming Call Library
 
-**React Native incoming call UI & FCM integration for Android**
+A powerful React Native library for handling incoming calls with Firebase Cloud Messaging (FCM), featuring lock screen integration and customizable call UI.
 
-[![npm version](https://img.shields.io/npm/v/callx.svg)](https://www.npmjs.com/package/callx)
-[![license](https://img.shields.io/npm/l/callx.svg)](https://github.com/bear-block/callx/blob/main/LICENSE)
+> **⚠️ Current Version Support:** This version only supports **Android** and **React Native CLI**. 
+> 
+> **🚀 Coming Soon:** Expo and iOS support are in development. 
+> 
+> **[☕ Buy me a coffee](https://coff.ee/bearblock)** to support the development of Expo and iOS support!
 
-[☕ Buy me a coffee](https://coff.ee/bearblock) - Support the development of Callx!
+## 🚀 Features
 
----
+- **📱 Lock Screen Integration** - Show incoming calls over lock screen
+- **🔥 Firebase FCM Support** - Handle calls via push notifications
+- **🎨 Customizable UI** - Beautiful, modern call interface
+- **⚡ Zero Configuration** - Minimal setup required
+- **🔒 Security Modes** - Multiple lock screen security levels
+- **📞 Background Processing** - Handle calls when app is closed
+- **🎯 Auto-detection** - Automatically detects ReactActivity
 
-## 🚀 Quick Start
+## 📋 Requirements
 
-### React Native CLI
+- **Platform:** Android only (iOS support coming soon)
+- **Framework:** React Native CLI only (Expo support coming soon)
+- **React Native:** 0.70+
+- **Android:** API level 24+ (Android 7.0+)
 
-1. `npm install callx` or `yarn add callx`
-2. Add `google-services.json` to `android/app/` (from Firebase Console)
-3. In `android/app/build.gradle` add:
-   ```gradle
-   apply plugin: 'com.google.gms.google-services'
-   ```
-   In `android/build.gradle` add:
-   ```gradle
-   buildscript {
-     dependencies {
-       classpath 'com.google.gms:google-services:4.4.0'
-     }
-   }
-   ```
-4. Use in your app (see [Usage](#usage))
+## 📦 Installation
 
-### Expo
+```bash
+yarn add @bear-block/callx
+```
 
-1. `npx expo install callx`
-2. Add plugin to `app.json`:
-   ```json
-   { "expo": { "plugins": ["callx"] } }
-   ```
-3. Add `google-services.json` to `android/app/` (after `npx expo prebuild`)
-4. Use in your app (see [Usage](#usage))
+## ⚡ Quick Setup
 
----
+### 1. Add Firebase Configuration
 
-## 🛠️ How It Works (Native Mode)
+Add your `google-services.json` file to `android/app/` directory.
 
-- FCM message received → Native code parses & shows full-screen call UI
-- User answers/declines → Native code emits JS events
-- You handle business logic in JS (start VoIP, log, etc.)
-- **No need to build your own UI or notification logic!**
+### 2. Update Application Class (Optional)
 
----
+For automatic initialization, extend `CallxApplication`:
 
-## ⚙️ Customizing FCM Mapping with `callx.json`
+```kotlin
+// android/app/src/main/java/com/yourapp/MainApplication.kt
+package com.yourapp
 
-- **Optional:** Only needed if your FCM data structure is different from default.
-- Place `callx.json` in `android/app/src/main/assets/`.
+import com.callx.CallxApplication
+import com.facebook.react.ReactApplication
 
-**Example:**
+class MainApplication : CallxApplication(), ReactApplication {
+  // Your existing ReactApplication implementation
+}
+```
+
+### 3. Add Configuration (Optional)
+
+Create `android/app/src/main/assets/callx.json`:
 
 ```json
 {
   "triggers": {
-    "incoming": { "field": "type", "value": "call.started" },
-    "ended": { "field": "type", "value": "call.ended" },
-    "missed": { "field": "type", "value": "call.missed" }
+    "incoming": {
+      "field": "type",
+      "value": "call.started"
+    },
+    "ended": {
+      "field": "type", 
+      "value": "call.ended"
+    }
   },
   "fields": {
-    "callId": { "field": "callId", "fallback": "unknown-call" },
-    "callerName": { "field": "callerName", "fallback": "Unknown Caller" },
-    "callerPhone": { "field": "callerPhone", "fallback": "No Number" },
-    "callerAvatar": { "field": "callerAvatar", "fallback": null }
+    "callId": {
+      "field": "callId",
+      "fallback": "unknown-call"
+    },
+    "callerName": {
+      "field": "callerName",
+      "fallback": "Unknown Caller"
+    },
+    "callerPhone": {
+      "field": "callerPhone",
+      "fallback": "No Number"
+    }
   },
-  "notification": {
-    "channelId": "callx_incoming_calls",
-    "channelName": "Incoming Calls",
-    "channelDescription": "Notifications for incoming calls",
-    "importance": "high",
-    "sound": "default"
+  "app": {
+    "showOverLockscreen": true,
+    "requireUnlock": false
   }
 }
 ```
 
-- See [README_BUILD_CONFIG.md](./README_BUILD_CONFIG.md) for advanced usage.
+## ✅ That's it!
 
----
+The library automatically handles:
+- ✅ Firebase dependencies
+- ✅ Google Services plugin
+- ✅ FCM service registration
+- ✅ Lock screen handling
+- ✅ Configuration loading
+- ✅ Auto-detection of ReactActivity
 
-## 🔄 Handling Modes
+**No need to extend any classes or modify MainActivity!**
 
-| Mode   | UI/Notification  | Who handles UI? | Use case              |
-| ------ | ---------------- | --------------- | --------------------- |
-| native | Native (default) | Callx           | 99% apps, recommended |
-| custom | None             | You             | Full custom UI        |
-| hybrid | Native + custom  | Both            | Overlay, advanced     |
+## 📱 Usage
 
-**Recommended:** Use `native` mode unless you have a strong reason.
+### Initialize Callx
 
-**Config example:**
+```typescript
+import CallxInstance from '@bear-block/callx';
 
-```js
-await CallxInstance.initialize({
-  handling: { mode: 'native' }, // or 'custom', 'hybrid'
-  onIncomingCall: (callData) => {
-    /* ... */
-  },
-  onCallEnded: (callData) => {
-    /* ... */
-  },
-  // ...
-});
-```
-
----
-
-## 📚 API Reference (Core)
-
-| Method                       | Description               |
-| ---------------------------- | ------------------------- |
-| `initialize(config)`         | Initialize Callx          |
-| `showIncomingCall(callData)` | Show incoming call screen |
-| `handleFcmMessage(data)`     | Handle FCM message        |
-| `getFCMToken()`              | Get current FCM token     |
-| `endCall(callId)`            | End current call          |
-| `answerCall(callId)`         | Answer incoming call      |
-| `declineCall(callId)`        | Decline incoming call     |
-| `isCallActive()`             | Check if call is active   |
-| `getCurrentCall()`           | Get current call data     |
-| `hideFromLockScreen()`       | Hide app from lock screen |
-| `moveAppToBackground()`      | Move app to background    |
-
----
-
-## 🧑‍💻 Usage (Native Mode)
-
-```js
-import { CallxInstance } from 'callx';
-
+// Initialize with event handlers
 await CallxInstance.initialize({
   onIncomingCall: (callData) => {
-    // Start your VoIP logic, show alert, etc.
     console.log('Incoming call:', callData);
   },
-  onCallEnded: (callData) => {
-    // Clean up, log, etc.
+  onCallAnswered: (callData) => {
+    console.log('Call answered:', callData);
   },
-});
-
-// FCM message handler
-import messaging from '@react-native-firebase/messaging';
-messaging().onMessage(async (remoteMessage) => {
-  await CallxInstance.handleFcmMessage(remoteMessage.data);
-});
-```
-
----
-
-## 🧩 Examples
-
-### Native Mode (Recommended)
-
-```js
-await CallxInstance.initialize({
-  onIncomingCall: (callData) => {
-    /* ... */
+  onCallDeclined: (callData) => {
+    console.log('Call declined:', callData);
   },
   onCallEnded: (callData) => {
-    /* ... */
+    console.log('Call ended:', callData);
+  },
+  onCallMissed: (callData) => {
+    console.log('Call missed:', callData);
   },
 });
 ```
 
-### Custom Mode
+### Show Incoming Call
 
-```js
-await CallxInstance.initialize({
-  handling: { mode: 'custom', enableCustomUI: true },
-  onIncomingCall: (callData) => {
-    showCustomUI(callData);
-  },
-  onCallEnded: (callData) => {
-    hideCustomUI();
-  },
+```typescript
+await CallxInstance.showIncomingCall({
+  callId: 'call-123',
+  callerName: 'John Doe',
+  callerPhone: '+1234567890',
+  callerAvatar: 'https://example.com/avatar.jpg',
 });
 ```
 
-### Hybrid Mode
+### Handle FCM Messages
 
-```js
-await CallxInstance.initialize({
-  handling: { mode: 'hybrid', enableCustomUI: true },
-  onIncomingCall: (callData) => {
-    showOverlay(callData);
-  },
-  onCallEnded: (callData) => {
-    hideOverlay();
-  },
+```typescript
+// Handle FCM messages manually (optional)
+await CallxInstance.handleFcmMessage({
+  type: 'call.started',
+  callId: 'call-123',
+  callerName: 'John Doe',
+  callerPhone: '+1234567890',
 });
 ```
 
----
+### Get FCM Token
 
-## ❓ Troubleshooting & FAQ
+```typescript
+const token = await CallxInstance.getFCMToken();
+console.log('FCM Token:', token);
+```
 
-- **FCM not working?** Check `google-services.json` and Firebase setup.
-- **callx.json not loaded?** Make sure it's in `android/app/src/main/assets/`.
-- **Expo build fails?** Run `npx expo prebuild` and check plugin config.
-- **Custom mode UI not showing?** You must implement all UI and notification logic yourself.
-- **How to debug?** Use `CallxInstance.setDebugMode(true)` for verbose logs.
+## 🔧 Configuration
 
----
+### Lock Screen Modes
 
-## 📖 More
+Configure in `callx.json`:
 
+```json
+{
+  "app": {
+    "showOverLockscreen": true,  // Show over lock screen
+    "requireUnlock": false       // Require unlock to interact
+  }
+}
+```
+
+**Modes:**
+- `showOverLockscreen: true, requireUnlock: false` - Standard mode (show over lock screen, allow interaction)
+- `showOverLockscreen: true, requireUnlock: true` - High security mode (show over lock screen, require unlock)
+- `showOverLockscreen: false, requireUnlock: true` - Secure mode (require unlock first)
+- `showOverLockscreen: false, requireUnlock: false` - Minimal mode (standard behavior)
+
+### FCM Triggers
+
+Configure triggers in `callx.json`:
+
+```json
+{
+  "triggers": {
+    "incoming": {
+      "field": "type",
+      "value": "call.started"
+    },
+    "ended": {
+      "field": "type",
+      "value": "call.ended"
+    },
+    "missed": {
+      "field": "type",
+      "value": "call.missed"
+    }
+  }
+}
+```
+
+### Data Fields
+
+Configure data extraction in `callx.json`:
+
+```json
+{
+  "fields": {
+    "callId": {
+      "field": "callId",
+      "fallback": "unknown-call"
+    },
+    "callerName": {
+      "field": "callerName", 
+      "fallback": "Unknown Caller"
+    },
+    "callerPhone": {
+      "field": "callerPhone",
+      "fallback": "No Number"
+    },
+    "callerAvatar": {
+      "field": "callerAvatar",
+      "fallback": "https://picsum.photos/200/200"
+    }
+  }
+}
+```
+
+## 📋 API Reference
+
+### CallxInstance
+
+#### `initialize(config?: CallxConfig): Promise<void>`
+Initialize Callx with optional configuration.
+
+#### `showIncomingCall(callData: CallData): Promise<void>`
+Show incoming call interface.
+
+#### `handleFcmMessage(data: any): Promise<void>`
+Handle FCM message manually.
+
+#### `getFCMToken(): Promise<string>`
+Get current FCM token.
+
+#### `getCurrentCall(): Promise<CallData | null>`
+Get current active call.
+
+#### `isCallActive(): Promise<boolean>`
+Check if call is currently active.
+
+#### `answerCall(callId: string): Promise<void>`
+Answer incoming call.
+
+#### `declineCall(callId: string): Promise<void>`
+Decline incoming call.
+
+#### `endCall(callId: string): Promise<void>`
+End current call.
+
+### Types
+
+```typescript
+interface CallData {
+  callId: string;
+  callerName: string;
+  callerPhone: string;
+  callerAvatar?: string;
+  timestamp?: number;
+}
+
+interface CallxConfig {
+  onIncomingCall?: (callData: CallData) => void;
+  onCallAnswered?: (callData: CallData) => void;
+  onCallDeclined?: (callData: CallData) => void;
+  onCallEnded?: (callData: CallData) => void;
+  onCallMissed?: (callData: CallData) => void;
+}
+```
+
+## 🐛 Troubleshooting
+
+### FCM Not Working
+1. Check `google-services.json` is in `android/app/`
+2. Verify package name matches in `google-services.json`
+3. Check Firebase console configuration
+
+### Lock Screen Not Working
+1. Verify `callx.json` is in `android/app/src/main/assets/`
+2. Check configuration values
+3. Test on physical device (emulator may not work)
+4. Check if Application extends `CallxApplication`
+
+### Build Errors
+1. Clean and rebuild: `cd android && ./gradlew clean`
+2. Check Firebase dependencies versions
+3. Verify Kotlin version compatibility
+
+## 🚧 Roadmap
+
+### Coming Soon
+- **📱 iOS Support** - Full iOS implementation with CallKit integration
+- **⚡ Expo Support** - Expo plugin and managed workflow support
+- **🎨 Custom Themes** - More UI customization options
+- **🔔 PushKit Integration** - Better iOS push notification handling
+
+### Support Development
+**[☕ Buy me a coffee](https://coff.ee/bearblock)** to support the development of:
+- iOS support with CallKit
+- Expo plugin development
+- Additional features and improvements
+
+## 📱 Example
+
+See the [example](./example) directory for a complete working implementation.
+
+## 📄 License
+
+MIT License - see [LICENSE](./LICENSE) for details.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+
+## 📚 Documentation
+
+- [Android Setup Guide](./ANDROID_SETUP_GUIDE.md)
+- [Build Configuration Guide](./README_BUILD_CONFIG.md)
+- [FCM Configuration](./FCM_CONFIGURATION.md)
 - [Lock Screen Management](./LOCKSCREEN_MANAGEMENT.md)
-- [API Reference](./LOCKSCREEN_API_REFERENCE.md)
-- [Contributing](./CONTRIBUTING.md)
-- [Issues](https://github.com/bear-block/callx/issues)
-
----
-
-MIT License — Made with ❤️ by [bear-block](https://github.com/bear-block)
