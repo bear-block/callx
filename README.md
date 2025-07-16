@@ -9,19 +9,87 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/bear-block/callx/pulls)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support%20me-yellow?logo=buy-me-a-coffee&style=flat-square)](https://buymeacoffee.com/bearblock)
 
-## 🚀 Features
+## ⚡ Quick Setup
 
-- **📱 Lock Screen Integration** - Show incoming calls over lock screen
-- **🔥 Firebase FCM Support** - Handle calls via push notifications
-- **🎨 Customizable UI** - Beautiful, modern call interface
-- **⚡ Zero Configuration** - Minimal setup required
-- **🔒 Security Modes** - Multiple lock screen security levels
-- **📞 Background Processing** - Handle calls when app is closed
-- **🎯 Auto-detection** - Automatically detects ReactActivity
+**Prerequisites:** Make sure you have `@react-native-firebase/app` and `@react-native-firebase/messaging` properly set up in your project before proceeding.
 
-**Display stunning full-screen call notifications on Android lock screen with zero configuration**
+### React Native CLI (Android)
 
-</div>
+1. **Install dependencies:**
+   ```sh
+   yarn add @bear-block/callx
+   ```
+2. **Add Firebase config:**
+   - Download `google-services.json` from Firebase Console
+   - Place in `android/app/google-services.json`
+3. **Add FCM Service to AndroidManifest.xml:**
+   - Open `android/app/src/main/AndroidManifest.xml`
+   - Add inside `<application>`:
+     ```xml
+     <service
+       android:name="com.callx.CallxFirebaseMessagingService"
+       android:directBootAware="true"
+       android:exported="false">
+       <intent-filter android:priority="1">
+         <action android:name="com.google.firebase.MESSAGING_EVENT" />
+       </intent-filter>
+     </service>
+     ```
+4. **(Optional) Custom FCM mapping:**
+   - Create `callx.json` in your project root for custom mapping.
+5. **iOS:**
+   - Download `GoogleService-Info.plist` and place in `ios/YourApp/` _(iOS support coming soon)_
+   - Run `cd ios && pod install` _(iOS support coming soon)_
+6. **JS/TS Usage:**
+   ```js
+   import CallxInstance from '@bear-block/callx';
+   await CallxInstance.initialize({
+     onIncomingCall: (callData) => {
+       /* ... */
+     },
+     onCallEnded: (callData) => {
+       /* ... */
+     },
+   });
+   ```
+
+---
+
+### Expo (Android)
+
+1. **Install dependencies:**
+   ```sh
+   npx expo install @bear-block/callx
+   ```
+2. **Add Callx plugin to app.json:**
+   ```json
+   {
+     "expo": {
+       "plugins": ["@bear-block/callx"]
+     }
+   }
+   ```
+3. **Add Firebase config:**
+   - Download `google-services.json` from Firebase Console
+   - Place in `android/app/google-services.json`
+4. **(Optional) Custom FCM mapping:**
+   - Create `callx.json` in your project root for custom mapping.
+5. **Prebuild native code:**
+   ```sh
+   npx expo prebuild
+   ```
+6. **JS/TS Usage:**
+   ```js
+   import CallxInstance from '@bear-block/callx';
+   await CallxInstance.initialize({
+     onIncomingCall: (callData) => {
+       /* ... */
+     },
+     onCallEnded: (callData) => {
+       /* ... */
+     },
+   });
+   ```
 
 ---
 
@@ -40,72 +108,6 @@
 </div>
 
 ---
-
-## 🚀 Quick Start
-
-- **Platform:** Android only (iOS support coming soon)
-- **Framework:** React Native CLI only (Expo support coming soon)
-- **React Native:** 0.70+
-- **Android:** API level 24+ (Android 7.0+)
-
-```bash
-# Install package
-npm install @bear-block/callx
-
-# Add Firebase config
-# 1. Download google-services.json from Firebase Console
-# 2. Place in android/app/
-
-# Optional: Add custom FCM mapping
-# Create callx.json in project root
-
-# Use in your app
-```
-
-```bash
-yarn add @bear-block/callx
-```
-
-```bash
-# Install package
-npx expo install @bear-block/callx
-
-# Add plugin to app.json
-{
-  "expo": {
-    "plugins": ["@bear-block/callx"]
-  }
-}
-
-# Add Firebase config after prebuild
-npx expo prebuild
-# Place google-services.json in android/app/
-```
-
-### Basic Usage
-
-```js
-import { CallxInstance } from '@bear-block/callx';
-
-// Initialize once in your app
-await CallxInstance.initialize({
-  onIncomingCall: (callData) => {
-    // Start your VoIP logic here
-    console.log('Incoming call:', callData);
-  },
-  onCallEnded: (callData) => {
-    // Clean up after call ends
-  },
-});
-
-// Handle FCM messages
-import messaging from '@react-native-firebase/messaging';
-messaging().onMessage(async (remoteMessage) => {
-  await CallxInstance.handleFcmMessage(remoteMessage.data);
-});
-```
-
-### 1. Add Firebase Configuration
 
 ## 🎯 How It Works
 
@@ -498,103 +500,5 @@ messaging().onMessage(async (message) => {
 [![GitHub forks](https://img.shields.io/github/forks/bear-block/callx?style=social)](https://github.com/bear-block/callx)
 
 </div>
-
----
-
-## ⚡ Quick Setup
-
-### React Native CLI (Android)
-
-1. **Install dependencies:**
-   ```sh
-   yarn add @bear-block/callx @react-native-firebase/app @react-native-firebase/messaging
-   ```
-2. **Add Firebase config:**
-   - Download `google-services.json` from Firebase Console
-   - Place in `android/app/google-services.json`
-3. **Add FCM Service to AndroidManifest.xml:**
-   - Open `android/app/src/main/AndroidManifest.xml`
-   - Add inside `<application>`:
-     ```xml
-     <service
-       android:name="com.callx.CallxFirebaseMessagingService"
-       android:directBootAware="true"
-       android:exported="false">
-       <intent-filter android:priority="1">
-         <action android:name="com.google.firebase.MESSAGING_EVENT" />
-       </intent-filter>
-     </service>
-     ```
-4. **(Optional) Custom FCM mapping:**
-   - Create `callx.json` in your project root for custom mapping.
-5. **iOS:**
-   - Download `GoogleService-Info.plist` and place in `ios/YourApp/`
-   - Run `cd ios && pod install`
-6. **JS/TS Usage:**
-   ```js
-   import CallxInstance from '@bear-block/callx';
-   await CallxInstance.initialize({
-     onIncomingCall: (callData) => {
-       /* ... */
-     },
-     onCallEnded: (callData) => {
-       /* ... */
-     },
-   });
-   ```
-
-> **Note:** Thanks to auto-setup, you do NOT need to extend or modify your Application class. Callx will initialize itself automatically when your app loads. If you already use @react-native-firebase/messaging, some native steps may already be handled.
-
----
-
-### Expo (Android)
-
-1. **Install dependencies:**
-   ```sh
-   npx expo install @bear-block/callx @react-native-firebase/app @react-native-firebase/messaging
-   ```
-2. **Add Callx plugin to app.json:**
-   ```json
-   {
-     "expo": {
-       "plugins": ["@bear-block/callx"]
-     }
-   }
-   ```
-3. **Add Firebase config:**
-   - Download `google-services.json` from Firebase Console
-   - Place in `android/app/google-services.json`
-4. **(Optional) Custom FCM mapping:**
-   - Create `callx.json` in your project root for custom mapping.
-5. **Prebuild native code:**
-   ```sh
-   npx expo prebuild
-   ```
-6. **JS/TS Usage:**
-   ```js
-   import CallxInstance from '@bear-block/callx';
-   await CallxInstance.initialize({
-     onIncomingCall: (callData) => {
-       /* ... */
-     },
-     onCallEnded: (callData) => {
-       /* ... */
-     },
-   });
-   ```
-
-> **Note:** No need to modify Application class or any native code. Callx will auto-setup everything for you! If you already use @react-native-firebase/messaging, some native steps may already be handled.
-
----
-
-## ✅ Setup Checklist
-
-- [ ] Installed all dependencies
-- [ ] Added Firebase config files (Android/iOS)
-- [ ] (CLI) Added FCM service to AndroidManifest.xml
-- [ ] (Expo) Added Callx plugin to app.json
-- [ ] (Optional) Added callx.json for custom mapping
-- [ ] Ran `pod install` (iOS) or `npx expo prebuild` (Expo)
-- [ ] Initialized Callx in JS/TS
 
 ---
