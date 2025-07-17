@@ -21,8 +21,7 @@
   },
   "fields": {
     "callId": {
-      "field": "callId",
-      "fallback": "unknown-call"
+      "field": "callId"
     },
     "callerName": {
       "field": "callerName",

@@ -20,6 +20,7 @@ import com.callx.NativeCallxSpec
 import java.io.IOException
 import java.io.InputStream
 import android.app.Application
+import java.util.UUID
 
 // Data classes
 data class CallData(
@@ -55,7 +56,7 @@ data class CallxConfiguration(
         "missed" to TriggerConfig("data.type", "call.missed")
     ),
     val fields: Map<String, FieldConfig> = mapOf(
-        "callId" to FieldConfig("data.callId", "unknown-call"),
+        "callId" to FieldConfig("data.callId", null), // Remove fallback for callId
         "callerName" to FieldConfig("data.callerName", "Unknown Caller"),
         "callerPhone" to FieldConfig("data.callerPhone", "No Number"),
         "callerAvatar" to FieldConfig("data.callerAvatar", null)
@@ -375,7 +376,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   private fun parseCallData(data: ReadableMap): CallData {
     return CallData(
-      callId = data.getString("callId") ?: "unknown-call",
+      callId = data.getString("callId") ?: generateUUID(),
       callerName = data.getString("callerName") ?: "Unknown Caller",
       callerPhone = data.getString("callerPhone") ?: "No Number",
       callerAvatar = data.getString("callerAvatar"),
@@ -428,7 +429,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   private fun extractCallDataFromFcm(fcmData: JSONObject): CallData? {
     return try {
-      val callId = getFieldFromJson(fcmData, configuration.fields["callId"]) ?: "unknown-call"
+      val callId = getFieldFromJson(fcmData, configuration.fields["callId"]) ?: generateUUID()
       val callerName = getFieldFromJson(fcmData, configuration.fields["callerName"]) ?: "Unknown Caller"
       val callerPhone = getFieldFromJson(fcmData, configuration.fields["callerPhone"]) ?: "No Number"
       val callerAvatar = getFieldFromJson(fcmData, configuration.fields["callerAvatar"])
@@ -854,6 +855,10 @@ class CallxModule(reactContext: ReactApplicationContext) :
       android.util.Log.e(NAME, "Failed to verify MainActivity inheritance: ${e.message}")
       throw RuntimeException("Callx setup error: ${e.message}")
     }
+  }
+
+  private fun generateUUID(): String {
+    return UUID.randomUUID().toString()
   }
 
 }

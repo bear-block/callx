@@ -7,6 +7,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
 import java.io.IOException
+import java.util.UUID
 
 /**
  * Native Firebase Messaging Service
@@ -148,7 +149,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun extractCallDataFromFcm(fcmData: JSONObject, config: CallxConfiguration): CallData? {
         return try {
-            val callId = getFieldFromJson(fcmData, config.fields["callId"]) ?: "unknown-call"
+            val callId = getFieldFromJson(fcmData, config.fields["callId"]) ?: generateUUID()
             val callerName = getFieldFromJson(fcmData, config.fields["callerName"]) ?: "Unknown Caller"
             val callerPhone = getFieldFromJson(fcmData, config.fields["callerPhone"]) ?: "No Number"
             val callerAvatar = getFieldFromJson(fcmData, config.fields["callerAvatar"])
@@ -211,5 +212,9 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
     private fun dismissIncomingCallNotification() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(CallxModule.NOTIFICATION_ID)
+    }
+
+    private fun generateUUID(): String {
+        return UUID.randomUUID().toString()
     }
 } 
