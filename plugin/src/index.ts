@@ -4,28 +4,16 @@ import { withCallxAndroidManifest } from './android/manifest';
 import { withCallxCopyAssets } from './android/copyAssets';
 import { withCallxModifyMainActivity } from './android/modifyMainActivity';
 
-interface CallxPluginConfig {
-  mode?: 'native' | 'js';
-}
+type CallxPluginProps = { mode?: 'native' | 'js' };
 
-/**
- * A config plugin for configuring Callx - React Native incoming call UI library
- */
-const withCallx: ConfigPlugin<CallxPluginConfig> = (config, props = {}) => {
+const withCallx: ConfigPlugin<CallxPluginProps> = (config, props = {}) => {
   const { mode = 'native' } = props;
-
-  const plugins = [
-    // Always required
-    withCallxCopyAssets,
-    withCallxModifyMainActivity,
-  ];
-
-  // Only add manifest service for native mode
+  const plugins = [withCallxCopyAssets, withCallxModifyMainActivity];
   if (mode === 'native') {
     plugins.push(withCallxAndroidManifest);
   }
-
   return withPlugins(config, plugins);
 };
-const pak = require('../package.json');
+
+const pak = require('../../package.json');
 export default createRunOncePlugin(withCallx, pak.name, pak.version);
