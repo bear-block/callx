@@ -18,6 +18,14 @@
 - 🎨 Beautiful native UI with gradients and animations
 - ⚡ High performance with Turbo Modules
 
+### 📋 Current Limitations
+
+- ❌ **iOS Support**: Not yet supported (PushKit & CallKit integration planned)
+- ❌ **Multiple Calls**: Only single call support (queue management coming soon)
+- ❌ **Call Logging**: Calls are not logged to phone's call history
+- 📧 **Custom Features**: Contact hao.dev7@gmail.com for custom development
+- ☕ **Support Development**: [Buy me a coffee](https://www.buymeacoffee.com/bear-block)
+
 ---
 
 ## ⚡ Quick Setup
@@ -25,23 +33,18 @@
 ### 1. Install
 
 ```bash
-npm install @bear-block/callx
+npm install @bear-block/callx@latest
 ```
 
-### 2. Firebase Setup
-
-**⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase setup guide](https://rnfirebase.io/) first:
-
-- ✅ Firebase project created
-- ✅ `google-services.json` added to `android/app/`
-- ✅ `@react-native-firebase/app` and `@react-native-firebase/messaging` installed
-- ✅ Firebase dependencies added to Gradle files
-
-Callx will automatically add the required Firebase dependencies and FCM service configuration.
+```bash
+yarn add @bear-block/callx@latest
+```
 
 ---
 
-### 3. Android Setup
+> **⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase with Messaging setup guide](https://rnfirebase.io/) first.
+
+### 2. Android Setup
 
 #### Always required
 
@@ -55,13 +58,28 @@ class MainActivity : CallxReactActivity() {
 }
 ```
 
-#### FCM Service (Auto-configured)
+**Option 1: Handle from native (recommended)**
 
-The FCM service is automatically added by the plugin. No manual configuration needed.
+Add the following to your `AndroidManifest.xml`:
+
+```xml
+<service
+  android:name="com.callx.CallxFirebaseMessagingService"
+  android:directBootAware="true"
+  android:exported="false">
+  <intent-filter android:priority="1">
+    <action android:name="com.google.firebase.MESSAGING_EVENT" />
+  </intent-filter>
+</service>
+```
+
+**Option 2: Handle from JS**
+
+No need to add service tags. You'll handle FCM messages manually in your JS code.
 
 ---
 
-### 4. Expo Setup (Optional)
+### 3. Expo Setup
 
 If using Expo, add the plugin to your `app.json`:
 
@@ -80,7 +98,7 @@ If using Expo, add the plugin to your `app.json`:
 
 ---
 
-### 5. Create `callx.json`
+### 4. Create `callx.json`
 
 Create a `callx.json` file in the root of your project.
 
@@ -102,8 +120,7 @@ Create a `callx.json` file in the root of your project.
   },
   "fields": {
     "callId": {
-      "field": "callId",
-      "fallback": "unknown-call"
+      "field": "callId"
     },
     "callerName": {
       "field": "callerName",
@@ -134,11 +151,45 @@ Create a `callx.json` file in the root of your project.
 }
 ```
 
+#### Configuration Fields
+
+**Triggers** - Define when to show call UI:
+
+- `incoming.field`: FCM field path to check (e.g., `"type"` or `"data.call.type"`)
+- `incoming.value`: Value that triggers incoming call (e.g., `"call.started"`)
+- `ended.field/value`: Triggers when call ends
+- `missed.field/value`: Triggers when call is missed
+
+**Fields** - Map FCM data to call display:
+
+- `callId.field`: FCM field containing unique call ID
+- `callerName.field`: FCM field for caller name
+- `callerName.fallback`: Default name if field is empty
+- `callerPhone.field`: FCM field for phone number
+- `callerPhone.fallback`: Default phone if field is empty
+- `callerAvatar.field`: FCM field for avatar URL
+- `callerAvatar.fallback`: Default avatar if field is empty
+
+**Notification** - Android notification settings:
+
+- `channelId`: Unique notification channel ID
+- `channelName`: Channel name shown in Android settings
+- `channelDescription`: Channel description
+- `importance`: `"high"` for heads-up notifications
+- `sound`: `"default"` for ringtone
+
+**App** - App-specific settings:
+
+- `packageName`: Your app's package name (e.g., `"com.myapp"`)
+- `mainActivity`: Your MainActivity class name
+- `showOverLockscreen`: `true` to show over lock screen
+- `requireUnlock`: `false` to allow interaction without unlocking
+
 > 📝 This config is read at build time by the native module. You must rebuild the app after changing it.
 
 ---
 
-### 6. Initialize in JS
+### 5. Initialize in JS
 
 Callx should be initialized as early as possible in your app's lifecycle (e.g., `App.tsx`):
 
@@ -221,25 +272,6 @@ messaging().onMessage(async (remoteMessage) => {
 });
 ```
 
-### Plugin Configuration
-
-**Expo Plugin Mode:**
-
-```json
-{
-  "expo": {
-    "plugins": [["@bear-block/callx", { "mode": "native" }]]
-  }
-}
-```
-
-**Mode Options:**
-
-- `"native"` (default): Automatically adds FCM service for background call handling
-- `"js"`: No FCM service, you handle messages manually in JavaScript
-
-**React Native CLI:** Mode is automatically set to "native" - no configuration needed.
-
 ---
 
 ## 🔧 Troubleshooting
@@ -313,10 +345,147 @@ console.log('FCM token:', await Callx.getFCMToken());
 
 ---
 
-## ☕ Donate
+## 🎯 Best Practices
 
-If this library helps you, consider buying me a coffee to support development ☕  
-[Buy me a coffee](https://www.buymeacoffee.com/your-name)
+### 📱 App Architecture
+
+**Recommended Setup:**
+
+```ts
+// App.tsx - Initialize early
+import Callx from '@bear-block/callx';
+
+// Initialize Callx outside component for earliest possible initialization
+Callx.initialize({
+  onIncomingCall: (data) => {
+    // Navigate to call screen or show notification
+    // Note: navigation might not be available here
+    console.log('📞 Incoming call:', data);
+  },
+  onCallAnswered: (data) => {
+    // Handle call answered - start your call logic
+    console.log('✅ Call answered:', data);
+  },
+  onCallDeclined: (data) => {
+    // Handle call declined
+    console.log('❌ Call declined:', data);
+  },
+});
+
+export default function App() {
+  // Your app component logic here
+  return <YourApp />;
+}
+```
+
+### 🔒 Lock Screen Call Handling
+
+**End Call from Lock Screen:**
+
+```ts
+// Handle end call when app is in background/lock screen
+Callx.initialize({
+  onCallAnswered: (data) => {
+    // Start your call session
+    startCallSession(data);
+  },
+  onCallEnded: (data) => {
+    // Call ended - clean up resources
+    endCallSession(data);
+
+    // If app was launched from lock screen, you might want to:
+    // 1. Hide from lock screen
+    Callx.hideFromLockScreen();
+
+    // 2. Move to background
+    Callx.moveAppToBackground();
+  },
+});
+
+// Manual end call handling
+import { AppState } from 'react-native';
+
+const handleEndCall = async (callId) => {
+  try {
+    // End call in your app
+    await endCallInYourApp(callId);
+
+    // End call in Callx
+    await Callx.endCall(callId);
+
+    // Check if app is in background (likely from lock screen)
+    const appState = AppState.currentState;
+    if (appState === 'background' || appState === 'inactive') {
+      // Only cleanup if app was in background
+      await Callx.hideFromLockScreen();
+      await Callx.moveAppToBackground();
+    }
+  } catch (error) {
+    console.error('Error ending call:', error);
+  }
+};
+```
+
+### 🧪 Testing Strategy
+
+**Unit Tests:**
+
+```ts
+// __tests__/Callx.test.ts
+import Callx from '@bear-block/callx';
+
+describe('Callx Integration', () => {
+  test('should initialize properly', async () => {
+    const mockConfig = {
+      onIncomingCall: jest.fn(),
+      onCallAnswered: jest.fn(),
+    };
+
+    await Callx.initialize(mockConfig);
+    expect(mockConfig.onIncomingCall).toBeDefined();
+  });
+});
+```
+
+**E2E Testing:**
+
+```ts
+// Use the built-in server for testing
+// example/callx-server/ - Start with: yarn server
+// Then test with real FCM messages
+```
+
+### 🚀 Performance Tips
+
+1. **Initialize Early**: Call `Callx.initialize()` in App.tsx
+2. **Handle Background**: Use `onCallAnswered` to start your call logic
+3. **Clean Up**: Always handle `onCallEnded` and `onCallDeclined`
+4. **Error Handling**: Wrap calls in try-catch blocks
+5. **Memory Management**: Clear call state when calls end
+
+### 🔒 Security Considerations
+
+1. **Validate FCM Data**: Always validate incoming call data
+2. **Rate Limiting**: Implement server-side rate limiting
+3. **Token Management**: Rotate FCM tokens regularly
+4. **Call Verification**: Verify call authenticity on your server
+
+### 📊 Monitoring
+
+**Add logging for debugging:**
+
+```ts
+Callx.initialize({
+  onIncomingCall: (data) => {
+    console.log('📞 Incoming call:', data);
+    analytics.track('call_received', data);
+  },
+  onCallAnswered: (data) => {
+    console.log('✅ Call answered:', data);
+    analytics.track('call_answered', data);
+  },
+});
+```
 
 ---
 
