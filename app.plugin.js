@@ -1,4 +1,4 @@
-const withCallx = require('./plugin/build').default;
+const withCallx = require('./plugin/build');
 
 /**
  * A config plugin for configuring Callx - React Native incoming call UI library
