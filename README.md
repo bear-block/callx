@@ -28,9 +28,20 @@
 npm install @bear-block/callx
 ```
 
+### 2. Firebase Setup
+
+**⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase setup guide](https://rnfirebase.io/) first:
+
+- ✅ Firebase project created
+- ✅ `google-services.json` added to `android/app/`
+- ✅ `@react-native-firebase/app` and `@react-native-firebase/messaging` installed
+- ✅ Firebase dependencies added to Gradle files
+
+Callx will automatically add the required Firebase dependencies and FCM service configuration.
+
 ---
 
-### 2. Android Setup
+### 3. Android Setup
 
 #### Always required
 
@@ -44,28 +55,32 @@ class MainActivity : CallxReactActivity() {
 }
 ```
 
-**Option 1: Handle from native (recommended)**
+#### FCM Service (Auto-configured)
 
-Add the following to your `AndroidManifest.xml`:
-
-```xml
-<service
-  android:name="com.callx.CallxFirebaseMessagingService"
-  android:directBootAware="true"
-  android:exported="false">
-  <intent-filter android:priority="1">
-    <action android:name="com.google.firebase.MESSAGING_EVENT" />
-  </intent-filter>
-</service>
-```
-
-**Option 2: Handle from JS**
-
-No need to add service tags. You'll handle FCM messages manually in your JS code.
+The FCM service is automatically added by the plugin. No manual configuration needed.
 
 ---
 
-### 3. Create `callx.json`
+### 4. Expo Setup (Optional)
+
+If using Expo, add the plugin to your `app.json`:
+
+```json
+{
+  "expo": {
+    "plugins": [["@bear-block/callx", { "mode": "native" }]]
+  }
+}
+```
+
+**Mode Options:**
+
+- `"native"` (default): Adds FCM service for automatic call handling
+- `"js"`: No FCM service, handle messages manually in JS code
+
+---
+
+### 5. Create `callx.json`
 
 Create a `callx.json` file in the root of your project.
 
@@ -123,12 +138,12 @@ Create a `callx.json` file in the root of your project.
 
 ---
 
-### 4. Initialize in JS
+### 6. Initialize in JS
 
 Callx should be initialized as early as possible in your app's lifecycle (e.g., `App.tsx`):
 
 ```ts
-import Callx from "@bear-block/callx"
+import Callx from '@bear-block/callx';
 
 Callx.initialize({
   onIncomingCall: (data) => {
@@ -145,19 +160,11 @@ Callx.initialize({
   },
   onCallMissed: (data) => {
     // Called when call is missed
-  }
-})
+  },
+});
 ```
 
-
-
-
-
 ---
-
-
-
-
 
 ---
 
@@ -168,15 +175,15 @@ Callx.initialize({
 You can manually trigger call UI from your JS code:
 
 ```ts
-import Callx from "@bear-block/callx"
+import Callx from '@bear-block/callx';
 
 // Show incoming call manually
 Callx.showIncomingCall({
-  callId: "manual-call-123",
-  callerName: "John Doe",
-  callerPhone: "+1234567890",
-  callerAvatar: "https://example.com/avatar.jpg"
-})
+  callId: 'manual-call-123',
+  callerName: 'John Doe',
+  callerPhone: '+1234567890',
+  callerAvatar: 'https://example.com/avatar.jpg',
+});
 ```
 
 ### FCM Token Management
@@ -184,21 +191,21 @@ Callx.showIncomingCall({
 Get FCM token for your server:
 
 ```ts
-const token = await Callx.getFCMToken()
-console.log("FCM Token:", token)
+const token = await Callx.getFCMToken();
+console.log('FCM Token:', token);
 ```
 
 ### Call Status Management
 
 ```ts
 // Check if call is active
-const isActive = await Callx.isCallActive()
+const isActive = await Callx.isCallActive();
 
 // Get current call data
-const currentCall = await Callx.getCurrentCall()
+const currentCall = await Callx.getCurrentCall();
 
 // End current call
-await Callx.endCall("call-id")
+await Callx.endCall('call-id');
 ```
 
 ### Manual FCM Handling
@@ -206,13 +213,32 @@ await Callx.endCall("call-id")
 If you're using JS mode, handle FCM messages manually:
 
 ```ts
-import messaging from "@react-native-firebase/messaging"
+import messaging from '@react-native-firebase/messaging';
 
 messaging().onMessage(async (remoteMessage) => {
   // Handle FCM message manually
-  await Callx.handleFcmMessage(remoteMessage.data)
-})
+  await Callx.handleFcmMessage(remoteMessage.data);
+});
 ```
+
+### Plugin Configuration
+
+**Expo Plugin Mode:**
+
+```json
+{
+  "expo": {
+    "plugins": [["@bear-block/callx", { "mode": "native" }]]
+  }
+}
+```
+
+**Mode Options:**
+
+- `"native"` (default): Automatically adds FCM service for background call handling
+- `"js"`: No FCM service, you handle messages manually in JavaScript
+
+**React Native CLI:** Mode is automatically set to "native" - no configuration needed.
 
 ---
 
@@ -221,21 +247,27 @@ messaging().onMessage(async (remoteMessage) => {
 ### Common Issues
 
 **FCM not working?**
+
 - ✅ Check `google-services.json` is in `android/app/`
 - ✅ Verify Firebase project settings
 - ✅ Test with real device (not simulator)
+- ✅ Ensure React Native Firebase is properly installed
+- ✅ Check Firebase dependencies are added to Gradle files
 
 **callx.json not loaded?**
+
 - ✅ Place in project root (not in android folder)
 - ✅ Verify file format is valid JSON
 - ✅ Rebuild app after changes
 
 **Native UI not showing?**
+
 - ✅ Check FCM configuration
 - ✅ Verify `callx.json` is properly loaded
 - ✅ Ensure MainActivity extends CallxReactActivity
 
 **Build errors?**
+
 - ✅ Clean and rebuild: `cd android && ./gradlew clean`
 - ✅ Check Android logs: `adb logcat | grep Callx`
 
@@ -243,8 +275,8 @@ messaging().onMessage(async (remoteMessage) => {
 
 ```ts
 // Check current state
-console.log('Active call:', await Callx.getCurrentCall())
-console.log('FCM token:', await Callx.getFCMToken())
+console.log('Active call:', await Callx.getCurrentCall());
+console.log('FCM token:', await Callx.getFCMToken());
 ```
 
 ---
@@ -253,31 +285,31 @@ console.log('FCM token:', await Callx.getFCMToken())
 
 ### Methods
 
-| Method | Description |
-|--------|-------------|
-| `initialize(config)` | Initialize Callx with event listeners |
-| `showIncomingCall(data)` | Manually display incoming call UI |
-| `handleFcmMessage(data)` | Handle FCM message manually (for JS mode) |
-| `answerCall(callId)` | Answer current call |
-| `declineCall(callId)` | Decline current call |
-| `endCall(callId)` | End current call |
-| `getFCMToken()` | Get FCM token for server |
-| `isCallActive()` | Check if call is currently active |
-| `getCurrentCall()` | Get current call data |
-| `setFieldMapping(field, path, fallback)` | Set FCM field mapping |
-| `setTrigger(trigger, field, value)` | Set FCM trigger configuration |
-| `hideFromLockScreen()` | Hide app from lock screen |
-| `moveAppToBackground()` | Move app to background |
+| Method                                   | Description                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `initialize(config)`                     | Initialize Callx with event listeners     |
+| `showIncomingCall(data)`                 | Manually display incoming call UI         |
+| `handleFcmMessage(data)`                 | Handle FCM message manually (for JS mode) |
+| `answerCall(callId)`                     | Answer current call                       |
+| `declineCall(callId)`                    | Decline current call                      |
+| `endCall(callId)`                        | End current call                          |
+| `getFCMToken()`                          | Get FCM token for server                  |
+| `isCallActive()`                         | Check if call is currently active         |
+| `getCurrentCall()`                       | Get current call data                     |
+| `setFieldMapping(field, path, fallback)` | Set FCM field mapping                     |
+| `setTrigger(trigger, field, value)`      | Set FCM trigger configuration             |
+| `hideFromLockScreen()`                   | Hide app from lock screen                 |
+| `moveAppToBackground()`                  | Move app to background                    |
 
 ### Event Callbacks
 
-| Event | Description |
-|-------|-------------|
+| Event            | Description                            |
+| ---------------- | -------------------------------------- |
 | `onIncomingCall` | Triggered when incoming call displayed |
-| `onCallAnswered` | User answered the call |
-| `onCallDeclined` | User rejected the call |
-| `onCallEnded` | Call ended after it was answered |
-| `onCallMissed` | Call was missed (no response) |
+| `onCallAnswered` | User answered the call                 |
+| `onCallDeclined` | User rejected the call                 |
+| `onCallEnded`    | Call ended after it was answered       |
+| `onCallMissed`   | Call was missed (no response)          |
 
 ---
 
