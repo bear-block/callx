@@ -27,5 +27,5 @@ const withCallx: ConfigPlugin<CallxPluginConfig> = (config, props = {}) => {
 
   return withPlugins(config, plugins);
 };
-
-export default createRunOncePlugin(withCallx, '@bear-block/callx', '0.1.1');
+const pak = require('@bear-block/callx/package.json');
+export default createRunOncePlugin(withCallx, pak.name, pak.version);
