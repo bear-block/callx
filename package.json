@@ -1,7 +1,7 @@
 {
-  "name": "callx",
-  "version": "0.1.0",
-  "description": "later",
+  "name": "@bear-block/callx",
+  "version": "1.0.0",
+  "description": "React Native library for handling incoming call UI with Firebase Cloud Messaging integration. Display beautiful full-screen call notifications on Android lock screen.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -10,16 +10,19 @@
       "types": "./lib/typescript/src/index.d.ts",
       "default": "./lib/module/index.js"
     },
+    "./app.plugin.js": "./app.plugin.js",
     "./package.json": "./package.json"
   },
   "files": [
     "src",
     "lib",
+    "plugin",
     "android",
     "ios",
     "cpp",
     "*.podspec",
     "react-native.config.js",
+    "app.plugin.js",
     "!ios/build",
     "!android/build",
     "!android/gradle",
@@ -36,15 +39,39 @@
     "test": "jest",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
-    "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
-    "prepare": "bob build",
+    "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib plugin/build",
+    "build:plugin": "rimraf plugin/build && tsc --build plugin",
+    "prepare": "bob build && yarn run build:plugin",
     "release": "release-it --only-version"
   },
   "keywords": [
     "react-native",
+    "incoming-call",
+    "call-notification",
+    "firebase",
+    "fcm",
+    "push-notification",
+    "lock-screen",
+    "android",
     "ios",
-    "android"
+    "call-ui",
+    "voip",
+    "full-screen-notification",
+    "expo",
+    "expo-plugin"
   ],
+  "expo": {
+    "name": "@bear-block/callx",
+    "platforms": [
+      "android"
+    ],
+    "plugin": "./app.plugin.js",
+    "install": {
+      "exclude": [
+        "ios"
+      ]
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bear-block/callx.git"
@@ -64,11 +91,14 @@
     "@eslint/eslintrc": "^3.3.0",
     "@eslint/js": "^9.22.0",
     "@evilmartians/lefthook": "^1.5.0",
+    "@expo/config-plugins": "^7.0.0",
     "@react-native-community/cli": "15.0.0-alpha.2",
     "@react-native/babel-preset": "0.79.2",
     "@react-native/eslint-config": "^0.78.0",
     "@release-it/conventional-changelog": "^9.0.2",
+    "@tsconfig/node-lts": "^22.0.2",
     "@types/jest": "^29.5.5",
+    "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "commitlint": "^19.6.1",
     "del-cli": "^5.1.0",
@@ -79,12 +109,16 @@
     "prettier": "^3.0.3",
     "react": "19.0.0",
     "react-native": "0.79.2",
-    "react-native-builder-bob": "^0.40.8",
+    "react-native-builder-bob": "^0.40.12",
     "release-it": "^17.10.0",
+    "rimraf": "^5.0.0",
     "turbo": "^1.10.7",
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
+    "@expo/config-plugins": "*",
+    "@react-native-firebase/app": "*",
+    "@react-native-firebase/messaging": "*",
     "react": "*",
     "react-native": "*"
   },
@@ -140,12 +174,7 @@
           "esm": true
         }
       ],
-      [
-        "typescript",
-        {
-          "project": "tsconfig.build.json"
-        }
-      ]
+      "typescript"
     ]
   },
   "codegenConfig": {
@@ -160,5 +189,9 @@
     "languages": "kotlin-objc",
     "type": "turbo-module",
     "version": "0.51.1"
-  }
+  },
+  "eslintIgnore": [
+    "node_modules/",
+    "lib/"
+  ]
 }

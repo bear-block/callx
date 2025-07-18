@@ -1,11 +1,15 @@
-package callx.example
+package com.bearblock.callx
 
-import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.callx.CallxReactActivity
 
-class MainActivity : ReactActivity() {
+/**
+ * MainActivity - Extends CallxReactActivity for automatic lockscreen handling
+ * No manual setup required!
+ */
+class MainActivity : CallxReactActivity() {
 
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule
@@ -19,4 +23,4 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
-}
+} 

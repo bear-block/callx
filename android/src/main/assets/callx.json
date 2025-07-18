@@ -1,0 +1,46 @@
+{
+  "triggers": {
+    "incoming": {
+      "field": "type",
+      "value": "call.started"
+    },
+    "ended": {
+      "field": "type",
+      "value": "call.ended"
+    },
+    "missed": {
+      "field": "type",
+      "value": "call.missed"
+    }
+  },
+  "fields": {
+    "callId": {
+      "field": "callId"
+    },
+    "callerName": {
+      "field": "callerName",
+      "fallback": "Unknown Caller"
+    },
+    "callerPhone": {
+      "field": "callerPhone",
+      "fallback": "No Number"
+    },
+    "callerAvatar": {
+      "field": "callerAvatar",
+      "fallback": "https://picsum.photos/200/200"
+    }
+  },
+  "notification": {
+    "channelId": "callx_incoming_calls",
+    "channelName": "Incoming Calls",
+    "channelDescription": "Incoming call notifications with ringtone",
+    "importance": "high",
+    "sound": "default"
+  },
+  "app": {
+    "packageName": "com.bearblock.callx",
+    "mainActivity": "MainActivity",
+    "showOverLockscreen": true,
+    "requireUnlock": false
+  }
+}
