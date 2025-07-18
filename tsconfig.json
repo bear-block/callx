@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "callx": ["./src/index"]
+      "@bear-block/callx": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
