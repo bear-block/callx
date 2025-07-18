@@ -5,6 +5,19 @@
 [![npm version](https://img.shields.io/npm/v/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
 [![license](https://img.shields.io/npm/l/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)
 
+<table>
+  <tr>
+    <td align="center">
+      <img src="https://raw.githubusercontent.com/bear-block/callx/main/example/docs/assets/incoming-call-background.gif" width="324" /><br/>
+      <b>When app is in background</b>
+    </td>
+    <td align="center">
+      <img src="https://raw.githubusercontent.com/bear-block/callx/main/example/docs/assets/incoming-call-lockscreen.gif" width="324" /><br/>
+      <b>When device is on lock screen</b>
+    </td>
+  </tr>
+</table>
+
 ---
 
 ## 🔧 Features
@@ -217,7 +230,7 @@ Callx.initialize({
 
 ---
 
----
+
 
 ## 🚀 Advanced Usage
 
