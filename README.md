@@ -1,4 +1,4 @@
-# 📞 Callx
+# 📞 Callx - React Native Incoming Call Library
 
 **Beautiful React Native incoming call UI with Firebase Cloud Messaging integration**
 
