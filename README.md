@@ -3,7 +3,9 @@
 **Beautiful React Native incoming call UI with Firebase Cloud Messaging integration**
 
 [![npm version](https://img.shields.io/npm/v/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
-[![license](https://img.shields.io/npm/l/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)
+[![license](https://img.shields.io/npm/l/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
+[![GitHub stars](https://img.shields.io/github/stars/bear-block/callx.svg?style=social&label=Star)](https://github.com/bear-block/callx)  
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red.svg)](https://github.com/sponsors/bear-block)
 
 <table>
   <tr>
@@ -37,7 +39,14 @@
 - ❌ **Multiple Calls**: Only single call support (queue management coming soon)
 - ❌ **Call Logging**: Calls are not logged to phone's call history
 - 📧 **Custom Features**: Contact hao.dev7@gmail.com for custom development
-- ☕ **Support Development**: [Buy me a coffee](https://www.buymeacoffee.com/bearblock)
+
+### 🚀 Support Development
+
+If this library helps you, please consider supporting its development:
+
+- ⭐ **Star this repo** - [GitHub](https://github.com/bear-block/callx)
+- 💖 **Sponsor on GitHub** - [GitHub Sponsors](https://github.com/sponsors/bear-block)
+- ☕ **Buy me a coffee** - [Buy Me a Coffee](https://www.buymeacoffee.com/bearblock)
 
 ---
 
@@ -520,6 +529,20 @@ Callx.initialize({
   },
 });
 ```
+
+---
+
+## 🚀 Support Development
+
+If this library helps you build amazing React Native apps, please consider supporting its development:
+
+<div align="center">
+
+[![GitHub stars](https://img.shields.io/github/stars/bear-block/callx.svg?style=social&label=Star)](https://github.com/bear-block/callx)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red.svg)](https://github.com/sponsors/bear-block)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%E2%98%95-yellow.svg)](https://www.buymeacoffee.com/bearblock)
+
+</div>
 
 ---
 
