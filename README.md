@@ -43,7 +43,9 @@
 
 ## ⚡ Quick Setup
 
-### 1. Install
+> **⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase with Messaging setup guide](https://rnfirebase.io/) first.
+
+### 📦 Install
 
 ```bash
 npm install @bear-block/callx@latest
@@ -55,9 +57,9 @@ yarn add @bear-block/callx@latest
 
 ---
 
-> **⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase with Messaging setup guide](https://rnfirebase.io/) first.
+## 🚀 React Native CLI Setup
 
-### 2. Android Setup
+### 1. Android Setup
 
 #### Always required
 
@@ -70,6 +72,8 @@ class MainActivity : CallxReactActivity() {
   // ...
 }
 ```
+
+#### FCM Service Setup
 
 **Option 1: Handle from native (recommended)**
 
@@ -90,28 +94,7 @@ Add the following to your `AndroidManifest.xml`:
 
 No need to add service tags. You'll handle FCM messages manually in your JS code.
 
----
-
-### 3. Expo Setup
-
-If using Expo, add the plugin to your `app.json`:
-
-```json
-{
-  "expo": {
-    "plugins": [["@bear-block/callx", { "mode": "native" }]]
-  }
-}
-```
-
-**Mode Options:**
-
-- `"native"` (default): Adds FCM service for automatic call handling
-- `"js"`: No FCM service, handle messages manually in JS code
-
----
-
-### 4. Create `callx.json`
+### 2. Create `callx.json`
 
 Create a `callx.json` file in the root of your project.
 
@@ -200,15 +183,15 @@ Create a `callx.json` file in the root of your project.
 
 > 📝 This config is read at build time by the native module. You must rebuild the app after changing it.
 
----
+### 3. Initialize in JS
 
-### 5. Initialize in JS
-
-Callx should be initialized as early as possible in your app's lifecycle (e.g., `App.tsx`):
+Callx should be initialized as early as possible in your app's lifecycle (e.g., `index.js`):
 
 ```ts
+// index.js - Initialize before app renders
 import Callx from '@bear-block/callx';
 
+// Initialize Callx before app starts
 Callx.initialize({
   onIncomingCall: (data) => {
     // Called when incoming call displayed
@@ -226,7 +209,47 @@ Callx.initialize({
     // Called when call is missed
   },
 });
+
+// Then register your app
+AppRegistry.registerComponent(appName, () => App);
 ```
+
+---
+
+## 📱 Expo Setup
+
+### 1. Add Plugin to `app.json`
+
+Add the plugin to your `app.json`:
+
+```json
+{
+  "expo": {
+    "plugins": [["@bear-block/callx", { "mode": "native" }]]
+  }
+}
+```
+
+**Mode Options:**
+
+- `"native"` (default): Adds FCM service for automatic call handling
+- `"js"`: No FCM service, handle messages manually in JS code
+
+### 2. Create `callx.json`
+
+Create a `callx.json` file in the root of your project (same configuration as React Native CLI).
+
+### 3. Initialize in JS
+
+Same initialization code as React Native CLI (in `index.js`).
+
+### 4. Build with EAS
+
+```bash
+eas build --platform android
+```
+
+> **💡 Note:** Expo development builds are required for native modules like Callx.
 
 ---
 
@@ -365,10 +388,10 @@ console.log('FCM token:', await Callx.getFCMToken());
 **Recommended Setup:**
 
 ```ts
-// App.tsx - Initialize early
+// index.js - Initialize before app renders
 import Callx from '@bear-block/callx';
 
-// Initialize Callx outside component for earliest possible initialization
+// Initialize Callx before app starts
 Callx.initialize({
   onIncomingCall: (data) => {
     // Navigate to call screen or show notification
@@ -385,10 +408,8 @@ Callx.initialize({
   },
 });
 
-export default function App() {
-  // Your app component logic here
-  return <YourApp />;
-}
+// Then register your app
+AppRegistry.registerComponent(appName, () => App);
 ```
 
 ### 🔒 Lock Screen Call Handling
