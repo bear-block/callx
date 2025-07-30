@@ -7,25 +7,13 @@ const CALLX_JSON = 'callx.json';
 
 export const withCallxCopyAssets: ConfigPlugin = (config) => {
   return withDangerousMod(config, [
-    'android',
+    'ios',
     async (config) => {
       const projectRoot = config.modRequest.projectRoot;
-      const androidProjectRoot = path.join(projectRoot, 'android');
-      const assetsDir = path.join(
-        androidProjectRoot,
-        'app',
-        'src',
-        'main',
-        'assets'
-      );
-
-      // Ensure assets directory exists
-      if (!fs.existsSync(assetsDir)) {
-        fs.mkdirSync(assetsDir, { recursive: true });
-      }
+      const iosProjectRoot = path.join(projectRoot, 'ios');
+      const bundleDir = path.join(iosProjectRoot, 'CallxExample', 'callx.json');
 
       const callxJsonPath = path.join(projectRoot, CALLX_JSON);
-      const targetPath = path.join(assetsDir, CALLX_JSON);
 
       // Check if callx.json exists in project root
       if (!fs.existsSync(callxJsonPath)) {
@@ -36,11 +24,9 @@ export const withCallxCopyAssets: ConfigPlugin = (config) => {
       }
 
       try {
-        // Copy callx.json to Android assets
-        fs.copyFileSync(callxJsonPath, targetPath);
-        console.log(
-          `[callx] ✓ Copied ${CALLX_JSON} to Android assets directory`
-        );
+        // Copy callx.json to iOS bundle
+        fs.copyFileSync(callxJsonPath, bundleDir);
+        console.log(`[callx] ✓ Copied ${CALLX_JSON} to iOS bundle directory`);
       } catch (error) {
         console.warn(
           `[callx] Warning: Failed to copy ${CALLX_JSON}:`,

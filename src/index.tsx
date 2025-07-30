@@ -6,6 +6,7 @@ export type { CallData, CallxConfig };
 
 // Event listeners
 type CallEventListener = (callData: CallData) => void;
+type TokenEventListener = (tokenData: { token: string }) => void;
 
 interface CallEventListeners {
   onIncomingCall?: CallEventListener;
@@ -13,6 +14,12 @@ interface CallEventListeners {
   onCallMissed?: CallEventListener;
   onCallAnswered?: CallEventListener;
   onCallDeclined?: CallEventListener;
+  onCallAnsweredElsewhere?: CallEventListener;
+  onCallTimeout?: CallEventListener;
+  onCallCancelled?: CallEventListener;
+  onCallBusy?: CallEventListener;
+  onCallRejected?: CallEventListener;
+  onVoIPTokenUpdated?: TokenEventListener;
 }
 
 /**
@@ -35,6 +42,12 @@ class CallxManager {
       onCallMissed: config.onCallMissed,
       onCallAnswered: config.onCallAnswered,
       onCallDeclined: config.onCallDeclined,
+      onCallAnsweredElsewhere: config.onCallAnsweredElsewhere,
+      onCallTimeout: config.onCallTimeout,
+      onCallCancelled: config.onCallCancelled,
+      onCallBusy: config.onCallBusy,
+      onCallRejected: config.onCallRejected,
+      onVoIPTokenUpdated: config.onVoIPTokenUpdated,
     };
 
     // Initialize native module
@@ -82,6 +95,13 @@ class CallxManager {
    */
   async getFCMToken(): Promise<string> {
     return await Callx.getFCMToken();
+  }
+
+  /**
+   * Get current VoIP token (iOS only)
+   */
+  async getVoIPToken(): Promise<string> {
+    return await Callx.getVoIPToken();
   }
 
   /**

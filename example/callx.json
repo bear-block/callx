@@ -3,7 +3,8 @@
     "packageName": "com.bearblock.callx",
     "mainActivity": "MainActivity",
     "showOverLockscreen": true,
-    "requireUnlock": false
+    "requireUnlock": false,
+    "supportsVideo": true
   },
   "triggers": {
     "incoming": {
@@ -17,6 +18,30 @@
     "missed": {
       "field": "type",
       "value": "call.missed"
+    },
+    "answered_elsewhere": {
+      "field": "type",
+      "value": "call.answered_elsewhere"
+    },
+    "declined": {
+      "field": "type",
+      "value": "call.declined"
+    },
+    "timeout": {
+      "field": "type",
+      "value": "call.timeout"
+    },
+    "cancelled": {
+      "field": "type",
+      "value": "call.cancelled"
+    },
+    "busy": {
+      "field": "type",
+      "value": "call.busy"
+    },
+    "rejected": {
+      "field": "type",
+      "value": "call.rejected"
     }
   },
   "fields": {
@@ -34,6 +59,26 @@
     "callerAvatar": {
       "field": "callerAvatar",
       "fallback": "https://picsum.photos/200/200"
+    },
+    "hasVideo": {
+      "field": "hasVideo",
+      "fallback": false
+    },
+    "endReason": {
+      "field": "endReason",
+      "fallback": "unknown"
+    },
+    "answeredBy": {
+      "field": "answeredBy",
+      "fallback": ""
+    },
+    "deviceType": {
+      "field": "deviceType",
+      "fallback": ""
+    },
+    "duration": {
+      "field": "duration",
+      "fallback": "0"
     }
   },
   "notification": {
@@ -42,5 +87,13 @@
     "channelDescription": "Test notifications for Callx",
     "importance": "high",
     "sound": "default"
+  },
+  "callLogging": {
+    "enabled": true,
+    "logAnswered": true,
+    "logDeclined": true,
+    "logMissed": true,
+    "logDuration": true,
+    "logCallerInfo": true
   }
 }

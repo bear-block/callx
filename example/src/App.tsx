@@ -20,11 +20,13 @@ export default function App() {
   const [currentCall, setCurrentCall] = useState<CallData | null>(null);
   const [isCallActive, setIsCallActive] = useState(false);
   const [fcmToken, setFcmToken] = useState<string>('');
+  const [voipToken, setVoipToken] = useState<string>('');
   const [testCallData, setTestCallData] = useState({
     callId: 'test-call-' + Date.now(),
     callerName: 'John Doe',
     callerPhone: '+1234567890',
     callerAvatar: 'https://picsum.photos/200/200',
+    hasVideo: false,
   });
 
   useEffect(() => {
@@ -63,39 +65,23 @@ export default function App() {
   const requestPermissions = async () => {
     if (Platform.OS === 'android') {
       try {
-        console.log('📋 Requesting FCM permissions...');
-
-        // Request notification permission for Android 13+ FIRST
-        if (Platform.Version >= 33) {
-          console.log('📱 Requesting POST_NOTIFICATIONS for Android 13+...');
-          const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-            {
-              title: 'Notification Permission',
-              message:
-                'This app needs notification access to show incoming calls',
-              buttonNeutral: 'Ask Me Later',
-              buttonNegative: 'Cancel',
-              buttonPositive: 'OK',
-            }
-          );
-          console.log('📋 POST_NOTIFICATIONS result:', granted);
-        }
-
-        // Then request FCM permission
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-        console.log(
-          '✅ FCM Authorization status:',
-          authStatus,
-          'Enabled:',
-          enabled
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Microphone Permission',
+            message: 'This app needs access to microphone for calls',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
         );
-      } catch (error) {
-        console.error('❌ Permission request error:', error);
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('✅ Microphone permission granted');
+        } else {
+          console.log('❌ Microphone permission denied');
+        }
+      } catch (err) {
+        console.warn('⚠️ Permission request failed:', err);
       }
     }
   };
@@ -104,67 +90,55 @@ export default function App() {
     try {
       console.log('🔧 Starting FCM initialization...');
 
-      // Get FCM token using Callx library (Android only)
-      if (Platform.OS === 'android' && isInitialized) {
-        try {
-          const token = await CallxInstance.getFCMToken();
-          setFcmToken(token);
-          console.log('🔥 FCM Token (via Callx):', token);
-        } catch (error) {
-          console.log('⚠️ Fallback: Using Firebase SDK directly');
-          const token = await messaging().getToken();
-          setFcmToken(token);
-          console.log('🔥 FCM Token (fallback):', token);
-        }
-      } else {
-        // Fallback for iOS or uninitialized state
+      // Request permission
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        console.log('🔔 FCM authorization status:', authStatus);
+
+        // Get FCM token
         const token = await messaging().getToken();
         setFcmToken(token);
-        console.log('🔥 FCM Token (direct Firebase):', token);
+        console.log('📱 FCM Token:', token);
+
+        // Listen for token refresh
+        messaging().onTokenRefresh((newToken) => {
+          console.log('📱 FCM token refreshed:', newToken);
+          setFcmToken(newToken);
+        });
+
+        // Listen for foreground messages
+        const unsubscribe = messaging().onMessage(async (remoteMessage) => {
+          console.log('📱 FCM foreground message received:', remoteMessage);
+          Alert.alert('FCM Message', 'Received foreground message');
+
+          // Handle call data if present
+          if (remoteMessage.data) {
+            await CallxInstance.handleFcmMessage(remoteMessage.data);
+            await refreshCallStatus();
+          }
+        });
+
+        // Handle background messages (mostly handled by native service now)
+        messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+          console.log('📱 FCM background message received:', remoteMessage);
+          return Promise.resolve();
+        });
+
+        return () => {
+          unsubscribe();
+        };
+      } else {
+        console.log('❌ FCM permission denied');
+        Alert.alert('FCM Permission', 'Push notifications are disabled');
       }
 
-      // Listen for token refresh
-      messaging().onTokenRefresh((refreshedToken) => {
-        setFcmToken(refreshedToken);
-        console.log('🔄 FCM Token refreshed:', refreshedToken);
-      });
-
-      // Handle foreground messages (optional - native service handles most cases)
-      const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-        console.log('📱 FCM Foreground message (JS layer):', remoteMessage);
-
-        // Native service will handle the heavy lifting
-        // JS layer only needs to update UI state if needed
-        const messageData = remoteMessage.data || {};
-
-        if (
-          messageData.type === 'call.started' ||
-          messageData.type === 'call.ended'
-        ) {
-          console.log('🔄 Refreshing call status from foreground FCM');
-          await refreshCallStatus();
-        }
-      });
-
-      // Handle background messages (mostly handled by native service now)
-      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-        console.log('📱 FCM Background message (JS layer):', remoteMessage);
-
-        // Native service handles the actual processing
-        // This is just for logging or any JS-specific logic
-        const messageData = remoteMessage.data || {};
-        console.log('📊 Background data keys:', Object.keys(messageData));
-
-        // No need to process - native service handles it
-        console.log('✅ Background message delegated to native service');
-      });
-
-      return unsubscribe;
-    } catch (error: any) {
-      console.error('❌ FCM initialization error:', error);
-      console.error('❌ Error details:', error?.message || 'Unknown error');
-      console.error('❌ Error code:', error?.code || 'No code');
-      Alert.alert('FCM Error', `FCM failed: ${error?.message || error}`);
+      return () => {}; // Return empty cleanup function on error
+    } catch (error) {
+      console.error('❌ FCM initialization failed:', error);
       return () => {}; // Return empty cleanup function on error
     }
   };
@@ -200,6 +174,14 @@ export default function App() {
             `Call from ${callData.callerName} declined`
           );
         },
+        onVoIPTokenUpdated: (tokenData) => {
+          console.log('📱 VoIP token updated:', tokenData.token);
+          setVoipToken(tokenData.token);
+          Alert.alert(
+            'VoIP Token Updated',
+            `New token: ${tokenData.token.substring(0, 20)}...`
+          );
+        },
       });
 
       setIsInitialized(true);
@@ -223,294 +205,240 @@ export default function App() {
   const showTestCall = async () => {
     try {
       await CallxInstance.showIncomingCall(testCallData);
-      await refreshCallStatus();
-      Alert.alert('✅ Success', 'Test call shown!');
+      Alert.alert('✅ Test Call', 'Incoming call displayed!');
     } catch (error) {
-      console.error('Error showing call:', error);
-      Alert.alert('❌ Error', `Failed to show call: ${error}`);
+      console.error('❌ Test call error:', error);
+      Alert.alert('❌ Error', `Failed to show test call: ${error}`);
     }
   };
 
-  const answerCall = async () => {
-    if (currentCall) {
-      try {
-        await CallxInstance.answerCall(currentCall.callId);
-        await refreshCallStatus();
-      } catch (error) {
-        console.error('Error answering call:', error);
-        Alert.alert('❌ Error', `Failed to answer call: ${error}`);
-      }
-    }
-  };
-
-  const declineCall = async () => {
-    if (currentCall) {
-      try {
-        await CallxInstance.declineCall(currentCall.callId);
-        await refreshCallStatus();
-      } catch (error) {
-        console.error('Error declining call:', error);
-        Alert.alert('❌ Error', `Failed to decline call: ${error}`);
-      }
-    }
-  };
-
-  const endCall = async () => {
-    if (currentCall) {
-      try {
-        await CallxInstance.endCall(currentCall.callId);
-        await refreshCallStatus();
-      } catch (error) {
-        console.error('Error ending call:', error);
-        Alert.alert('❌ Error', `Failed to end call: ${error}`);
-      }
-    }
-  };
-
-  const testFcmMessage = async () => {
+  const getVoIPToken = async () => {
     try {
-      const fcmData = {
+      const token = await CallxInstance.getVoIPToken();
+      setVoipToken(token);
+      Alert.alert('📱 VoIP Token', `Token: ${token.substring(0, 20)}...`);
+    } catch (error) {
+      console.error('❌ VoIP token error:', error);
+      Alert.alert('❌ Error', `Failed to get VoIP token: ${error}`);
+    }
+  };
+
+  const getFCMToken = async () => {
+    try {
+      const token = await CallxInstance.getFCMToken();
+      setFcmToken(token);
+      Alert.alert('🔥 FCM Token', `Token: ${token.substring(0, 20)}...`);
+    } catch (error) {
+      console.error('❌ FCM token error:', error);
+      Alert.alert('❌ Error', `Failed to get FCM token: ${error}`);
+    }
+  };
+
+  const handleFcmTest = async () => {
+    try {
+      const testData = {
         type: 'call.started',
-        callId: 'fcm-call-' + Date.now(),
+        callId: 'fcm-test-' + Date.now(),
         callerName: 'FCM Test Caller',
-        callerPhone: '+0987654321',
-        callerAvatar: 'https://picsum.photos/300/300',
+        callerPhone: '+1234567890',
+        callerAvatar: 'https://picsum.photos/200/200',
       };
 
-      console.log(
-        '🧪 Test FCM Data being sent:',
-        JSON.stringify(fcmData, null, 2)
-      );
-      console.log('🧪 Calling handleFcmMessage...');
-
-      await CallxInstance.handleFcmMessage(fcmData);
-
-      console.log('🧪 handleFcmMessage completed');
-      await refreshCallStatus();
-      Alert.alert('✅ Success', 'FCM message processed!');
+      await CallxInstance.handleFcmMessage(testData);
+      Alert.alert('✅ FCM Test', 'FCM message handled!');
     } catch (error) {
-      console.error('❌ Test FCM Error:', error);
-      console.error('❌ Error stack:', (error as Error)?.stack);
-      Alert.alert('❌ Error', `Failed to handle FCM: ${error}`);
+      console.error('❌ FCM test error:', error);
+      Alert.alert('❌ Error', `Failed to handle FCM message: ${error}`);
     }
   };
 
-  const hideFromLockScreen = async () => {
+  const endCurrentCall = async () => {
     try {
-      const result = await CallxInstance.hideFromLockScreen();
-      if (result) {
-        Alert.alert(
-          '✅ Success',
-          'App successfully hidden from lock screen and moved to background'
-        );
+      if (currentCall) {
+        await CallxInstance.endCall(currentCall.callId);
+        Alert.alert('✅ Call Ended', 'Current call ended!');
+        await refreshCallStatus();
       } else {
-        Alert.alert('⚠️ Warning', 'Failed to hide app from lock screen');
+        Alert.alert('ℹ️ No Active Call', 'No call to end');
       }
     } catch (error) {
-      console.error('Error hiding app from lock screen:', error);
-      Alert.alert('❌ Error', `Failed to hide from lock screen: ${error}`);
+      console.error('❌ End call error:', error);
+      Alert.alert('❌ Error', `Failed to end call: ${error}`);
     }
   };
 
-  const moveToBackground = async () => {
+  const answerCurrentCall = async () => {
     try {
-      const result = await CallxInstance.moveAppToBackground();
-      if (result) {
-        console.log('✅ App successfully moved to background');
-        // Note: This will minimize the app, so user won't see the alert immediately
+      if (currentCall) {
+        await CallxInstance.answerCall(currentCall.callId);
+        Alert.alert('✅ Call Answered', 'Call answered!');
       } else {
-        Alert.alert('⚠️ Warning', 'Failed to move app to background');
+        Alert.alert('ℹ️ No Active Call', 'No call to answer');
       }
     } catch (error) {
-      console.error('Error moving app to background:', error);
-      Alert.alert('❌ Error', `Failed to move to background: ${error}`);
+      console.error('❌ Answer call error:', error);
+      Alert.alert('❌ Error', `Failed to answer call: ${error}`);
+    }
+  };
+
+  const declineCurrentCall = async () => {
+    try {
+      if (currentCall) {
+        await CallxInstance.declineCall(currentCall.callId);
+        Alert.alert('❌ Call Declined', 'Call declined!');
+        await refreshCallStatus();
+      } else {
+        Alert.alert('ℹ️ No Active Call', 'No call to decline');
+      }
+    } catch (error) {
+      console.error('❌ Decline call error:', error);
+      Alert.alert('❌ Error', `Failed to decline call: ${error}`);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f0f0f0" />
-
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>📞 Callx Testing App</Text>
-
-        {/* Status Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📊 Status</Text>
-          <Text style={styles.statusText}>
-            ✅ Initialized: {isInitialized ? 'Yes' : 'No'}
-          </Text>
-          <Text style={styles.statusText}>
-            📞 Call Active: {isCallActive ? 'Yes' : 'No'}
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>📞 Callx Example</Text>
+          <Text style={styles.subtitle}>
+            React Native Incoming Call Library
           </Text>
         </View>
 
-        {/* FCM Token Section */}
-        {fcmToken && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔥 FCM Token</Text>
-            <Text style={styles.tokenText} selectable>
-              {fcmToken}
-            </Text>
-            <TouchableOpacity
-              style={[styles.button, styles.infoButton]}
-              onPress={() => {
-                Alert.alert('FCM Token', fcmToken, [
-                  {
-                    text: 'Copy',
-                    onPress: () => console.log('Token copied:', fcmToken),
-                  },
-                  { text: 'OK' },
-                ]);
-              }}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔧 Status</Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Initialized:</Text>
+            <Text
+              style={[
+                styles.statusValue,
+                { color: isInitialized ? '#28a745' : '#dc3545' },
+              ]}
             >
-              <Text style={styles.buttonText}>📋 Copy Token</Text>
-            </TouchableOpacity>
+              {isInitialized ? '✅ Yes' : '❌ No'}
+            </Text>
           </View>
-        )}
-
-        {/* Current Call Section */}
-        {currentCall && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📞 Current Call</Text>
-            <Text style={styles.callText}>ID: {currentCall.callId}</Text>
-            <Text style={styles.callText}>
-              Caller: {currentCall.callerName}
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Call Active:</Text>
+            <Text
+              style={[
+                styles.statusValue,
+                { color: isCallActive ? '#28a745' : '#6c757d' },
+              ]}
+            >
+              {isCallActive ? '📞 Yes' : '📵 No'}
             </Text>
-            <Text style={styles.callText}>
-              Phone: {currentCall.callerPhone}
-            </Text>
-            {currentCall.callerAvatar && (
-              <Text style={styles.callText}>
-                Avatar: {currentCall.callerAvatar}
+          </View>
+          {currentCall && (
+            <View style={styles.callInfo}>
+              <Text style={styles.callInfoTitle}>Current Call:</Text>
+              <Text style={styles.callInfoText}>
+                Name: {currentCall.callerName}
               </Text>
-            )}
-          </View>
-        )}
-
-        {/* Test Call Configuration */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚙️ Test Call Configuration</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Caller Name"
-            value={testCallData.callerName}
-            onChangeText={(text) =>
-              setTestCallData({ ...testCallData, callerName: text })
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Caller Phone"
-            value={testCallData.callerPhone}
-            onChangeText={(text) =>
-              setTestCallData({ ...testCallData, callerPhone: text })
-            }
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Caller Avatar URL"
-            value={testCallData.callerAvatar}
-            onChangeText={(text) =>
-              setTestCallData({ ...testCallData, callerAvatar: text })
-            }
-          />
+              <Text style={styles.callInfoText}>
+                Phone: {currentCall.callerPhone}
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎮 Actions</Text>
+          <Text style={styles.sectionTitle}>🔑 Tokens</Text>
+          <View style={styles.tokenContainer}>
+            <Text style={styles.tokenLabel}>FCM Token:</Text>
+            <Text style={styles.tokenValue} numberOfLines={2}>
+              {fcmToken ? `${fcmToken.substring(0, 30)}...` : 'Not available'}
+            </Text>
+          </View>
+          {Platform.OS === 'ios' && (
+            <View style={styles.tokenContainer}>
+              <Text style={styles.tokenLabel}>VoIP Token:</Text>
+              <Text style={styles.tokenValue} numberOfLines={2}>
+                {voipToken
+                  ? `${voipToken.substring(0, 30)}...`
+                  : 'Not available'}
+              </Text>
+            </View>
+          )}
+        </View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={refreshCallStatus}
-          >
-            <Text style={styles.buttonText}>🔄 Refresh Status</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.successButton]}
-            onPress={showTestCall}
-            disabled={!isInitialized}
-          >
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧪 Testing</Text>
+          <TouchableOpacity style={styles.button} onPress={showTestCall}>
             <Text style={styles.buttonText}>📞 Show Test Call</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.infoButton]}
-            onPress={testFcmMessage}
-            disabled={!isInitialized}
-          >
-            <Text style={styles.buttonText}>🔥 Test FCM Message</Text>
+          <TouchableOpacity style={styles.button} onPress={handleFcmTest}>
+            <Text style={styles.buttonText}>📨 Test FCM Message</Text>
           </TouchableOpacity>
-
-          {currentCall && (
+          <TouchableOpacity style={styles.button} onPress={getFCMToken}>
+            <Text style={styles.buttonText}>🔥 Get FCM Token</Text>
+          </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity style={styles.button} onPress={getVoIPToken}>
+              <Text style={styles.buttonText}>📱 Get VoIP Token</Text>
+            </TouchableOpacity>
+          )}
+          {isCallActive && (
             <>
               <TouchableOpacity
-                style={[styles.button, styles.successButton]}
-                onPress={answerCall}
+                style={[styles.button, styles.answerButton]}
+                onPress={answerCurrentCall}
               >
                 <Text style={styles.buttonText}>✅ Answer Call</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.button, styles.dangerButton]}
-                onPress={declineCall}
+                style={[styles.button, styles.declineButton]}
+                onPress={declineCurrentCall}
               >
                 <Text style={styles.buttonText}>❌ Decline Call</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.button, styles.warningButton]}
-                onPress={endCall}
+                style={[styles.button, styles.endButton]}
+                onPress={endCurrentCall}
               >
                 <Text style={styles.buttonText}>📵 End Call</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.infoButton]}
-                onPress={hideFromLockScreen}
-              >
-                <Text style={styles.buttonText}>🔒 Hide from Lock Screen</Text>
-              </TouchableOpacity>
             </>
           )}
+        </View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.warningButton]}
-            onPress={moveToBackground}
-          >
-            <Text style={styles.buttonText}>🏠 Move to Background</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
-            onPress={initializeCallx}
-          >
-            <Text style={styles.buttonText}>🔄 Re-Initialize</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.button, styles.infoButton]}
-            onPress={async () => {
-              try {
-                const token = await CallxInstance.getFCMToken();
-                setFcmToken(token);
-                Alert.alert(
-                  '✅ Success',
-                  `FCM Token retrieved via Callx:\n${token.substring(0, 50)}...`
-                );
-              } catch (error) {
-                Alert.alert('❌ Error', `Failed to get FCM token: ${error}`);
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 Configuration</Text>
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Call ID:</Text>
+            <TextInput
+              style={styles.configInput}
+              value={testCallData.callId}
+              onChangeText={(text) =>
+                setTestCallData({ ...testCallData, callId: text })
               }
-            }}
-            disabled={!isInitialized}
-          >
-            <Text style={styles.buttonText}>🔥 Get FCM Token</Text>
-          </TouchableOpacity>
+              placeholder="Enter call ID"
+            />
+          </View>
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Caller Name:</Text>
+            <TextInput
+              style={styles.configInput}
+              value={testCallData.callerName}
+              onChangeText={(text) =>
+                setTestCallData({ ...testCallData, callerName: text })
+              }
+              placeholder="Enter caller name"
+            />
+          </View>
+          <View style={styles.configRow}>
+            <Text style={styles.configLabel}>Caller Phone:</Text>
+            <TextInput
+              style={styles.configInput}
+              value={testCallData.callerPhone}
+              onChangeText={(text) =>
+                setTestCallData({ ...testCallData, callerPhone: text })
+              }
+              placeholder="Enter phone number"
+            />
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -520,87 +448,127 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f8f9fa',
   },
-  content: {
+  scrollContent: {
     padding: 20,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#7f8c8d',
     textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
   },
   section: {
     backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 15,
-    elevation: 2,
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 15,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
-    color: '#333',
   },
-  statusText: {
+  statusLabel: {
     fontSize: 16,
-    marginBottom: 5,
-    color: '#666',
+    color: '#34495e',
   },
-  callText: {
-    fontSize: 14,
-    marginBottom: 3,
-    color: '#555',
+  statusValue: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+  callInfo: {
+    backgroundColor: '#e8f5e8',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 10,
-    backgroundColor: '#f9f9f9',
+    padding: 15,
+    marginTop: 10,
+  },
+  callInfoTitle: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#27ae60',
+    marginBottom: 8,
+  },
+  callInfoText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  tokenContainer: {
+    marginBottom: 15,
+  },
+  tokenLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34495e',
+    marginBottom: 5,
+  },
+  tokenValue: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontFamily: 'monospace',
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 4,
   },
   button: {
-    padding: 15,
+    backgroundColor: '#3498db',
     borderRadius: 8,
+    padding: 15,
     marginBottom: 10,
     alignItems: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-  successButton: {
-    backgroundColor: '#28a745',
-  },
-  dangerButton: {
-    backgroundColor: '#dc3545',
-  },
-  warningButton: {
-    backgroundColor: '#ffc107',
-  },
-  infoButton: {
-    backgroundColor: '#17a2b8',
   },
   buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
-  tokenText: {
-    fontSize: 12,
-    color: '#666',
-    backgroundColor: '#f5f5f5',
-    padding: 8,
-    borderRadius: 4,
-    fontFamily: 'monospace',
-    marginBottom: 10,
+  answerButton: {
+    backgroundColor: '#27ae60',
+  },
+  declineButton: {
+    backgroundColor: '#e74c3c',
+  },
+  endButton: {
+    backgroundColor: '#f39c12',
+  },
+  configRow: {
+    marginBottom: 15,
+  },
+  configLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34495e',
+    marginBottom: 5,
+  },
+  configInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+    backgroundColor: 'white',
   },
 });

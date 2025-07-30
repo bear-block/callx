@@ -21,6 +21,13 @@ import java.io.IOException
 import java.io.InputStream
 import android.app.Application
 import java.util.UUID
+import android.provider.CallLog
+import android.content.ContentValues
+import android.net.Uri
+import android.telephony.TelephonyManager
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 // Data classes
 data class CallData(
@@ -28,6 +35,11 @@ data class CallData(
     val callerName: String,
     val callerPhone: String,
     val callerAvatar: String? = null,
+    val hasVideo: Boolean = false,
+    val endReason: String? = null,
+    val answeredBy: String? = null,
+    val deviceType: String? = null,
+    val duration: Long = 0,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -41,6 +53,14 @@ data class FieldConfig(
     val fallback: String? = null
 )
 
+data class AppConfig(
+    val packageName: String = "com.bearblock.callx",
+    val mainActivity: String = "MainActivity",
+    val showOverLockscreen: Boolean = true,
+    val requireUnlock: Boolean = false,
+    val supportsVideo: Boolean = false
+)
+
 data class NotificationConfig(
     val channelId: String = "callx_incoming_calls",
     val channelName: String = "Incoming Calls",
@@ -49,19 +69,41 @@ data class NotificationConfig(
     val sound: String = "default"
 )
 
+data class CallLoggingConfig(
+    val enabled: Boolean = true,
+    val logAnswered: Boolean = true,
+    val logDeclined: Boolean = true,
+    val logMissed: Boolean = true,
+    val logDuration: Boolean = true,
+    val logCallerInfo: Boolean = true
+)
+
 data class CallxConfiguration(
+    val app: AppConfig = AppConfig(),
     val triggers: Map<String, TriggerConfig> = mapOf(
         "incoming" to TriggerConfig("data.type", "call.started"),
         "ended" to TriggerConfig("data.type", "call.ended"),
-        "missed" to TriggerConfig("data.type", "call.missed")
+        "missed" to TriggerConfig("data.type", "call.missed"),
+        "answered_elsewhere" to TriggerConfig("data.type", "call.answered_elsewhere"),
+        "declined" to TriggerConfig("data.type", "call.declined"),
+        "timeout" to TriggerConfig("data.type", "call.timeout"),
+        "cancelled" to TriggerConfig("data.type", "call.cancelled"),
+        "busy" to TriggerConfig("data.type", "call.busy"),
+        "rejected" to TriggerConfig("data.type", "call.rejected")
     ),
     val fields: Map<String, FieldConfig> = mapOf(
-        "callId" to FieldConfig("data.callId", null), // Remove fallback for callId
+        "callId" to FieldConfig("data.callId", null),
         "callerName" to FieldConfig("data.callerName", "Unknown Caller"),
         "callerPhone" to FieldConfig("data.callerPhone", "No Number"),
-        "callerAvatar" to FieldConfig("data.callerAvatar", null)
+        "callerAvatar" to FieldConfig("data.callerAvatar", null),
+        "hasVideo" to FieldConfig("data.hasVideo", "false"),
+        "endReason" to FieldConfig("data.endReason", "unknown"),
+        "answeredBy" to FieldConfig("data.answeredBy", ""),
+        "deviceType" to FieldConfig("data.deviceType", ""),
+        "duration" to FieldConfig("data.duration", "0")
     ),
-    val notification: NotificationConfig = NotificationConfig()
+    val notification: NotificationConfig = NotificationConfig(),
+    val callLogging: CallLoggingConfig = CallLoggingConfig()
 )
 
 @ReactModule(name = CallxModule.NAME)
@@ -205,13 +247,36 @@ class CallxModule(reactContext: ReactApplicationContext) :
             sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
           }
           "ended" -> {
-            currentCall = null
-            dismissIncomingCall()
+            handleCallEnded(callData.callId, callData.callerName, callData.endReason)
             sendEventToJS("onCallEnded", callDataToWritableMap(callData))
           }
           "missed" -> {
-            currentCall = null
+            handleMissedCall(callData)
             sendEventToJS("onCallMissed", callDataToWritableMap(callData))
+          }
+          "answered_elsewhere" -> {
+            handleCallAnsweredElsewhere(callData.callId, callData.callerName, callData.answeredBy, callData.deviceType)
+            sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(callData))
+          }
+          "declined" -> {
+            handleCallDeclined(callData.callId, callData.callerName)
+            sendEventToJS("onCallDeclined", callDataToWritableMap(callData))
+          }
+          "timeout" -> {
+            handleCallTimeout(callData.callId, callData.callerName)
+            sendEventToJS("onCallTimeout", callDataToWritableMap(callData))
+          }
+          "cancelled" -> {
+            handleCallCancelled(callData.callId, callData.callerName)
+            sendEventToJS("onCallCancelled", callDataToWritableMap(callData))
+          }
+          "busy" -> {
+            handleCallBusy(callData.callId, callData.callerName)
+            sendEventToJS("onCallBusy", callDataToWritableMap(callData))
+          }
+          "rejected" -> {
+            handleCallRejected(callData.callId, callData.callerName)
+            sendEventToJS("onCallRejected", callDataToWritableMap(callData))
           }
           else -> {
             android.util.Log.w(NAME, "Unknown trigger type: $triggerType")
@@ -333,10 +398,23 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   // Private helper methods
-  private fun parseConfiguration(config: ReadableMap): CallxConfiguration {
+    private fun parseConfiguration(config: ReadableMap): CallxConfiguration {
     return try {
+      var appConfig = AppConfig()
       val triggers = mutableMapOf<String, TriggerConfig>()
       val fields = mutableMapOf<String, FieldConfig>()
+      var callLogging = CallLoggingConfig()
+      
+      // Parse app config
+      config.getMap("app")?.let { appMap ->
+        appConfig = AppConfig(
+          packageName = appMap.getString("packageName") ?: "com.bearblock.callx",
+          mainActivity = appMap.getString("mainActivity") ?: "MainActivity",
+          showOverLockscreen = appMap.getBoolean("showOverLockscreen", true),
+          requireUnlock = appMap.getBoolean("requireUnlock", false),
+          supportsVideo = appMap.getBoolean("supportsVideo", false)
+        )
+      }
       
       // Parse triggers
       config.getMap("triggers")?.let { triggersMap ->
@@ -364,10 +442,24 @@ class CallxModule(reactContext: ReactApplicationContext) :
         }
       }
       
+      // Parse call logging config
+      config.getMap("callLogging")?.let { callLoggingMap ->
+        callLogging = CallLoggingConfig(
+          enabled = callLoggingMap.getBoolean("enabled", true),
+          logAnswered = callLoggingMap.getBoolean("logAnswered", true),
+          logDeclined = callLoggingMap.getBoolean("logDeclined", true),
+          logMissed = callLoggingMap.getBoolean("logMissed", true),
+          logDuration = callLoggingMap.getBoolean("logDuration", true),
+          logCallerInfo = callLoggingMap.getBoolean("logCallerInfo", true)
+        )
+      }
+      
       CallxConfiguration(
+        app = appConfig,
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
         fields = fields.ifEmpty { CallxConfiguration().fields },
-        notification = NotificationConfig()
+        notification = NotificationConfig(),
+        callLogging = callLogging
       )
     } catch (e: Exception) {
       CallxConfiguration()
@@ -380,6 +472,11 @@ class CallxModule(reactContext: ReactApplicationContext) :
       callerName = data.getString("callerName") ?: "Unknown Caller",
       callerPhone = data.getString("callerPhone") ?: "No Number",
       callerAvatar = data.getString("callerAvatar"),
+      hasVideo = data.getBoolean("hasVideo"),
+      endReason = data.getString("endReason"),
+      answeredBy = data.getString("answeredBy"),
+      deviceType = data.getString("deviceType"),
+      duration = if (data.hasKey("duration")) data.getDouble("duration").toLong() else 0,
       timestamp = if (data.hasKey("timestamp")) data.getDouble("timestamp").toLong() else System.currentTimeMillis()
     )
   }
@@ -390,6 +487,11 @@ class CallxModule(reactContext: ReactApplicationContext) :
     map.putString("callerName", callData.callerName)
     map.putString("callerPhone", callData.callerPhone)
     callData.callerAvatar?.let { map.putString("callerAvatar", it) }
+    map.putBoolean("hasVideo", callData.hasVideo)
+    callData.endReason?.let { map.putString("endReason", it) }
+    callData.answeredBy?.let { map.putString("answeredBy", it) }
+    callData.deviceType?.let { map.putString("deviceType", it) }
+    map.putDouble("duration", callData.duration.toDouble())
     map.putDouble("timestamp", callData.timestamp.toDouble())
     return map
   }
@@ -433,12 +535,22 @@ class CallxModule(reactContext: ReactApplicationContext) :
       val callerName = getFieldFromJson(fcmData, configuration.fields["callerName"]) ?: "Unknown Caller"
       val callerPhone = getFieldFromJson(fcmData, configuration.fields["callerPhone"]) ?: "No Number"
       val callerAvatar = getFieldFromJson(fcmData, configuration.fields["callerAvatar"])
+      val hasVideo = getFieldFromJson(fcmData, configuration.fields["hasVideo"])?.toBoolean() ?: false
+      val endReason = getFieldFromJson(fcmData, configuration.fields["endReason"])
+      val answeredBy = getFieldFromJson(fcmData, configuration.fields["answeredBy"])
+      val deviceType = getFieldFromJson(fcmData, configuration.fields["deviceType"])
+      val duration = getFieldFromJson(fcmData, configuration.fields["duration"])?.toLong() ?: 0
       
       CallData(
         callId = callId,
         callerName = callerName,
         callerPhone = callerPhone,
         callerAvatar = callerAvatar,
+        hasVideo = hasVideo,
+        endReason = endReason,
+        answeredBy = answeredBy,
+        deviceType = deviceType,
+        duration = duration,
         timestamp = System.currentTimeMillis()
       )
     } catch (e: Exception) {
@@ -630,6 +742,9 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private fun handleCallAnswered(callId: String, callerName: String) {
     currentCall?.let { call ->
       if (call.callId == callId) {
+        // Log call to phone history
+        logCallToPhoneHistory(call, "incoming")
+        
         handleAnswerCall(call)
         dismissIncomingCall()
         currentCall = null
@@ -640,9 +755,91 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private fun handleCallDeclined(callId: String, callerName: String) {
     currentCall?.let { call ->
       if (call.callId == callId) {
+        // Log call to phone history
+        logCallToPhoneHistory(call, "rejected")
+        
         handleDeclineCall(call)
         dismissIncomingCall()
         currentCall = null
+      }
+    }
+  }
+
+  // Handle call answered elsewhere (desktop, web, other device)
+  private fun handleCallAnsweredElsewhere(callId: String, callerName: String, answeredBy: String? = null, deviceType: String? = null) {
+    currentCall?.let { call ->
+      if (call.callId == callId) {
+        val updatedCall = call.copy(
+          endReason = "answered_elsewhere",
+          answeredBy = answeredBy,
+          deviceType = deviceType
+        )
+        
+        handleEndCall(updatedCall)
+        dismissIncomingCall()
+        currentCall = null
+        
+        android.util.Log.d(NAME, "📞 Call answered elsewhere: $callId, By: $answeredBy, Device: $deviceType")
+      }
+    }
+  }
+
+  // Handle call timeout
+  private fun handleCallTimeout(callId: String, callerName: String) {
+    currentCall?.let { call ->
+      if (call.callId == callId) {
+        val updatedCall = call.copy(endReason = "timeout")
+        
+        handleMissedCall(updatedCall)
+        dismissIncomingCall()
+        currentCall = null
+        
+        android.util.Log.d(NAME, "📞 Call timeout: $callId")
+      }
+    }
+  }
+
+  // Handle call cancelled by caller
+  private fun handleCallCancelled(callId: String, callerName: String) {
+    currentCall?.let { call ->
+      if (call.callId == callId) {
+        val updatedCall = call.copy(endReason = "cancelled")
+        
+        handleEndCall(updatedCall)
+        dismissIncomingCall()
+        currentCall = null
+        
+        android.util.Log.d(NAME, "📞 Call cancelled: $callId")
+      }
+    }
+  }
+
+  // Handle call busy (user is on another call)
+  private fun handleCallBusy(callId: String, callerName: String) {
+    currentCall?.let { call ->
+      if (call.callId == callId) {
+        val updatedCall = call.copy(endReason = "busy")
+        
+        handleEndCall(updatedCall)
+        dismissIncomingCall()
+        currentCall = null
+        
+        android.util.Log.d(NAME, "📞 Call busy: $callId")
+      }
+    }
+  }
+
+  // Handle call rejected (user actively rejected)
+  private fun handleCallRejected(callId: String, callerName: String) {
+    currentCall?.let { call ->
+      if (call.callId == callId) {
+        val updatedCall = call.copy(endReason = "rejected")
+        
+        handleDeclineCall(updatedCall)
+        dismissIncomingCall()
+        currentCall = null
+        
+        android.util.Log.d(NAME, "📞 Call rejected: $callId")
       }
     }
   }
@@ -755,6 +952,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     return try {
       val triggers = mutableMapOf<String, TriggerConfig>()
       val fields = mutableMapOf<String, FieldConfig>()
+      val callLogging = CallLoggingConfig()
       
       // Parse triggers
       if (json.has("triggers")) {
@@ -777,25 +975,23 @@ class CallxModule(reactContext: ReactApplicationContext) :
           fields[fieldName] = FieldConfig(field, fallback)
         }
       }
-      
-      // Parse notification config
-      val notificationConfig = if (json.has("notification")) {
-        val notificationJson = json.getJSONObject("notification")
-        NotificationConfig(
-          channelId = notificationJson.optString("channelId", "callx_incoming_calls"),
-          channelName = notificationJson.optString("channelName", "Incoming Calls"),
-          channelDescription = notificationJson.optString("channelDescription", "Notifications for incoming calls"),
-          importance = notificationJson.optString("importance", "high"),
-          sound = notificationJson.optString("sound", "default")
-        )
-      } else {
-        NotificationConfig()
+
+      // Parse call logging config
+      if (json.has("callLogging")) {
+        val callLoggingJson = json.getJSONObject("callLogging")
+        callLogging.enabled = callLoggingJson.optBoolean("enabled", true)
+        callLogging.logAnswered = callLoggingJson.optBoolean("logAnswered", true)
+        callLogging.logDeclined = callLoggingJson.optBoolean("logDeclined", true)
+        callLogging.logMissed = callLoggingJson.optBoolean("logMissed", true)
+        callLogging.logDuration = callLoggingJson.optBoolean("logDuration", true)
+        callLogging.logCallerInfo = callLoggingJson.optBoolean("logCallerInfo", true)
       }
       
       CallxConfiguration(
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
         fields = fields.ifEmpty { CallxConfiguration().fields },
-        notification = notificationConfig
+        notification = NotificationConfig(),
+        callLogging = callLogging
       )
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Error parsing JSON configuration: ${e.message}")
@@ -859,6 +1055,116 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   private fun generateUUID(): String {
     return UUID.randomUUID().toString()
+  }
+
+  // MARK: - Call Logging Methods
+
+  private fun logCallToPhoneHistory(callData: CallData, callType: String) {
+    try {
+      // Check if call logging is enabled
+      if (!configuration.callLogging.enabled) {
+        android.util.Log.d(NAME, "📞 Call logging is disabled in configuration")
+        return
+      }
+
+      // Check specific call type logging
+      val shouldLog = when (callType) {
+        "incoming" -> configuration.callLogging.logAnswered
+        "rejected" -> configuration.callLogging.logDeclined
+        "missed" -> configuration.callLogging.logMissed
+        else -> true
+      }
+
+      if (!shouldLog) {
+        android.util.Log.d(NAME, "📞 Call logging disabled for type: $callType")
+        return
+      }
+
+      // Check for WRITE_CALL_LOG permission
+      if (ContextCompat.checkSelfPermission(
+        reactApplicationContext,
+        Manifest.permission.WRITE_CALL_LOG
+      ) != PackageManager.PERMISSION_GRANTED) {
+        android.util.Log.w(NAME, "📞 Call logging requires WRITE_CALL_LOG permission")
+        return
+      }
+
+      val values = ContentValues().apply {
+        put(CallLog.Calls.NUMBER, callData.callerPhone)
+        put(CallLog.Calls.TYPE, getCallLogType(callType))
+        put(CallLog.Calls.DATE, callData.timestamp)
+        put(CallLog.Calls.DURATION, 0) // Will be updated when call ends
+        put(CallLog.Calls.NEW, 1)
+        
+        // Only log caller info if enabled
+        if (configuration.callLogging.logCallerInfo) {
+          put(CallLog.Calls.CACHED_NAME, callData.callerName)
+          put(CallLog.Calls.CACHED_NUMBER_TYPE, TelephonyManager.PHONE_TYPE_VOICE)
+          put(CallLog.Calls.CACHED_NUMBER_LABEL, "Callx")
+        }
+      }
+
+      val uri = reactApplicationContext.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+      if (uri != null) {
+        android.util.Log.d(NAME, "📞 Call logged to phone history: $callType - ${callData.callerName}")
+        // Store URI for later update when call ends
+        currentCall?.let { call ->
+          // You could store the URI in a map to update duration later
+        }
+      } else {
+        android.util.Log.e(NAME, "📞 Failed to log call to phone history")
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "📞 Error logging call to phone history", e)
+    }
+  }
+
+  private fun getCallLogType(callType: String): Int {
+    return when (callType) {
+      "incoming" -> CallLog.Calls.INCOMING_TYPE
+      "outgoing" -> CallLog.Calls.OUTGOING_TYPE
+      "missed" -> CallLog.Calls.MISSED_TYPE
+      "rejected" -> CallLog.Calls.REJECTED_TYPE
+      "blocked" -> CallLog.Calls.BLOCKED_TYPE
+      else -> CallLog.Calls.INCOMING_TYPE
+    }
+  }
+
+  private fun updateCallDuration(callData: CallData, duration: Long) {
+    try {
+      // Check if call logging and duration logging are enabled
+      if (!configuration.callLogging.enabled || !configuration.callLogging.logDuration) {
+        android.util.Log.d(NAME, "📞 Call duration logging is disabled in configuration")
+        return
+      }
+
+      if (ContextCompat.checkSelfPermission(
+        reactApplicationContext,
+        Manifest.permission.WRITE_CALL_LOG
+      ) != PackageManager.PERMISSION_GRANTED) {
+        return
+      }
+
+      val values = ContentValues().apply {
+        put(CallLog.Calls.DURATION, duration)
+      }
+
+      val selection = "${CallLog.Calls.NUMBER} = ? AND ${CallLog.Calls.DATE} = ?"
+      val selectionArgs = arrayOf(callData.callerPhone, callData.timestamp.toString())
+
+      val updatedRows = reactApplicationContext.contentResolver.update(
+        CallLog.Calls.CONTENT_URI,
+        values,
+        selection,
+        selectionArgs
+      )
+
+      if (updatedRows > 0) {
+        android.util.Log.d(NAME, "📞 Call duration updated: ${duration}s")
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(NAME, "📞 Error updating call duration", e)
+    }
   }
 
 }
