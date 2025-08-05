@@ -39,6 +39,24 @@
     providerConfig.maximumCallsPerCallGroup = 1;
     providerConfig.supportedHandleTypes = @[@(CXHandleTypeGeneric)];
     
+    // NEW: Enable DTMF support
+    providerConfig.supportsDTMF = YES;
+    
+    // NEW: Enable holding calls
+    providerConfig.supportsHolding = YES;
+    
+    // NEW: Enable grouping calls (for future conference support)
+    providerConfig.supportsGrouping = NO; // Set to YES when conference is implemented
+    
+    // NEW: Enable ungrouping calls
+    providerConfig.supportsUngrouping = NO; // Set to YES when conference is implemented
+    
+    // NEW: Enable unholding calls
+    providerConfig.supportsUnholding = YES;
+    
+    // NEW: Enable adding calls
+    providerConfig.supportsAddCall = NO; // Set to YES when multiple calls is implemented
+    
     // Use a simple icon instead of system image to avoid potential issues
     UIImage *phoneIcon = [UIImage systemImageNamed:@"phone.fill"];
     if (phoneIcon) {
@@ -90,49 +108,85 @@
         NSData *configData = [NSData dataWithContentsOfFile:configPath];
         if (configData) {
             NSError *error;
-            self.configuration = [NSJSONSerialization JSONObjectWithData:configData options:0 error:&error];
+            NSDictionary *config = [NSJSONSerialization JSONObjectWithData:configData options:0 error:&error];
             if (error) {
                 RCTLogError(@"CallxPushKitHandler: Failed to parse configuration: %@", error.localizedDescription);
                 [self setDefaultConfiguration];
             } else {
-                RCTLogInfo(@"CallxPushKitHandler: Configuration loaded successfully");
+                // Validate configuration
+                [self validateConfiguration:config];
+                self.configuration = config;
+                RCTLogInfo(@"CallxPushKitHandler: ✅ Configuration loaded successfully");
+                RCTLogInfo(@"CallxPushKitHandler: 📋 Triggers: %lu", (unsigned long)[config[@"triggers"] count]);
+                RCTLogInfo(@"CallxPushKitHandler: 📋 Fields: %lu", (unsigned long)[config[@"fields"] count]);
             }
         } else {
-            RCTLogWarn(@"CallxPushKitHandler: Could not read callx.json file");
+            RCTLogWarn(@"CallxPushKitHandler: ⚠️ Could not read callx.json file");
             [self setDefaultConfiguration];
         }
     } else {
-        RCTLogWarn(@"CallxPushKitHandler: No callx.json found, using default configuration");
+        RCTLogWarn(@"CallxPushKitHandler: ⚠️ No callx.json found, using default configuration");
         [self setDefaultConfiguration];
+    }
+}
+
+- (void)validateConfiguration:(NSDictionary *)config {
+    NSMutableArray *errors = [NSMutableArray array];
+    
+    // Check required triggers
+    NSArray *requiredTriggers = @[@"incoming", @"ended", @"missed"];
+    NSDictionary *triggers = config[@"triggers"];
+    for (NSString *trigger in requiredTriggers) {
+        if (!triggers[trigger]) {
+            [errors addObject:[NSString stringWithFormat:@"Missing required trigger: %@", trigger]];
+        }
+    }
+    
+    // Check required fields
+    NSArray *requiredFields = @[@"callId", @"callerName", @"callerPhone"];
+    NSDictionary *fields = config[@"fields"];
+    for (NSString *field in requiredFields) {
+        if (!fields[field]) {
+            [errors addObject:[NSString stringWithFormat:@"Missing required field: %@", field]];
+        }
+    }
+    
+    // Check notification config
+    NSDictionary *notification = config[@"notification"];
+    if (!notification[@"channelId"] || [notification[@"channelId"] length] == 0) {
+        [errors addObject:@"Notification channelId cannot be empty"];
+    }
+    
+    if (errors.count > 0) {
+        RCTLogWarn(@"CallxPushKitHandler: ⚠️ Configuration validation warnings:");
+        for (NSString *error in errors) {
+            RCTLogWarn(@"CallxPushKitHandler:    - %@", error);
+        }
     }
 }
 
 - (void)setDefaultConfiguration {
     self.configuration = @{
-        @"app": @{
-            @"supportsVideo": @YES
-        },
         @"triggers": @{
             @"incoming": @{@"field": @"type", @"value": @"call.started"},
             @"ended": @{@"field": @"type", @"value": @"call.ended"},
-            @"missed": @{@"field": @"type", @"value": @"call.missed"},
-            @"answered_elsewhere": @{@"field": @"type", @"value": @"call.answered_elsewhere"},
-            @"declined": @{@"field": @"type", @"value": @"call.declined"},
-            @"timeout": @{@"field": @"type", @"value": @"call.timeout"},
-            @"cancelled": @{@"field": @"type", @"value": @"call.cancelled"},
-            @"busy": @{@"field": @"type", @"value": @"call.busy"},
-            @"rejected": @{@"field": @"type", @"value": @"call.rejected"}
+            @"missed": @{@"field": @"type", @"value": @"call.missed"}
         },
         @"fields": @{
             @"callId": @{@"field": @"callId"},
             @"callerName": @{@"field": @"callerName", @"fallback": @"Unknown Caller"},
             @"callerPhone": @{@"field": @"callerPhone", @"fallback": @"No Number"},
-            @"callerAvatar": @{@"field": @"callerAvatar", @"fallback": @""},
-            @"hasVideo": @{@"field": @"hasVideo", @"fallback": @"false"},
-            @"endReason": @{@"field": @"endReason", @"fallback": @"unknown"},
-            @"answeredBy": @{@"field": @"answeredBy", @"fallback": @""},
-            @"deviceType": @{@"field": @"deviceType", @"fallback": @""},
-            @"duration": @{@"field": @"duration", @"fallback": @"0"}
+            @"callerAvatar": @{@"field": @"callerAvatar", @"fallback": @""}
+        },
+        @"notification": @{
+            @"channelId": @"callx_incoming_calls",
+            @"channelName": @"Incoming Calls",
+            @"channelDescription": @"Notifications for incoming calls",
+            @"importance": @"high",
+            @"sound": @"default"
+        },
+        @"app": @{
+            @"supportsVideo": @NO
         },
         @"callLogging": @{
             @"enabled": @YES,
@@ -143,6 +197,7 @@
             @"logCallerInfo": @YES
         }
     };
+    RCTLogInfo(@"CallxPushKitHandler: 📋 Using default configuration");
 }
 
 #pragma mark - Call Management (iOS Policy Compliant)

@@ -1,26 +1,30 @@
 import { useState, useEffect } from 'react';
 import {
-  Text,
   View,
-  StyleSheet,
+  Text,
   TouchableOpacity,
-  Alert,
   ScrollView,
-  TextInput,
+  Alert,
+  StyleSheet,
   SafeAreaView,
   StatusBar,
   PermissionsAndroid,
   Platform,
+  TextInput,
 } from 'react-native';
-import CallxInstance, { type CallData } from '@bear-block/callx';
 import messaging from '@react-native-firebase/messaging';
+import CallxInstance from '@bear-block/callx';
 
 export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [currentCall, setCurrentCall] = useState<CallData | null>(null);
   const [isCallActive, setIsCallActive] = useState(false);
+  const [currentCall, setCurrentCall] = useState<any | null>(null);
   const [fcmToken, setFcmToken] = useState<string>('');
   const [voipToken, setVoipToken] = useState<string>('');
+
+  // Call control states
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerMode, setIsSpeakerMode] = useState(false);
   const [testCallData, setTestCallData] = useState({
     callId: 'test-call-' + Date.now(),
     callerName: 'John Doe',
@@ -147,47 +151,59 @@ export default function App() {
     try {
       // Config is now baked into native code from callx.json
       // Only need to set event listeners
-      await CallxInstance.initialize({
-        onIncomingCall: (callData) => {
-          console.log('📞 Incoming call received:', callData);
-          Alert.alert('Incoming Call', `${callData.callerName} is calling...`);
+      CallxInstance.initialize({
+        onIncomingCall: (data: any) => {
+          console.log('📞 Incoming call:', data);
+          setCurrentCall(data);
+          setIsCallActive(true);
         },
-        onCallEnded: (callData) => {
-          console.log('📵 Call ended:', callData);
-          Alert.alert('Call Ended', 'Call has ended');
+        onCallAnswered: (data: any) => {
+          console.log('✅ Call answered:', data);
+          setIsCallActive(false);
         },
-        onCallMissed: (callData) => {
-          console.log('📵 Call missed:', callData);
-          Alert.alert('Missed Call', `Missed call from ${callData.callerName}`);
+        onCallDeclined: (data: any) => {
+          console.log('❌ Call declined:', data);
+          setIsCallActive(false);
         },
-        onCallAnswered: (callData) => {
-          console.log('✅ Call answered:', callData);
-          Alert.alert(
-            'Call Answered',
-            `Call with ${callData.callerName} started`
-          );
+        onCallEnded: (data: any) => {
+          console.log('📞 Call ended:', data);
+          setIsCallActive(false);
+          setCurrentCall(null);
         },
-        onCallDeclined: (callData) => {
-          console.log('❌ Call declined:', callData);
-          Alert.alert(
-            'Call Declined',
-            `Call from ${callData.callerName} declined`
-          );
+        onCallMissed: (data: any) => {
+          console.log('⏰ Call missed:', data);
+          setIsCallActive(false);
         },
-        onVoIPTokenUpdated: (tokenData) => {
-          console.log('📱 VoIP token updated:', tokenData.token);
-          setVoipToken(tokenData.token);
-          Alert.alert(
-            'VoIP Token Updated',
-            `New token: ${tokenData.token.substring(0, 20)}...`
-          );
+        // NEW: Call control events
+        onCallMuted: (data: any) => {
+          console.log('🔇 Call muted:', data);
+          setIsMuted(true);
+        },
+        onCallUnmuted: (data: any) => {
+          console.log('🔊 Call unmuted:', data);
+          setIsMuted(false);
+        },
+        onSpeakerModeChanged: (data: any) => {
+          console.log('🔊 Speaker mode changed:', data);
+          setIsSpeakerMode(data.isSpeakerMode || false);
+        },
+        onAudioRouteChanged: (data: any) => {
+          console.log('🎧 Audio route changed:', data);
+        },
+        onCallQualityChanged: (data: any) => {
+          console.log('📊 Call quality changed:', data);
+        },
+        onFCMTokenUpdated: (tokenData: { token: string }) => {
+          console.log('📱 FCM token updated:', tokenData.token);
+          setFcmToken(tokenData.token);
         },
       });
 
       setIsInitialized(true);
+      console.log('✅ Callx initialized successfully');
     } catch (error) {
-      console.error('❌ Initialization error:', error);
-      Alert.alert('❌ Error', `Failed to initialize: ${error}`);
+      console.error('❌ Callx initialization failed:', error);
+      Alert.alert('Callx Error', 'Failed to initialize Callx');
     }
   };
 
@@ -296,53 +312,229 @@ export default function App() {
     }
   };
 
+  // Call control functions
+  const handleMuteToggle = async () => {
+    if (!currentCall?.callId) return;
+
+    try {
+      if (isMuted) {
+        await CallxInstance.unmuteCall(currentCall.callId);
+      } else {
+        await CallxInstance.muteCall(currentCall.callId);
+      }
+    } catch (error) {
+      console.error('Mute toggle failed:', error);
+    }
+  };
+
+  const handleSpeakerToggle = async () => {
+    try {
+      await CallxInstance.setSpeakerMode(
+        currentCall?.callId || '',
+        !isSpeakerMode
+      );
+    } catch (error) {
+      console.error('Speaker toggle failed:', error);
+    }
+  };
+
+  const handleSendDTMF = async (digit: string) => {
+    if (!currentCall?.callId) return;
+
+    try {
+      await CallxInstance.sendDTMF(currentCall.callId, digit);
+      console.log('🔢 Sent DTMF:', digit);
+    } catch (error) {
+      console.error('DTMF send failed:', error);
+    }
+  };
+
+  const handleSendDTMFSequence = async (sequence: string) => {
+    if (!currentCall?.callId) return;
+
+    try {
+      await CallxInstance.sendDTMFSequence(currentCall.callId, sequence);
+      console.log('🔢 Sent DTMF sequence:', sequence);
+    } catch (error) {
+      console.error('DTMF sequence failed:', error);
+    }
+  };
+
+  const handleGetCallState = async () => {
+    if (!currentCall?.callId) return;
+
+    try {
+      const state = await CallxInstance.getCallState(currentCall.callId);
+      console.log('📊 Call state:', state);
+      Alert.alert('Call State', JSON.stringify(state, null, 2));
+    } catch (error) {
+      console.error('Get call state failed:', error);
+    }
+  };
+
+  const handleGetCallDuration = async () => {
+    if (!currentCall?.callId) return;
+
+    try {
+      const duration = await CallxInstance.getCallDuration(currentCall.callId);
+      console.log('⏱️ Call duration:', duration);
+      Alert.alert('Call Duration', `${Math.round(duration / 1000)} seconds`);
+    } catch (error) {
+      console.error('Get call duration failed:', error);
+    }
+  };
+
+  const handleGetConfiguration = async () => {
+    try {
+      const config = await CallxInstance.getConfiguration();
+      console.log('📋 Configuration:', config);
+      Alert.alert('Configuration', JSON.stringify(config, null, 2));
+    } catch (error) {
+      console.error('Get configuration failed:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.title}>📞 Callx Example</Text>
-          <Text style={styles.subtitle}>
-            React Native Incoming Call Library
-          </Text>
+          <Text style={styles.subtitle}>React Native Call Library</Text>
         </View>
 
+        {/* Status Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔧 Status</Text>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Initialized:</Text>
-            <Text
-              style={[
-                styles.statusValue,
-                { color: isInitialized ? '#28a745' : '#dc3545' },
-              ]}
-            >
-              {isInitialized ? '✅ Yes' : '❌ No'}
-            </Text>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Call Active:</Text>
-            <Text
-              style={[
-                styles.statusValue,
-                { color: isCallActive ? '#28a745' : '#6c757d' },
-              ]}
-            >
-              {isCallActive ? '📞 Yes' : '📵 No'}
-            </Text>
-          </View>
-          {currentCall && (
-            <View style={styles.callInfo}>
-              <Text style={styles.callInfoTitle}>Current Call:</Text>
-              <Text style={styles.callInfoText}>
-                Name: {currentCall.callerName}
-              </Text>
-              <Text style={styles.callInfoText}>
-                Phone: {currentCall.callerPhone}
+          <Text style={styles.sectionTitle}>📊 Status</Text>
+          <View style={styles.statusGrid}>
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Initialized</Text>
+              <Text
+                style={[
+                  styles.statusValue,
+                  { color: isInitialized ? '#28a745' : '#dc3545' },
+                ]}
+              >
+                {isInitialized ? '✅' : '❌'}
               </Text>
             </View>
-          )}
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Call Active</Text>
+              <Text
+                style={[
+                  styles.statusValue,
+                  { color: isCallActive ? '#28a745' : '#6c757d' },
+                ]}
+              >
+                {isCallActive ? '✅' : '❌'}
+              </Text>
+            </View>
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Muted</Text>
+              <Text
+                style={[
+                  styles.statusValue,
+                  { color: isMuted ? '#ffc107' : '#6c757d' },
+                ]}
+              >
+                {isMuted ? '🎤' : '🔇'}
+              </Text>
+            </View>
+            <View style={styles.statusItem}>
+              <Text style={styles.statusLabel}>Speaker</Text>
+              <Text
+                style={[
+                  styles.statusValue,
+                  { color: isSpeakerMode ? '#17a2b8' : '#6c757d' },
+                ]}
+              >
+                {isSpeakerMode ? '🔊' : '📱'}
+              </Text>
+            </View>
+          </View>
         </View>
+
+        {/* Call Control Section - NEW */}
+        {isCallActive && currentCall && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🎛️ Call Controls</Text>
+            <View style={styles.buttonGrid}>
+              <TouchableOpacity
+                style={[styles.button, isMuted && styles.buttonActive]}
+                onPress={handleMuteToggle}
+              >
+                <Text style={styles.buttonText}>
+                  {isMuted ? '🎤 Unmute' : '🔇 Mute'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, isSpeakerMode && styles.buttonActive]}
+                onPress={handleSpeakerToggle}
+              >
+                <Text style={styles.buttonText}>
+                  {isSpeakerMode ? '📱 Earpiece' : '🔊 Speaker'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleGetCallState}
+              >
+                <Text style={styles.buttonText}>📊 State</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleGetCallDuration}
+              >
+                <Text style={styles.buttonText}>⏱️ Duration</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleGetConfiguration}
+              >
+                <Text style={styles.buttonText}>📋 Config</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* DTMF Keypad - NEW */}
+            <View style={styles.dtmfSection}>
+              <Text style={styles.sectionSubtitle}>🔢 DTMF Keypad</Text>
+              <View style={styles.dtmfGrid}>
+                {[
+                  '1',
+                  '2',
+                  '3',
+                  '4',
+                  '5',
+                  '6',
+                  '7',
+                  '8',
+                  '9',
+                  '*',
+                  '0',
+                  '#',
+                ].map((digit) => (
+                  <TouchableOpacity
+                    key={digit}
+                    style={styles.dtmfButton}
+                    onPress={() => handleSendDTMF(digit)}
+                  >
+                    <Text style={styles.dtmfButtonText}>{digit}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={() => handleSendDTMFSequence('123456')}
+              >
+                <Text style={styles.buttonText}>🔢 Send Sequence (123456)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔑 Tokens</Text>
@@ -485,19 +677,77 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 15,
   },
-  statusRow: {
+  statusGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  statusItem: {
+    width: '45%', // Adjust as needed for 2 columns
     marginBottom: 10,
+    alignItems: 'center',
   },
   statusLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#34495e',
+    marginBottom: 5,
   },
   statusValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  buttonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  button: {
+    backgroundColor: '#3498db',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    alignItems: 'center',
+    width: '45%', // Adjust as needed for 2 columns
+  },
+  buttonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  buttonActive: {
+    backgroundColor: '#27ae60', // Example active color
+  },
+  dtmfSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 10,
+  },
+  dtmfGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  dtmfButton: {
+    backgroundColor: '#ecf0f1',
+    borderRadius: 8,
+    padding: 15,
+    margin: 5,
+    alignItems: 'center',
+    width: '20%', // Adjust as needed for 10 columns
+  },
+  dtmfButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#34495e',
   },
   callInfo: {
     backgroundColor: '#e8f5e8',
@@ -532,18 +782,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     padding: 8,
     borderRadius: 4,
-  },
-  button: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   answerButton: {
     backgroundColor: '#27ae60',

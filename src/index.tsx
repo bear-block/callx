@@ -1,25 +1,27 @@
 import Callx from './NativeCallx';
-import type { CallData, CallxConfig } from './NativeCallx';
+import type { CallData, CallState, CallxConfig } from './NativeCallx';
 
-// Export types
-export type { CallData, CallxConfig };
+export interface CallEventListeners {
+  onIncomingCall?: (data: CallData) => void;
+  onCallAnswered?: (data: CallData) => void;
+  onCallDeclined?: (data: CallData) => void;
+  onCallEnded?: (data: CallData) => void;
+  onCallMissed?: (data: CallData) => void;
+  onCallAnsweredElsewhere?: (data: CallData) => void;
+  onCallTimeout?: (data: CallData) => void;
+  onCallCancelled?: (data: CallData) => void;
+  onCallBusy?: (data: CallData) => void;
+  onCallRejected?: (data: CallData) => void;
 
-// Event listeners
-type CallEventListener = (callData: CallData) => void;
-type TokenEventListener = (tokenData: { token: string }) => void;
+  // Call control events
+  onCallMuted?: (data: CallData) => void;
+  onCallUnmuted?: (data: CallData) => void;
+  onSpeakerModeChanged?: (data: CallData) => void;
+  onAudioRouteChanged?: (data: CallData) => void;
+  onCallQualityChanged?: (data: CallData) => void;
 
-interface CallEventListeners {
-  onIncomingCall?: CallEventListener;
-  onCallEnded?: CallEventListener;
-  onCallMissed?: CallEventListener;
-  onCallAnswered?: CallEventListener;
-  onCallDeclined?: CallEventListener;
-  onCallAnsweredElsewhere?: CallEventListener;
-  onCallTimeout?: CallEventListener;
-  onCallCancelled?: CallEventListener;
-  onCallBusy?: CallEventListener;
-  onCallRejected?: CallEventListener;
-  onVoIPTokenUpdated?: TokenEventListener;
+  // Token events
+  onFCMTokenUpdated?: (data: { token: string }) => void;
 }
 
 /**
@@ -47,7 +49,12 @@ class CallxManager {
       onCallCancelled: config.onCallCancelled,
       onCallBusy: config.onCallBusy,
       onCallRejected: config.onCallRejected,
-      onVoIPTokenUpdated: config.onVoIPTokenUpdated,
+      onCallMuted: config.onCallMuted,
+      onCallUnmuted: config.onCallUnmuted,
+      onSpeakerModeChanged: config.onSpeakerModeChanged,
+      onAudioRouteChanged: config.onAudioRouteChanged,
+      onCallQualityChanged: config.onCallQualityChanged,
+      onFCMTokenUpdated: config.onFCMTokenUpdated,
     };
 
     // Initialize native module
@@ -153,6 +160,57 @@ class CallxManager {
    */
   async moveAppToBackground(): Promise<boolean> {
     return await Callx.moveAppToBackground();
+  }
+
+  /**
+   * Handle FCM token updates from native layer
+   */
+  handleFCMTokenUpdate(token: string): void {
+    this.listeners.onFCMTokenUpdated?.({ token });
+  }
+
+  /**
+   * Get current configuration for debugging
+   */
+  async getConfiguration(): Promise<any> {
+    return await Callx.getConfiguration();
+  }
+
+  // Call control methods
+  async muteCall(callId: string): Promise<void> {
+    return await Callx.muteCall(callId);
+  }
+
+  async unmuteCall(callId: string): Promise<void> {
+    return await Callx.unmuteCall(callId);
+  }
+
+  async isMuted(callId: string): Promise<boolean> {
+    return await Callx.isMuted(callId);
+  }
+
+  async setSpeakerMode(callId: string, enabled: boolean): Promise<void> {
+    return await Callx.setSpeakerMode(callId, enabled);
+  }
+
+  async isSpeakerMode(callId: string): Promise<boolean> {
+    return await Callx.isSpeakerMode(callId);
+  }
+
+  async sendDTMF(callId: string, digit: string): Promise<void> {
+    return await Callx.sendDTMF(callId, digit);
+  }
+
+  async sendDTMFSequence(callId: string, sequence: string): Promise<void> {
+    return await Callx.sendDTMFSequence(callId, sequence);
+  }
+
+  async getCallState(callId: string): Promise<CallState> {
+    return await Callx.getCallState(callId);
+  }
+
+  async getCallDuration(callId: string): Promise<number> {
+    return await Callx.getCallDuration(callId);
   }
 }
 

@@ -22,21 +22,19 @@
 
 ---
 
-## 🔧 Features
+## ✨ Features
 
-- 📱 Full-screen native call UI (supports lock screen)
-- 🍎 **NEW**: Complete iOS support with CallKit & PushKit
-- 🔔 Firebase Cloud Messaging (FCM) & iOS VoIP push integration
-- 🧠 Automatic call handling with native service
-- 🧪 Built-in call lifecycle events: incoming, answered, declined, ended, missed
-- 🎥 **NEW**: Video call support for both platforms
-- 📞 **NEW**: Call end scenarios (answered elsewhere, timeout, cancelled, busy, rejected)
-- 📋 **NEW**: Call logging to phone's native call history
-- 🛠 Simple integration
-- 🔒 Lock screen support with proper Android lifecycle
-- 🎨 Beautiful native UI with gradients and animations
-- ⚡ High performance with Turbo Modules
-- 🚀 **NEW**: Expo plugin for automatic configuration
+- 📱 **Cross-platform**: iOS & Android support
+- 🍎 **iOS**: Complete iOS support with CallKit & PushKit
+- 🤖 **Android**: Custom incoming call UI with FCM
+- 🔔 **Push Notifications**: Firebase Cloud Messaging (FCM)
+- 🎥 **Video call support** for both platforms
+- 📞 **Call end scenarios** (answered elsewhere, timeout, cancelled, busy, rejected)
+- 📋 **Call logging** to phone's native call history
+- 🎛️ **Call Controls**: Mute/Unmute, Speaker Mode, DTMF Keypad
+- ⚙️ **Configuration**: JSON-based configuration (`callx.json`)
+- 🚀 **Expo plugin** for automatic configuration
+- 🔧 **TypeScript**: Full TypeScript support
 
 ### 📋 Platform Support
 
@@ -114,11 +112,13 @@ No need to add service tags. You'll handle FCM messages manually in your JS code
 
 #### Android Permissions
 
-Add to `android/app/src/main/AndroidManifest.xml`:
+**Permissions are automatically included in the library.** If you're using the Expo plugin, no manual setup is required.
+
+For manual setup, add to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
-<uses-permission android:name="android.permission.VIBRATE" />
 <uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.VIBRATE" />
 <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 <uses-permission android:name="android.permission.WRITE_CALL_LOG" />
@@ -147,6 +147,23 @@ Add to `ios/YourApp/Info.plist`:
 <string>This app needs microphone access for calls</string>
 <key>NSCameraUsageDescription</key>
 <string>This app needs camera access for video calls</string>
+```
+
+#### iOS Background Modes & Privacy
+
+**Background modes and privacy descriptions are automatically included in the library.** If you're using the Expo plugin, no manual setup is required.
+
+For manual setup, add to `ios/YourApp/Info.plist`:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+    <string>voip</string>
+    <string>remote-notification</string>
+</array>
+
+<key>NSMicrophoneUsageDescription</key>
+<string>This app needs microphone access for voice calls</string>
 ```
 
 ### 3. Create `callx.json`
@@ -263,22 +280,12 @@ Create a `callx.json` file in the root of your project.
 - `incoming.value`: Value that triggers incoming call (e.g., `"call.started"`)
 - `ended.field/value`: Triggers when call ends
 - `missed.field/value`: Triggers when call is missed
-- **NEW**: `answered_elsewhere`, `declined`, `timeout`, `cancelled`, `busy`, `rejected` triggers
-
-**Fields** - Map FCM data to call display:
-
-- `callId.field`: FCM field containing unique call ID
-- `callerName.field`: FCM field for caller name
-- `callerName.fallback`: Default name if field is empty
-- `callerPhone.field`: FCM field for phone number
-- `callerPhone.fallback`: Default phone if field is empty
-- `callerAvatar.field`: FCM field for avatar URL
-- `callerAvatar.fallback`: Default avatar if field is empty
-- **NEW**: `hasVideo.field`: FCM field for video call flag
-- **NEW**: `endReason.field`: FCM field for call end reason
-- **NEW**: `answeredBy.field`: FCM field for who answered
-- **NEW**: `deviceType.field`: FCM field for device type
-- **NEW**: `duration.field`: FCM field for call duration
+- `answered_elsewhere`, `declined`, `timeout`, `cancelled`, `busy`, `rejected` triggers
+- `hasVideo.field`: FCM field for video call flag
+- `endReason.field`: FCM field for call end reason
+- `answeredBy.field`: FCM field for who answered
+- `deviceType.field`: FCM field for device type
+- `duration.field`: FCM field for call duration
 
 **Notification** - Android notification settings:
 
@@ -294,9 +301,9 @@ Create a `callx.json` file in the root of your project.
 - `mainActivity`: Your MainActivity class name
 - `showOverLockscreen`: `true` to show over lock screen
 - `requireUnlock`: `false` to allow interaction without unlocking
-- **NEW**: `supportsVideo`: `true` to enable video call support
+- `supportsVideo`: `true` to enable video call support
 
-**Call Logging** - **NEW**: Native call history logging:
+**Call Logging** - Native call history logging:
 
 - `enabled`: Master switch for call logging
 - `logAnswered`: Log answered calls
@@ -332,7 +339,7 @@ Callx.initialize({
   onCallMissed: (data) => {
     // Called when call is missed
   },
-  // NEW: Call end scenario events
+  // Call end scenario events
   onCallAnsweredElsewhere: (data) => {
     // Called when call is answered on another device
   },
@@ -348,7 +355,7 @@ Callx.initialize({
   onCallRejected: (data) => {
     // Called when call is rejected
   },
-  // NEW: iOS VoIP token updates
+  // iOS VoIP token updates
   onVoIPTokenUpdated: (tokenData) => {
     // Called when iOS VoIP token updates
     console.log('VoIP token:', tokenData.token);
@@ -402,7 +409,7 @@ eas build --platform ios
 
 ## 🎥 Video Call Support
 
-**NEW**: Callx now supports both voice and video calls:
+Callx now supports both voice and video calls:
 
 **Push Notification Payload:**
 ```json
@@ -446,7 +453,7 @@ interface CallData {
 
 ## 📞 Call End Scenarios
 
-**NEW**: Callx supports comprehensive call end scenarios for better user experience:
+Callx supports comprehensive call end scenarios for better user experience:
 
 **Example Scenarios:**
 
@@ -506,7 +513,7 @@ Callx automatically handles FCM messages for Android. Just send a data-only mess
 
 ### iOS (VoIP Push)
 
-**NEW**: For iOS, you need to send VoIP push notifications using the VoIP token:
+For iOS, you need to send VoIP push notifications using the VoIP token:
 
 ```typescript
 // Get VoIP token
@@ -551,7 +558,7 @@ Callx.showIncomingCall({
   callerName: 'John Doe',
   callerPhone: '+1234567890',
   callerAvatar: 'https://example.com/avatar.jpg',
-  hasVideo: true, // NEW: Video call support
+  hasVideo: true, // Video call support
 });
 ```
 
@@ -564,7 +571,7 @@ Get tokens for your server:
 const fcmToken = await Callx.getFCMToken();
 console.log('FCM Token:', fcmToken);
 
-// VoIP Token (iOS) - NEW
+// VoIP Token (iOS)
 const voipToken = await Callx.getVoIPToken();
 console.log('VoIP Token:', voipToken);
 ```
@@ -603,6 +610,88 @@ messaging().onMessage(async (remoteMessage) => {
 
 ---
 
+## 🎛️ Call Control Features
+
+Callx now supports advanced call control features:
+
+### **Mute/Unmute**
+```ts
+// Mute the current call
+await Callx.muteCall(callId);
+
+// Unmute the current call  
+await Callx.unmuteCall(callId);
+
+// Check if call is muted
+const isMuted = await Callx.isMuted(callId);
+```
+
+### **Speaker Mode**
+```ts
+// Enable speaker mode
+await Callx.setSpeakerMode(true);
+
+// Disable speaker mode
+await Callx.setSpeakerMode(false);
+
+// Check speaker mode status
+const isSpeaker = await Callx.isSpeakerMode();
+```
+
+### **DTMF Keypad**
+```ts
+// Send single DTMF tone
+await Callx.sendDTMF(callId, '1');
+
+// Send DTMF sequence
+await Callx.sendDTMFSequence(callId, '123456');
+```
+
+### **Call State & Duration**
+```ts
+// Get detailed call state
+const state = await Callx.getCallState(callId);
+// Returns: {
+//   callId: string,
+//   isMuted: boolean,
+//   isSpeakerMode: boolean,
+//   isOnHold: boolean,
+//   isRecording: boolean,
+//   duration: number,
+//   audioRoute: 'speaker' | 'earpiece' | 'bluetooth' | 'headset',
+//   callQuality: 'excellent' | 'good' | 'fair' | 'poor'
+// }
+
+// Get call duration in milliseconds
+const duration = await Callx.getCallDuration(callId);
+```
+
+### **Event Listeners**
+```ts
+Callx.initialize({
+  // ... existing listeners ...
+  
+  // Call control events
+  onCallMuted: (data) => {
+    console.log('Call muted:', data.isMuted);
+  },
+  onCallUnmuted: (data) => {
+    console.log('Call unmuted:', data.isMuted);
+  },
+  onSpeakerModeChanged: (data) => {
+    console.log('Speaker mode:', data.isSpeakerMode);
+  },
+  onAudioRouteChanged: (data) => {
+    console.log('Audio route:', data.audioRoute);
+  },
+  onCallQualityChanged: (data) => {
+    console.log('Call quality:', data.callQuality);
+  },
+});
+```
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
@@ -615,7 +704,7 @@ messaging().onMessage(async (remoteMessage) => {
 - ✅ Ensure React Native Firebase is properly installed
 - ✅ Check Firebase dependencies are added to Gradle files
 
-**iOS VoIP not working?** **NEW**
+**iOS VoIP not working?**
 
 - ✅ Test with real device (VoIP doesn't work in simulator)
 - ✅ Check Info.plist has voip background mode
@@ -646,7 +735,7 @@ messaging().onMessage(async (remoteMessage) => {
 // Check current state
 console.log('Active call:', await Callx.getCurrentCall());
 console.log('FCM token:', await Callx.getFCMToken());
-console.log('VoIP token:', await Callx.getVoIPToken()); // NEW
+console.log('VoIP token:', await Callx.getVoIPToken());
 ```
 
 ---
@@ -663,14 +752,15 @@ console.log('VoIP token:', await Callx.getVoIPToken()); // NEW
 | `answerCall(callId)`                     | Answer current call                       | Both |
 | `declineCall(callId)`                    | Decline current call                      | Both |
 | `endCall(callId)`                        | End current call                          | Both |
-| `getFCMToken()`                          | Get FCM token for server                  | Android |
-| `getVoIPToken()` **NEW**                 | Get VoIP token for server                 | iOS |
-| `isCallActive()`                         | Check if call is currently active         | Both |
-| `getCurrentCall()`                       | Get current call data                     | Both |
-| `setFieldMapping(field, path, fallback)` | Set FCM field mapping                     | Both |
-| `setTrigger(trigger, field, value)`      | Set FCM trigger configuration             | Both |
-| `hideFromLockScreen()`                   | Hide app from lock screen                 | Android |
-| `moveAppToBackground()`                  | Move app to background                    | Android |
+| `getFCMToken()`                    | Get current FCM token              | Both |
+| `getVoIPToken()`                   | Get current VoIP token (iOS)      | iOS  |
+| `getCurrentCall()`                 | Get current active call data      | Both |
+| `isCallActive()`                   | Check if call is active           | Both |
+| `hideFromLockScreen()`             | Hide app from lock screen         | Android |
+| `moveAppToBackground()`            | Move app to background            | Android |
+| `getCallState(callId)`             | Get detailed call state           | Both |
+| `getCallDuration(callId)`          | Get call duration in milliseconds | Both |
+| `getConfiguration()`                | Get current configuration for debugging | Both |
 
 ### Event Callbacks
 
@@ -681,12 +771,17 @@ console.log('VoIP token:', await Callx.getVoIPToken()); // NEW
 | `onCallDeclined`           | User rejected the call                 |
 | `onCallEnded`              | Call ended after it was answered       |
 | `onCallMissed`             | Call was missed (no response)          |
-| `onCallAnsweredElsewhere` **NEW** | Call answered on another device  |
-| `onCallTimeout` **NEW**    | Call timed out                         |
-| `onCallCancelled` **NEW**  | Call was cancelled by caller          |
-| `onCallBusy` **NEW**       | User is busy (on another call)        |
-| `onCallRejected` **NEW**   | Call was rejected                      |
-| `onVoIPTokenUpdated` **NEW** | VoIP token updated (iOS)             |
+| `onCallAnsweredElsewhere` | Call answered on another device  |
+| `onCallTimeout`    | Call timed out                         |
+| `onCallCancelled`  | Call was cancelled by caller          |
+| `onCallBusy`       | User is busy (on another call)        |
+| `onCallRejected`                   | Call was rejected by user         | Both |
+| `onCallMuted`                      | Call was muted                   | Both |
+| `onCallUnmuted`                    | Call was unmuted                 | Both |
+| `onSpeakerModeChanged`             | Speaker mode changed             | Both |
+| `onAudioRouteChanged`               | Audio route changed              | Both |
+| `onCallQualityChanged`              | Call quality changed             | Both |
+| `onFCMTokenUpdated`                | FCM token was updated            | Both |
 
 ---
 
@@ -715,7 +810,7 @@ Callx.initialize({
     // Handle call declined
     console.log('❌ Call declined:', data);
   },
-  // NEW: Handle call end scenarios
+  // Handle call end scenarios
   onCallAnsweredElsewhere: (data) => {
     console.log('📱 Answered elsewhere:', data);
     // Hide current call UI, show "answered elsewhere" message
@@ -794,69 +889,3 @@ describe('Callx Integration', () => {
   });
 });
 ```
-
-**E2E Testing:**
-
-```ts
-// Use the built-in server for testing
-// example/callx-server/ - Start with: yarn server
-// Then test with real FCM messages and VoIP pushes
-```
-
-### 🚀 Performance Tips
-
-1. **Initialize Early**: Call `Callx.initialize()` in index.js
-2. **Handle Background**: Use `onCallAnswered` to start your call logic
-3. **Clean Up**: Always handle `onCallEnded` and `onCallDeclined`
-4. **Error Handling**: Wrap calls in try-catch blocks
-5. **Memory Management**: Clear call state when calls end
-6. **Platform-Specific**: Use `Platform.OS` for platform-specific code
-
-### 🔒 Security Considerations
-
-1. **Validate FCM Data**: Always validate incoming call data
-2. **Rate Limiting**: Implement server-side rate limiting
-3. **Token Management**: Rotate FCM/VoIP tokens regularly
-4. **Call Verification**: Verify call authenticity on your server
-5. **VoIP Security**: Use proper VoIP certificates for iOS
-
-### 📊 Monitoring
-
-**Add logging for debugging:**
-
-```ts
-Callx.initialize({
-  onIncomingCall: (data) => {
-    console.log('📞 Incoming call:', data);
-    analytics.track('call_received', data);
-  },
-  onCallAnswered: (data) => {
-    console.log('✅ Call answered:', data);
-    analytics.track('call_answered', data);
-  },
-  onVoIPTokenUpdated: (tokenData) => {
-    console.log('🍎 VoIP token updated:', tokenData.token);
-    // Send to your server
-  },
-});
-```
-
----
-
-## 🚀 Support Development
-
-If this library helps you build amazing React Native apps, please consider supporting its development:
-
-<div align="center">
-
-[![GitHub stars](https://img.shields.io/github/stars/bear-block/callx.svg?style=social&label=Star)](https://github.com/bear-block/callx)
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red.svg)](https://github.com/sponsors/bear-block)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-%E2%98%95-yellow.svg)](https://www.buymeacoffee.com/bearblock)
-
-</div>
-
----
-
-## 📄 License
-
-MIT © [@bear-block](https://github.com/bear-block)

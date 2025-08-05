@@ -3,6 +3,7 @@ package com.callx
 import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
+import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
@@ -49,8 +50,17 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         Log.d(TAG, "📱 New FCM token: $token")
         
-        // TODO: Send token to your server if needed
-        // You can also notify JS layer if app is active
+        // Send token to JS layer if app is active
+        try {
+            val reactContext = reactApplicationContext
+            if (reactContext != null) {
+                val eventEmitter = reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                eventEmitter.emit("onFCMTokenUpdated", mapOf("token" to token))
+                Log.d(TAG, "📱 FCM token sent to JS layer")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send FCM token to JS layer: ${e.message}")
+        }
     }
 
     private fun loadConfigurationFromAssets(): CallxConfiguration? {

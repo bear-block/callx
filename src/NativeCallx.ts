@@ -66,6 +66,7 @@ export interface Spec extends TurboModule {
   // Core methods
   initialize(config: CallxConfig): Promise<void>;
   showIncomingCall(callData: CallData): Promise<void>;
+  // Call management methods
   endCall(callId: string): Promise<void>;
   answerCall(callId: string): Promise<void>;
   declineCall(callId: string): Promise<void>;
@@ -92,6 +93,34 @@ export interface Spec extends TurboModule {
   // Lock screen management (Android)
   hideFromLockScreen(): Promise<boolean>;
   moveAppToBackground(): Promise<boolean>;
+
+  // Call control methods
+  muteCall(callId: string): Promise<void>;
+  unmuteCall(callId: string): Promise<void>;
+  isMuted(callId: string): Promise<boolean>;
+  setSpeakerMode(callId: string, enabled: boolean): Promise<void>;
+  isSpeakerMode(callId: string): Promise<boolean>;
+  sendDTMF(callId: string, digit: string): Promise<void>;
+  sendDTMFSequence(callId: string, sequence: string): Promise<void>;
+
+  // Call state methods
+  getCallState(callId: string): Promise<CallState>;
+  getCallDuration(callId: string): Promise<number>;
+
+  // Configuration debug
+  getConfiguration(): Promise<any>;
+}
+
+// NEW: Call State Interface
+export interface CallState {
+  callId: string;
+  isMuted: boolean;
+  isSpeakerMode: boolean;
+  isOnHold: boolean;
+  isRecording: boolean;
+  duration: number;
+  audioRoute: 'speaker' | 'earpiece' | 'bluetooth' | 'headset';
+  callQuality: 'excellent' | 'good' | 'fair' | 'poor';
 }
 
 export type CallEventListener = (callData: CallData) => void;

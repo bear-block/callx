@@ -257,6 +257,170 @@ RCT_EXPORT_METHOD(moveAppToBackground:(RCTPromiseResolveBlock)resolve
     resolve(@YES);
 }
 
+// NEW: Call Control Methods
+RCT_EXPORT_METHOD(muteCall:(NSString *)callId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        RCTLogInfo(@"Callx: Muting call: %@", callId);
+        
+        // Update call state
+        NSMutableDictionary *updatedCallData = [self.currentCallData mutableCopy];
+        updatedCallData[@"isMuted"] = @YES;
+        self.currentCallData = updatedCallData;
+        
+        // Send event to JS
+        [self sendEventWithName:@"onCallMuted" body:@{
+            @"callId": callId,
+            @"isMuted": @YES
+        }];
+        
+        resolve(nil);
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(unmuteCall:(NSString *)callId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        RCTLogInfo(@"Callx: Unmuting call: %@", callId);
+        
+        // Update call state
+        NSMutableDictionary *updatedCallData = [self.currentCallData mutableCopy];
+        updatedCallData[@"isMuted"] = @NO;
+        self.currentCallData = updatedCallData;
+        
+        // Send event to JS
+        [self sendEventWithName:@"onCallUnmuted" body:@{
+            @"callId": callId,
+            @"isMuted": @NO
+        }];
+        
+        resolve(nil);
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(isMuted:(NSString *)callId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    BOOL isMuted = [self.currentCallData[@"callId"] isEqualToString:callId] && 
+                   [self.currentCallData[@"isMuted"] boolValue];
+    resolve(@(isMuted));
+}
+
+RCT_EXPORT_METHOD(setSpeakerMode:(BOOL)enabled
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    RCTLogInfo(@"Callx: Setting speaker mode: %@", enabled ? @"YES" : @"NO");
+    
+    // Update audio route
+    NSString *audioRoute = enabled ? @"speaker" : @"earpiece";
+    self.currentCallData[@"audioRoute"] = audioRoute;
+    
+    // Send events to JS
+    [self sendEventWithName:@"onSpeakerModeChanged" body:@{
+        @"isSpeakerMode": @(enabled)
+    }];
+    
+    [self sendEventWithName:@"onAudioRouteChanged" body:@{
+        @"audioRoute": audioRoute
+    }];
+    
+    resolve(nil);
+}
+
+RCT_EXPORT_METHOD(isSpeakerMode:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    BOOL isSpeaker = [self.currentCallData[@"audioRoute"] isEqualToString:@"speaker"];
+    resolve(@(isSpeaker));
+}
+
+RCT_EXPORT_METHOD(sendDTMF:(NSString *)callId
+                  digit:(NSString *)digit
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        RCTLogInfo(@"Callx: Sending DTMF: %@ for call: %@", digit, callId);
+        
+        // In a real implementation, this would send DTMF tones
+        // For now, we just log and resolve
+        resolve(nil);
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(sendDTMFSequence:(NSString *)callId
+                  sequence:(NSString *)sequence
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        RCTLogInfo(@"Callx: Sending DTMF sequence: %@ for call: %@", sequence, callId);
+        
+        // Send each digit with a small delay
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+            for (NSInteger i = 0; i < sequence.length; i++) {
+                NSString *digit = [sequence substringWithRange:NSMakeRange(i, 1)];
+                // In real implementation, send DTMF tone
+                [NSThread sleepForTimeInterval:0.1]; // 100ms delay
+            }
+            dispatch_async(dispatch_get_main_queue(), ^{
+                resolve(nil);
+            });
+        });
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(getCallState:(NSString *)callId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        NSTimeInterval duration = [[NSDate date] timeIntervalSince1970] - 
+                                 [self.currentCallData[@"timestamp"] doubleValue];
+        
+        NSDictionary *callState = @{
+            @"callId": callId,
+            @"isMuted": self.currentCallData[@"isMuted"] ?: @NO,
+            @"isSpeakerMode": [self.currentCallData[@"audioRoute"] isEqualToString:@"speaker"] ? @YES : @NO,
+            @"isOnHold": @NO, // TODO: Implement hold functionality
+            @"isRecording": @NO, // TODO: Implement recording
+            @"duration": @(duration * 1000), // Convert to milliseconds
+            @"audioRoute": self.currentCallData[@"audioRoute"] ?: @"earpiece",
+            @"callQuality": @"good" // TODO: Implement call quality monitoring
+        };
+        resolve(callState);
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(getCallDuration:(NSString *)callId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if ([self.currentCallData[@"callId"] isEqualToString:callId]) {
+        NSTimeInterval duration = [[NSDate date] timeIntervalSince1970] - 
+                                 [self.currentCallData[@"timestamp"] doubleValue];
+        resolve(@(duration * 1000)); // Convert to milliseconds
+    } else {
+        reject(@"CALL_NOT_FOUND", [NSString stringWithFormat:@"Call not found: %@", callId], nil);
+    }
+}
+
+RCT_EXPORT_METHOD(getConfiguration:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    if (self.configuration) {
+        resolve(self.configuration);
+    } else {
+        reject(@"CONFIG_NOT_FOUND", @"Configuration not loaded", nil);
+    }
+}
+
 #pragma mark - Call Management
 
 - (void)handleIncomingCall:(NSDictionary *)callData {

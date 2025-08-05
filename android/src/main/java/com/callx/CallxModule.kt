@@ -34,13 +34,18 @@ data class CallData(
     val callId: String,
     val callerName: String,
     val callerPhone: String,
-    val callerAvatar: String? = null,
+    val callerAvatar: String?,
+    val timestamp: Long = System.currentTimeMillis(),
     val hasVideo: Boolean = false,
     val endReason: String? = null,
     val answeredBy: String? = null,
     val deviceType: String? = null,
     val duration: Long = 0,
-    val timestamp: Long = System.currentTimeMillis()
+    // NEW: Call Control Fields
+    val isMuted: Boolean = false,
+    val isOnHold: Boolean = false,
+    val isRecording: Boolean = false,
+    val audioRoute: String = "earpiece"
 )
 
 data class TriggerConfig(
@@ -116,6 +121,8 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private val notificationManager: NotificationManager by lazy {
     reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
   }
+
+  private var currentAudioRoute: String = "earpiece"
 
   companion object {
     const val NAME = "Callx"
@@ -394,6 +401,209 @@ class CallxModule(reactContext: ReactApplicationContext) :
         }
     } catch (e: Exception) {
       promise.reject("FCM_TOKEN_ERROR", "Failed to get FCM token: ${e.message}", e)
+    }
+  }
+
+  // NEW: Call Control Methods
+  override fun muteCall(callId: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        android.util.Log.d(NAME, "🎤 Muting call: $callId")
+        
+        // Update call state
+        currentCall = currentCall?.copy(isMuted = true)
+        
+        // Send event to JS
+        sendEventToJS("onCallMuted", mapOf(
+          "callId" to callId,
+          "isMuted" to true
+        ))
+        
+        promise.resolve(null)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("MUTE_ERROR", "Failed to mute call: ${e.message}", e)
+    }
+  }
+
+  override fun unmuteCall(callId: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        android.util.Log.d(NAME, "🎤 Unmuting call: $callId")
+        
+        // Update call state
+        currentCall = currentCall?.copy(isMuted = false)
+        
+        // Send event to JS
+        sendEventToJS("onCallUnmuted", mapOf(
+          "callId" to callId,
+          "isMuted" to false
+        ))
+        
+        promise.resolve(null)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("UNMUTE_ERROR", "Failed to unmute call: ${e.message}", e)
+    }
+  }
+
+  override fun isMuted(callId: String, promise: Promise) {
+    try {
+      val isMuted = currentCall?.callId == callId && currentCall?.isMuted == true
+      promise.resolve(isMuted)
+    } catch (e: Exception) {
+      promise.reject("IS_MUTED_ERROR", "Failed to check mute status: ${e.message}", e)
+    }
+  }
+
+  override fun setSpeakerMode(enabled: Boolean, promise: Promise) {
+    try {
+      android.util.Log.d(NAME, "🔊 Setting speaker mode: $enabled")
+      
+      // Update audio route
+      currentAudioRoute = if (enabled) "speaker" else "earpiece"
+      
+      // Send event to JS
+      sendEventToJS("onSpeakerModeChanged", mapOf(
+        "isSpeakerMode" to enabled
+      ))
+      
+      sendEventToJS("onAudioRouteChanged", mapOf(
+        "audioRoute" to currentAudioRoute
+      ))
+      
+      promise.resolve(null)
+    } catch (e: Exception) {
+      promise.reject("SPEAKER_ERROR", "Failed to set speaker mode: ${e.message}", e)
+    }
+  }
+
+  override fun isSpeakerMode(promise: Promise) {
+    try {
+      val isSpeaker = currentAudioRoute == "speaker"
+      promise.resolve(isSpeaker)
+    } catch (e: Exception) {
+      promise.reject("IS_SPEAKER_ERROR", "Failed to check speaker mode: ${e.message}", e)
+    }
+  }
+
+  override fun sendDTMF(callId: String, digit: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        android.util.Log.d(NAME, "🔢 Sending DTMF: $digit for call: $callId")
+        
+        // In a real implementation, this would send DTMF tones
+        // For now, we just log and resolve
+        promise.resolve(null)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("DTMF_ERROR", "Failed to send DTMF: ${e.message}", e)
+    }
+  }
+
+  override fun sendDTMFSequence(callId: String, sequence: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        android.util.Log.d(NAME, "🔢 Sending DTMF sequence: $sequence for call: $callId")
+        
+        // Send each digit with a small delay
+        for (digit in sequence) {
+          sendDTMF(callId, digit.toString(), object : Promise {
+            override fun resolve(value: Any?) {}
+            override fun reject(code: String, message: String?) {}
+            override fun reject(code: String, throwable: Throwable?) {}
+            override fun reject(code: String, message: String?, throwable: Throwable?) {}
+          })
+          Thread.sleep(100) // 100ms delay between digits
+        }
+        
+        promise.resolve(null)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("DTMF_SEQUENCE_ERROR", "Failed to send DTMF sequence: ${e.message}", e)
+    }
+  }
+
+  override fun getCallState(callId: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        val callState = mapOf(
+          "callId" to callId,
+          "isMuted" to (currentCall?.isMuted ?: false),
+          "isSpeakerMode" to (currentAudioRoute == "speaker"),
+          "isOnHold" to false, // TODO: Implement hold functionality
+          "isRecording" to false, // TODO: Implement recording
+          "duration" to (System.currentTimeMillis() - (currentCall?.timestamp ?: 0)),
+          "audioRoute" to currentAudioRoute,
+          "callQuality" to "good" // TODO: Implement call quality monitoring
+        )
+        promise.resolve(callState)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("GET_STATE_ERROR", "Failed to get call state: ${e.message}", e)
+    }
+  }
+
+  override fun getCallDuration(callId: String, promise: Promise) {
+    try {
+      if (currentCall?.callId == callId) {
+        val duration = System.currentTimeMillis() - (currentCall?.timestamp ?: 0)
+        promise.resolve(duration)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
+    } catch (e: Exception) {
+      promise.reject("GET_DURATION_ERROR", "Failed to get call duration: ${e.message}", e)
+    }
+  }
+
+  override fun getConfiguration(promise: Promise) {
+    try {
+      val config = mapOf(
+        "triggers" to configuration.triggers.mapValues { (_, trigger) ->
+          mapOf(
+            "field" to trigger.field,
+            "value" to trigger.value
+          )
+        },
+        "fields" to configuration.fields.mapValues { (_, field) ->
+          mapOf(
+            "field" to field.field,
+            "fallback" to field.fallback
+          )
+        },
+        "notification" to mapOf(
+          "channelId" to configuration.notification.channelId,
+          "channelName" to configuration.notification.channelName,
+          "channelDescription" to configuration.notification.channelDescription,
+          "importance" to configuration.notification.importance,
+          "sound" to configuration.notification.sound
+        ),
+        "app" to mapOf(
+          "supportsVideo" to configuration.app.supportsVideo
+        ),
+        "callLogging" to mapOf(
+          "enabled" to configuration.callLogging.enabled,
+          "logAnswered" to configuration.callLogging.logAnswered,
+          "logDeclined" to configuration.callLogging.logDeclined,
+          "logMissed" to configuration.callLogging.logMissed,
+          "logDuration" to configuration.callLogging.logDuration,
+          "logCallerInfo" to configuration.callLogging.logCallerInfo
+        )
+      )
+      promise.resolve(config)
+    } catch (e: Exception) {
+      promise.reject("GET_CONFIG_ERROR", "Failed to get configuration: ${e.message}", e)
     }
   }
 
@@ -937,13 +1147,76 @@ class CallxModule(reactContext: ReactApplicationContext) :
       
       val jsonConfig = JSONObject(jsonString)
       configuration = parseJsonConfiguration(jsonConfig)
-      android.util.Log.d(NAME, "Loaded configuration from callx.json")
+      
+      // Validate configuration
+      validateConfiguration(configuration)
+      
+      android.util.Log.d(NAME, "✅ Configuration loaded successfully from callx.json")
+      android.util.Log.d(NAME, "📋 Triggers: ${configuration.triggers.size}")
+      android.util.Log.d(NAME, "📋 Fields: ${configuration.fields.size}")
+      android.util.Log.d(NAME, "📋 Call logging: ${configuration.callLogging.enabled}")
+      android.util.Log.d(NAME, "📋 Video support: ${configuration.app.supportsVideo}")
+      
     } catch (e: IOException) {
-      android.util.Log.w(NAME, "callx.json not found in assets, using default configuration")
-      configuration = CallxConfiguration()
+      android.util.Log.w(NAME, "⚠️ callx.json not found in assets, using default configuration")
+      configuration = getDefaultConfiguration()
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Failed to load callx.json: ${e.message}")
-      configuration = CallxConfiguration()
+      android.util.Log.e(NAME, "❌ Failed to load callx.json: ${e.message}")
+      android.util.Log.e(NAME, "📋 Using default configuration")
+      configuration = getDefaultConfiguration()
+    }
+  }
+
+  // Get default configuration
+  private fun getDefaultConfiguration(): CallxConfiguration {
+    return CallxConfiguration(
+      triggers = mapOf(
+        "incoming" to TriggerConfig("type", "call.started"),
+        "ended" to TriggerConfig("type", "call.ended"),
+        "missed" to TriggerConfig("type", "call.missed")
+      ),
+      fields = mapOf(
+        "callId" to FieldConfig("callId", null),
+        "callerName" to FieldConfig("callerName", "Unknown Caller"),
+        "callerPhone" to FieldConfig("callerPhone", "No Number"),
+        "callerAvatar" to FieldConfig("callerAvatar", "")
+      ),
+      notification = NotificationConfig(),
+      app = AppConfig(),
+      callLogging = CallLoggingConfig()
+    )
+  }
+
+  // Validate configuration
+  private fun validateConfiguration(config: CallxConfiguration) {
+    val errors = mutableListOf<String>()
+    
+    // Check required triggers
+    val requiredTriggers = listOf("incoming", "ended", "missed")
+    for (trigger in requiredTriggers) {
+      if (!config.triggers.containsKey(trigger)) {
+        errors.add("Missing required trigger: $trigger")
+      }
+    }
+    
+    // Check required fields
+    val requiredFields = listOf("callId", "callerName", "callerPhone")
+    for (field in requiredFields) {
+      if (!config.fields.containsKey(field)) {
+        errors.add("Missing required field: $field")
+      }
+    }
+    
+    // Check notification config
+    if (config.notification.channelId.isBlank()) {
+      errors.add("Notification channelId cannot be empty")
+    }
+    
+    if (errors.isNotEmpty()) {
+      android.util.Log.w(NAME, "⚠️ Configuration validation warnings:")
+      errors.forEach { error ->
+        android.util.Log.w(NAME, "   - $error")
+      }
     }
   }
 
