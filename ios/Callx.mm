@@ -34,12 +34,12 @@ RCT_EXPORT_MODULE()
     providerConfig.supportsVideo = NO;
     providerConfig.maximumCallGroups = 1;
     providerConfig.maximumCallsPerCallGroup = 1;
-    providerConfig.supportedHandleTypes = @[@(CXHandleTypeGeneric)];
+    providerConfig.supportedHandleTypes = [NSSet setWithArray:@[@(CXHandleTypeGeneric)]];
     providerConfig.iconTemplateImageData = UIImagePNGRepresentation([UIImage systemImageNamed:@"phone.fill"]);
     providerConfig.ringtoneSound = @"default";
     
     self.provider = [[CXProvider alloc] initWithConfiguration:providerConfig];
-    self.provider.delegate = self;
+    [self.provider setDelegate:self queue:nil];
     
     self.callController = [[CXCallController alloc] init];
     
@@ -265,9 +265,10 @@ RCT_EXPORT_METHOD(muteCall:(NSString *)callId
         RCTLogInfo(@"Callx: Muting call: %@", callId);
         
         // Update call state
-        NSMutableDictionary *updatedCallData = [self.currentCallData mutableCopy];
-        updatedCallData[@"isMuted"] = @YES;
-        self.currentCallData = updatedCallData;
+        if (!self.currentCallData) {
+            self.currentCallData = [NSMutableDictionary dictionary];
+        }
+        self.currentCallData[@"isMuted"] = @YES;
         
         // Send event to JS
         [self sendEventWithName:@"onCallMuted" body:@{
@@ -288,9 +289,10 @@ RCT_EXPORT_METHOD(unmuteCall:(NSString *)callId
         RCTLogInfo(@"Callx: Unmuting call: %@", callId);
         
         // Update call state
-        NSMutableDictionary *updatedCallData = [self.currentCallData mutableCopy];
-        updatedCallData[@"isMuted"] = @NO;
-        self.currentCallData = updatedCallData;
+        if (!self.currentCallData) {
+            self.currentCallData = [NSMutableDictionary dictionary];
+        }
+        self.currentCallData[@"isMuted"] = @NO;
         
         // Send event to JS
         [self sendEventWithName:@"onCallUnmuted" body:@{
@@ -424,19 +426,13 @@ RCT_EXPORT_METHOD(getConfiguration:(RCTPromiseResolveBlock)resolve
 #pragma mark - Call Management
 
 - (void)handleIncomingCall:(NSDictionary *)callData {
-    self.currentCallData = callData;
+    self.currentCallData = [NSMutableDictionary dictionaryWithDictionary:callData];
     self.currentCallUUID = [NSUUID UUID];
     
     CXCallUpdate *update = [[CXCallUpdate alloc] init];
     update.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:callData[@"callerPhone"]];
     update.localizedCallerName = callData[@"callerName"];
     update.hasVideo = NO;
-    update.supportsHolding = NO;
-    update.supportsGrouping = NO;
-    update.supportsUngrouping = NO;
-    update.supportsDTMF = NO;
-    update.supportsUnholding = NO;
-    update.supportsAddCall = NO;
     
     [self.provider reportNewIncomingCallWithUUID:self.currentCallUUID
                                           update:update

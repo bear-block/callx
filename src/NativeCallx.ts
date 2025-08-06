@@ -41,25 +41,22 @@ export interface NotificationConfigData {
   sound?: string;
 }
 
+export interface FieldMappingConfig {
+  path: string;
+  fallback?: string;
+}
+
+export interface TriggerConfigEntry {
+  field: string;
+  value: string;
+}
+
 export interface CallxConfig {
   // Field mappings for FCM data extraction
-  fieldMapping?: Record<string, { path: string; fallback?: string }>;
+  fieldMapping?: { [key: string]: FieldMappingConfig };
 
   // Trigger configurations
-  triggers?: Record<string, { field: string; value: string }>;
-
-  // Event listeners
-  onIncomingCall?: CallEventListener;
-  onCallAnswered?: CallEventListener;
-  onCallDeclined?: CallEventListener;
-  onCallEnded?: CallEventListener;
-  onCallMissed?: CallEventListener;
-  onCallAnsweredElsewhere?: CallEventListener;
-  onCallTimeout?: CallEventListener;
-  onCallCancelled?: CallEventListener;
-  onCallBusy?: CallEventListener;
-  onCallRejected?: CallEventListener;
-  onVoIPTokenUpdated?: TokenEventListener;
+  triggers?: { [key: string]: TriggerConfigEntry };
 }
 
 export interface Spec extends TurboModule {
@@ -88,7 +85,7 @@ export interface Spec extends TurboModule {
   isCallActive(): Promise<boolean>;
 
   // FCM handling
-  handleFcmMessage(data: any): Promise<void>;
+  handleFcmMessage(data: { [key: string]: string }): Promise<void>;
 
   // Lock screen management (Android)
   hideFromLockScreen(): Promise<boolean>;

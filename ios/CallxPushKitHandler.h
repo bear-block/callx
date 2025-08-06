@@ -2,7 +2,7 @@
 #import <PushKit/PushKit.h>
 #import <CallKit/CallKit.h>
 
-@interface CallxPushKitHandler : NSObject <PKPushRegistryDelegate>
+@interface CallxPushKitHandler : NSObject <PKPushRegistryDelegate, CXProviderDelegate>
 
 // CallKit properties
 @property (nonatomic, strong) CXProvider *provider;

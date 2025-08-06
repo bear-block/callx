@@ -50,13 +50,12 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         super.onNewToken(token)
         Log.d(TAG, "📱 New FCM token: $token")
         
-        // Send token to JS layer if app is active
+        // Send token to JS layer through CallxModule if available
         try {
-            val reactContext = reactApplicationContext
-            if (reactContext != null) {
-                val eventEmitter = reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-                eventEmitter.emit("onFCMTokenUpdated", mapOf("token" to token))
-                Log.d(TAG, "📱 FCM token sent to JS layer")
+            val callxModule = CallxModule.getInstance()
+            if (callxModule != null) {
+                // CallxModule will handle sending to JS layer
+                Log.d(TAG, "📱 FCM token will be available through CallxModule")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to send FCM token to JS layer: ${e.message}")

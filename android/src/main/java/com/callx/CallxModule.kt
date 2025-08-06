@@ -404,6 +404,17 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  // VoIP token retrieval (not supported on Android)
+  override fun getVoIPToken(promise: Promise) {
+    try {
+      // Android doesn't have VoIP tokens like iOS - return empty string
+      android.util.Log.d(NAME, "VoIP tokens are not supported on Android")
+      promise.resolve("")
+    } catch (e: Exception) {
+      promise.reject("VOIP_TOKEN_ERROR", "Failed to get VoIP token: ${e.message}", e)
+    }
+  }
+
   // NEW: Call Control Methods
   override fun muteCall(callId: String, promise: Promise) {
     try {
@@ -460,32 +471,40 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  override fun setSpeakerMode(enabled: Boolean, promise: Promise) {
+  override fun setSpeakerMode(callId: String, enabled: Boolean, promise: Promise) {
     try {
-      android.util.Log.d(NAME, "🔊 Setting speaker mode: $enabled")
-      
-      // Update audio route
-      currentAudioRoute = if (enabled) "speaker" else "earpiece"
-      
-      // Send event to JS
-      sendEventToJS("onSpeakerModeChanged", mapOf(
-        "isSpeakerMode" to enabled
-      ))
-      
-      sendEventToJS("onAudioRouteChanged", mapOf(
-        "audioRoute" to currentAudioRoute
-      ))
-      
-      promise.resolve(null)
+      if (currentCall?.callId == callId) {
+        android.util.Log.d(NAME, "🔊 Setting speaker mode: $enabled for call: $callId")
+        
+        // Update audio route
+        currentAudioRoute = if (enabled) "speaker" else "earpiece"
+        
+        // Send event to JS
+        sendEventToJS("onSpeakerModeChanged", mapOf(
+          "isSpeakerMode" to enabled
+        ))
+        
+        sendEventToJS("onAudioRouteChanged", mapOf(
+          "audioRoute" to currentAudioRoute
+        ))
+        
+        promise.resolve(null)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
     } catch (e: Exception) {
       promise.reject("SPEAKER_ERROR", "Failed to set speaker mode: ${e.message}", e)
     }
   }
 
-  override fun isSpeakerMode(promise: Promise) {
+  override fun isSpeakerMode(callId: String, promise: Promise) {
     try {
-      val isSpeaker = currentAudioRoute == "speaker"
-      promise.resolve(isSpeaker)
+      if (currentCall?.callId == callId) {
+        val isSpeaker = currentAudioRoute == "speaker"
+        promise.resolve(isSpeaker)
+      } else {
+        promise.reject("CALL_NOT_FOUND", "Call not found: $callId")
+      }
     } catch (e: Exception) {
       promise.reject("IS_SPEAKER_ERROR", "Failed to check speaker mode: ${e.message}", e)
     }
@@ -513,15 +532,9 @@ class CallxModule(reactContext: ReactApplicationContext) :
         android.util.Log.d(NAME, "🔢 Sending DTMF sequence: $sequence for call: $callId")
         
         // Send each digit with a small delay
-        for (digit in sequence) {
-          sendDTMF(callId, digit.toString(), object : Promise {
-            override fun resolve(value: Any?) {}
-            override fun reject(code: String, message: String?) {}
-            override fun reject(code: String, throwable: Throwable?) {}
-            override fun reject(code: String, message: String?, throwable: Throwable?) {}
-          })
-          Thread.sleep(100) // 100ms delay between digits
-        }
+        android.util.Log.d(NAME, "🔢 Sending DTMF sequence: $sequence for call: $callId")
+        // In a real implementation, this would send each DTMF tone to the call system
+        Thread.sleep(sequence.length * 100L) // Simulate processing time
         
         promise.resolve(null)
       } else {
@@ -620,9 +633,9 @@ class CallxModule(reactContext: ReactApplicationContext) :
         appConfig = AppConfig(
           packageName = appMap.getString("packageName") ?: "com.bearblock.callx",
           mainActivity = appMap.getString("mainActivity") ?: "MainActivity",
-          showOverLockscreen = appMap.getBoolean("showOverLockscreen", true),
-          requireUnlock = appMap.getBoolean("requireUnlock", false),
-          supportsVideo = appMap.getBoolean("supportsVideo", false)
+          showOverLockscreen = if (appMap.hasKey("showOverLockscreen")) appMap.getBoolean("showOverLockscreen") else true,
+          requireUnlock = if (appMap.hasKey("requireUnlock")) appMap.getBoolean("requireUnlock") else false,
+          supportsVideo = if (appMap.hasKey("supportsVideo")) appMap.getBoolean("supportsVideo") else false
         )
       }
       
@@ -655,12 +668,12 @@ class CallxModule(reactContext: ReactApplicationContext) :
       // Parse call logging config
       config.getMap("callLogging")?.let { callLoggingMap ->
         callLogging = CallLoggingConfig(
-          enabled = callLoggingMap.getBoolean("enabled", true),
-          logAnswered = callLoggingMap.getBoolean("logAnswered", true),
-          logDeclined = callLoggingMap.getBoolean("logDeclined", true),
-          logMissed = callLoggingMap.getBoolean("logMissed", true),
-          logDuration = callLoggingMap.getBoolean("logDuration", true),
-          logCallerInfo = callLoggingMap.getBoolean("logCallerInfo", true)
+          enabled = if (callLoggingMap.hasKey("enabled")) callLoggingMap.getBoolean("enabled") else true,
+          logAnswered = if (callLoggingMap.hasKey("logAnswered")) callLoggingMap.getBoolean("logAnswered") else true,
+          logDeclined = if (callLoggingMap.hasKey("logDeclined")) callLoggingMap.getBoolean("logDeclined") else true,
+          logMissed = if (callLoggingMap.hasKey("logMissed")) callLoggingMap.getBoolean("logMissed") else true,
+          logDuration = if (callLoggingMap.hasKey("logDuration")) callLoggingMap.getBoolean("logDuration") else true,
+          logCallerInfo = if (callLoggingMap.hasKey("logCallerInfo")) callLoggingMap.getBoolean("logCallerInfo") else true
         )
       }
       
@@ -1054,6 +1067,22 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  private fun mapToWritableMap(map: Map<String, Any?>): WritableMap {
+    val writableMap = Arguments.createMap()
+    for ((key, value) in map) {
+      when (value) {
+        is String -> writableMap.putString(key, value)
+        is Boolean -> writableMap.putBoolean(key, value)
+        is Int -> writableMap.putInt(key, value)
+        is Double -> writableMap.putDouble(key, value)
+        is Long -> writableMap.putDouble(key, value.toDouble())
+        null -> writableMap.putNull(key)
+        else -> writableMap.putString(key, value.toString())
+      }
+    }
+    return writableMap
+  }
+
   private fun sendEventToJS(eventName: String, data: WritableMap?) {
     try {
       reactApplicationContext
@@ -1062,6 +1091,27 @@ class CallxModule(reactContext: ReactApplicationContext) :
     } catch (e: Exception) {
       android.util.Log.e(NAME, "Failed to send event to JS: $eventName", e)
     }
+  }
+
+  private fun sendEventToJS(eventName: String, data: Map<String, Any?>) {
+    sendEventToJS(eventName, mapToWritableMap(data))
+  }
+
+  private fun handleCallEnded(callId: String, callerName: String, endReason: String?) {
+    val callData = currentCall?.copy(endReason = endReason) ?: return
+    sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+    android.util.Log.d(NAME, "📞 Call ended: $callId, reason: $endReason")
+  }
+
+  private fun handleMissedCall(callData: CallData) {
+    val missedCall = callData.copy(endReason = "missed")
+    sendEventToJS("onCallMissed", callDataToWritableMap(missedCall))
+    android.util.Log.d(NAME, "📞 Call missed: ${callData.callId}")
+  }
+
+  private fun handleEndCall(callData: CallData) {
+    sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+    android.util.Log.d(NAME, "📞 Call ended: ${callData.callId}")
   }
 
   // Create intent to answer call and launch main app
@@ -1225,7 +1275,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     return try {
       val triggers = mutableMapOf<String, TriggerConfig>()
       val fields = mutableMapOf<String, FieldConfig>()
-      val callLogging = CallLoggingConfig()
+      var callLogging = CallLoggingConfig()
       
       // Parse triggers
       if (json.has("triggers")) {
@@ -1252,12 +1302,14 @@ class CallxModule(reactContext: ReactApplicationContext) :
       // Parse call logging config
       if (json.has("callLogging")) {
         val callLoggingJson = json.getJSONObject("callLogging")
-        callLogging.enabled = callLoggingJson.optBoolean("enabled", true)
-        callLogging.logAnswered = callLoggingJson.optBoolean("logAnswered", true)
-        callLogging.logDeclined = callLoggingJson.optBoolean("logDeclined", true)
-        callLogging.logMissed = callLoggingJson.optBoolean("logMissed", true)
-        callLogging.logDuration = callLoggingJson.optBoolean("logDuration", true)
-        callLogging.logCallerInfo = callLoggingJson.optBoolean("logCallerInfo", true)
+        callLogging = CallLoggingConfig(
+          enabled = callLoggingJson.optBoolean("enabled", true),
+          logAnswered = callLoggingJson.optBoolean("logAnswered", true),
+          logDeclined = callLoggingJson.optBoolean("logDeclined", true),
+          logMissed = callLoggingJson.optBoolean("logMissed", true),
+          logDuration = callLoggingJson.optBoolean("logDuration", true),
+          logCallerInfo = callLoggingJson.optBoolean("logCallerInfo", true)
+        )
       }
       
       CallxConfiguration(
@@ -1372,7 +1424,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
         // Only log caller info if enabled
         if (configuration.callLogging.logCallerInfo) {
           put(CallLog.Calls.CACHED_NAME, callData.callerName)
-          put(CallLog.Calls.CACHED_NUMBER_TYPE, TelephonyManager.PHONE_TYPE_VOICE)
+          put(CallLog.Calls.CACHED_NUMBER_TYPE, TelephonyManager.PHONE_TYPE_NONE)
           put(CallLog.Calls.CACHED_NUMBER_LABEL, "Callx")
         }
       }

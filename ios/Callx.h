@@ -16,7 +16,7 @@
 @property (nonatomic, strong) NSString *voipToken;
 
 // Call data
-@property (nonatomic, strong) NSDictionary *currentCallData;
+@property (nonatomic, strong) NSMutableDictionary *currentCallData;
 
 // Configuration
 @property (nonatomic, strong) NSDictionary *configuration;

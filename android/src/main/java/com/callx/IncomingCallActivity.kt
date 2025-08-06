@@ -694,9 +694,11 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     @Deprecated("Deprecated in Java")
+    @Suppress("MissingSuperCall")
     override fun onBackPressed() {
         // Prevent back button from closing call screen
         // User must explicitly answer or decline
         android.util.Log.d("IncomingCallActivity", "⬅️ Back button pressed - ignoring (must answer/decline)")
+        // Intentionally NOT calling super.onBackPressed() to prevent closing the activity
     }
 } 

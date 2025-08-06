@@ -4,16 +4,20 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import CallKit
 import PushKit
+import FirebaseCore
 
 @main
 class AppDelegate: RCTAppDelegate {
   var reactNativeDelegate: ReactNativeDelegate!
-  var reactNativeFactory: RCTReactNativeFactory!
+  // Factory will be set in didFinishLaunchingWithOptions
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Configure Firebase - follow React Native Firebase docs
+    FirebaseApp.configure()
+    
     // Initialize Callx native PushKit handler early
     // Note: This will be handled by the native module initialization
     // We don't need to manually call it here to avoid potential crashes
@@ -23,7 +27,7 @@ class AppDelegate: RCTAppDelegate {
     delegate.dependencyProvider = RCTAppDependencyProvider()
 
     reactNativeDelegate = delegate
-    reactNativeFactory = factory
+    self.reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
 
@@ -38,14 +42,14 @@ class AppDelegate: RCTAppDelegate {
 
   // MARK: - Remote Notifications
 
-  func application(
+  override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     print("📱 Device token received: \(deviceToken.map { String(format: "%02.2hhx", $0) }.joined())")
   }
 
-  func application(
+  override func application(
     _ application: UIApplication,
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
@@ -54,7 +58,7 @@ class AppDelegate: RCTAppDelegate {
 
   // MARK: - Background App Refresh
 
-  func application(
+  override func application(
     _ application: UIApplication,
     performFetchWithCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {

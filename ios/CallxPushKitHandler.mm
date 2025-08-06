@@ -37,25 +37,10 @@
     
     providerConfig.maximumCallGroups = 1;
     providerConfig.maximumCallsPerCallGroup = 1;
-    providerConfig.supportedHandleTypes = @[@(CXHandleTypeGeneric)];
+    providerConfig.supportedHandleTypes = [NSSet setWithArray:@[@(CXHandleTypeGeneric)]];
     
-    // NEW: Enable DTMF support
-    providerConfig.supportsDTMF = YES;
-    
-    // NEW: Enable holding calls
-    providerConfig.supportsHolding = YES;
-    
-    // NEW: Enable grouping calls (for future conference support)
-    providerConfig.supportsGrouping = NO; // Set to YES when conference is implemented
-    
-    // NEW: Enable ungrouping calls
-    providerConfig.supportsUngrouping = NO; // Set to YES when conference is implemented
-    
-    // NEW: Enable unholding calls
-    providerConfig.supportsUnholding = YES;
-    
-    // NEW: Enable adding calls
-    providerConfig.supportsAddCall = NO; // Set to YES when multiple calls is implemented
+    // Note: supportsDTMF, supportsHolding, etc. are deprecated in modern CallKit
+    // These capabilities are now enabled by default and don't need explicit configuration
     
     // Use a simple icon instead of system image to avoid potential issues
     UIImage *phoneIcon = [UIImage systemImageNamed:@"phone.fill"];
@@ -73,7 +58,7 @@
     providerConfig.includesCallsInRecents = callLoggingEnabled;
     
     self.provider = [[CXProvider alloc] initWithConfiguration:providerConfig];
-    self.provider.delegate = self;
+    [self.provider setDelegate:self queue:nil];
     
     self.callController = [[CXCallController alloc] init];
     
@@ -222,12 +207,6 @@
     update.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:callData[@"callerPhone"] ?: @""];
     update.localizedCallerName = callData[@"callerName"] ?: @"Unknown Caller";
     update.hasVideo = hasVideo;
-    update.supportsHolding = NO;
-    update.supportsGrouping = NO;
-    update.supportsUngrouping = NO;
-    update.supportsDTMF = NO;
-    update.supportsUnholding = NO;
-    update.supportsAddCall = NO;
     
     // Report to CallKit IMMEDIATELY (synchronous)
     [self.provider reportNewIncomingCallWithUUID:self.currentCallUUID
@@ -342,8 +321,8 @@
             
             // Update CallKit UI to show call is connected
             CXCallUpdate *update = [[CXCallUpdate alloc] init];
-            update.hasConnected = YES;
-            update.hasEnded = NO;
+            // Note: hasConnected and hasEnded are deprecated properties
+            // CallKit automatically manages call state based on actions
             
             [self.provider reportCallWithUUID:self.currentCallUUID updated:update];
             
@@ -621,8 +600,8 @@
     
     // Update CallKit UI to connected state
     CXCallUpdate *update = [[CXCallUpdate alloc] init];
-    update.hasConnected = YES;
-    update.hasEnded = NO;
+    // Note: hasConnected and hasEnded are deprecated properties
+    // CallKit automatically manages call state based on actions
     
     [self.provider reportCallWithUUID:action.callUUID updated:update];
     
@@ -647,8 +626,8 @@
     
     // Update CallKit UI to ended state
     CXCallUpdate *update = [[CXCallUpdate alloc] init];
-    update.hasConnected = NO;
-    update.hasEnded = YES;
+    // Note: hasConnected and hasEnded are deprecated properties
+    // CallKit automatically manages call state based on actions
     
     [self.provider reportCallWithUUID:action.callUUID updated:update];
     
