@@ -1,82 +1,31 @@
 import type { ConfigPlugin } from '@expo/config-plugins';
-import { withDangerousMod, AndroidConfig } from '@expo/config-plugins';
+import { withDangerousMod } from '@expo/config-plugins';
 import * as fs from 'fs';
 import * as path from 'path';
 
 export interface CallxModifyMainActivityOptions {
-  fallbackPackage?: string;
+  package: string;
 }
 
 export const withCallxModifyMainActivity: ConfigPlugin<
   CallxModifyMainActivityOptions
-> = (config, options = {}) => {
-  // fallbackPackage is available for future use if needed
-  const { fallbackPackage = 'com.example.app' } = options;
+> = (config, options) => {
+  if (!options?.package) {
+    throw new Error(
+      '[callx] Package option is required for modifyMainActivity'
+    );
+  }
 
-  // Use fallbackPackage to avoid linter warning
-  console.log(
-    `[callx] Plugin initialized with fallback package: ${fallbackPackage}`
-  );
+  const { package: packageName } = options;
+
+  console.log(`[callx] Plugin initialized with package: ${packageName}`);
 
   return withDangerousMod(config, [
     'android',
     async (configMod) => {
       try {
-        // Lấy package name từ AndroidManifest.xml
-        const manifestPath = path.join(
-          configMod.modRequest.platformProjectRoot,
-          'app',
-          'src',
-          'main',
-          'AndroidManifest.xml'
-        );
-
-        console.log(
-          `[callx] 🔍 Looking for AndroidManifest.xml at: ${manifestPath}`
-        );
-
-        if (!fs.existsSync(manifestPath)) {
-          console.warn(
-            '[callx] AndroidManifest.xml not found, using fallback package'
-          );
-          return configMod;
-        }
-
-        console.log(`[callx] 📄 Found AndroidManifest.xml, reading package...`);
-
-        let packageName: string | null = null;
-
-        try {
-          const manifest =
-            await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
-
-          console.log(
-            `[callx] 📋 Manifest content:`,
-            JSON.stringify(manifest, null, 2)
-          );
-
-          packageName = manifest.manifest?.$?.package || null;
-
-          if (packageName) {
-            console.log(
-              `[callx] 📱 Found package from AndroidManifest.xml: ${packageName}`
-            );
-          } else {
-            console.warn(
-              '[callx] No package found in AndroidManifest.xml, using fallback package'
-            );
-            packageName = fallbackPackage;
-          }
-        } catch (manifestError) {
-          console.warn(
-            '[callx] Error reading AndroidManifest.xml:',
-            manifestError instanceof Error
-              ? manifestError.message
-              : manifestError
-          );
-          console.warn('[callx] Using fallback package');
-          packageName = fallbackPackage;
-        }
+        // Sử dụng package name từ options
+        console.log(`[callx] 📱 Using package from options: ${packageName}`);
 
         // Chuyển package name thành path folder
         const packagePath = packageName.replace(/\./g, '/');
@@ -163,7 +112,7 @@ export const withCallxModifyMainActivity: ConfigPlugin<
           return configMod;
         }
 
-        console.log(`[callx] Found MainActivity.kt at: ${mainActivityFile}`);
+        console.log(`[callx] Found MainActivity at: ${mainActivityFile}`);
 
         // Đọc & sửa nội dung
         let content = fs.readFileSync(mainActivityFile, 'utf8');

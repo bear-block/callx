@@ -71,7 +71,29 @@ yarn add @bear-block/callx@beta
 
 ---
 
-## 🚀 React Native CLI Setup
+## 🚀 Setup Tutorial
+
+### Expo (Recommended)
+
+Add the plugin to your `app.config.js` or `app.json`:
+
+```javascript
+import { withCallx } from '@bear-block/callx';
+
+export default {
+  // ... other config
+  plugins: [
+    withCallx({
+      mode: 'native', // or 'js'
+      package: 'com.your.app.package', // Required: Your Android package name
+    }),
+  ],
+};
+```
+
+**Important:** The `package` option is required and must match your Android package name exactly.
+
+### React Native CLI Setup
 
 ### 1. Android Setup
 

@@ -8,17 +8,24 @@ import { withCallxCopyAssets as withCallxCopyAssetsIOS } from './ios/copyAssets'
 
 export interface CallxPluginOptions {
   mode?: 'native' | 'js';
-  fallbackPackage?: string;
+  package: string;
 }
 
-const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options = {}) => {
-  const { mode = 'native', fallbackPackage } = options;
+const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
+  if (!options?.package) {
+    throw new Error(
+      '[callx] Package option is required. Please provide the Android package name.'
+    );
+  }
 
-  console.log(`[callx] Initializing Callx plugin in ${mode} mode`);
+  const { mode = 'native', package: packageName } = options;
+  console.log(
+    `[callx] Initializing Callx plugin in ${mode} mode for package: ${packageName}`
+  );
 
   // Android plugins - always copy assets and modify MainActivity
   config = withCallxCopyAssets(config);
-  config = withCallxModifyMainActivity(config, { fallbackPackage });
+  config = withCallxModifyMainActivity(config, { package: packageName });
 
   // Android manifest - only add FCM service in native mode
   if (mode === 'native') {

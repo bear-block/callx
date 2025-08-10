@@ -31,7 +31,8 @@ Add the plugin to your `app.json` or `app.config.js`:
       [
         "@bear-block/callx",
         {
-          "mode": "native"
+          "mode": "native",
+          "package": "com.your.app.package"
         }
       ]
     ]
@@ -44,7 +45,7 @@ Add the plugin to your `app.json` or `app.config.js`:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `mode` | `'native' \| 'js'` | `'native'` | Plugin operation mode |
-| `fallbackPackage` | `string` | `'com.example.app'` | Fallback package name if AndroidManifest.xml doesn't have one |
+| `package` | `string` | **Required** | Your Android package name (e.g., `com.your.app.package`) |
 
 ## Modes
 
@@ -100,12 +101,20 @@ Add the plugin to your `app.json` or `app.config.js`:
 1. **Info.plist**: Adds VoIP and background processing capabilities
 2. **Assets**: Copies `callx.json` configuration to iOS bundle
 
-## Package Detection
+## Package Configuration
 
-The plugin automatically detects your app's package name from:
-- **AndroidManifest.xml** (primary source - reads the actual `package` attribute)
-- `fallbackPackage` option (optional fallback if AndroidManifest.xml doesn't have package)
-- `expo.android.package` in app.json/app.config.js (final fallback)
+The plugin requires you to specify your Android package name via the `package` option:
+
+```javascript
+withCallx({
+  package: 'com.your.app.package' // Required: Your actual Android package name
+})
+```
+
+This package name is used to:
+- Locate your `MainActivity.kt` file in the correct directory structure
+- Ensure the plugin modifies the right MainActivity file
+- Support projects with custom directory structures
 
 **MainActivity Search Strategy:**
 
