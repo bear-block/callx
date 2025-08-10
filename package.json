@@ -1,6 +1,6 @@
 {
   "name": "@bear-block/callx",
-  "version": "0.1.1-beta",
+  "version": "0.1.2-beta",
   "description": "React Native library for beautiful incoming call UI with Firebase Cloud Messaging. Display full-screen call notifications on Android lock screen with native performance.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

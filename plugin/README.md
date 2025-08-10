@@ -44,6 +44,7 @@ Add the plugin to your `app.json` or `app.config.js`:
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `mode` | `'native' \| 'js'` | `'native'` | Plugin operation mode |
+| `fallbackPackage` | `string` | `'com.example.app'` | Fallback package name if AndroidManifest.xml doesn't have one |
 
 ## Modes
 
@@ -102,13 +103,19 @@ Add the plugin to your `app.json` or `app.config.js`:
 ## Package Detection
 
 The plugin automatically detects your app's package name from:
-- `expo.android.package` in app.json
-- `android.package` in app.json
+- **AndroidManifest.xml** (primary source - reads the actual `package` attribute)
+- `fallbackPackage` option (optional fallback if AndroidManifest.xml doesn't have package)
+- `expo.android.package` in app.json/app.config.js (final fallback)
 
-And searches for MainActivity in the correct directory structure:
-- `android/app/src/main/java/{package-path}/MainActivity.kt`
-- `android/app/src/main/kotlin/{package-path}/MainActivity.kt`
-- `android/app/src/main/java/{package-path}/MainActivity.java`
+**MainActivity Search Strategy:**
+
+1. **Primary Search**: Look in expected package paths:
+   - `android/app/src/main/java/{package-path}/MainActivity.kt`
+   - `android/app/src/main/kotlin/{package-path}/MainActivity.kt`
+
+2. **Fallback**: If not found, the plugin will skip MainActivity modification and log a warning.
+
+This approach is simpler and more predictable than complex directory scanning.
 
 ## Requirements
 
@@ -157,7 +164,8 @@ If plugin changes aren't applied:
       [
         "@bear-block/callx",
         {
-          "mode": "native"
+          "mode": "native",
+          "fallbackPackage": "com.mycompany.mycallxapp"
         }
       ]
     ]

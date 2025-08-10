@@ -8,16 +8,17 @@ import { withCallxCopyAssets as withCallxCopyAssetsIOS } from './ios/copyAssets'
 
 export interface CallxPluginOptions {
   mode?: 'native' | 'js';
+  fallbackPackage?: string;
 }
 
 const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options = {}) => {
-  const { mode = 'native' } = options;
+  const { mode = 'native', fallbackPackage } = options;
 
   console.log(`[callx] Initializing Callx plugin in ${mode} mode`);
 
   // Android plugins - always copy assets and modify MainActivity
   config = withCallxCopyAssets(config);
-  config = withCallxModifyMainActivity(config);
+  config = withCallxModifyMainActivity(config, { fallbackPackage });
 
   // Android manifest - only add FCM service in native mode
   if (mode === 'native') {
