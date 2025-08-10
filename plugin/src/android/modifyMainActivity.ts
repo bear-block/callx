@@ -90,7 +90,6 @@ export const withCallxModifyMainActivity: ConfigPlugin<
         console.log(
           `[callx] 🔍 Searching for MainActivity in package: ${packageName}`
         );
-        console.log(`[callx] 📁 Package path: ${packagePath}`);
 
         let mainActivityFile: string | null = null;
         for (const possiblePath of possiblePaths) {
@@ -112,8 +111,6 @@ export const withCallxModifyMainActivity: ConfigPlugin<
           return configMod;
         }
 
-        console.log(`[callx] Found MainActivity at: ${mainActivityFile}`);
-
         // Đọc & sửa nội dung
         let content = fs.readFileSync(mainActivityFile, 'utf8');
         let modified = false;
@@ -127,12 +124,41 @@ export const withCallxModifyMainActivity: ConfigPlugin<
           modified = true;
         }
 
+        // Check if class already extends CallxReactActivity
         if (!content.includes(': CallxReactActivity')) {
-          content = content.replace(
-            /class\s+MainActivity\s*:\s*ReactActivity\s*\{/,
-            'class MainActivity : CallxReactActivity() {'
-          );
-          modified = true;
+          // Try different patterns for Kotlin class declaration
+          let classModified = false;
+
+          // Pattern 1: class MainActivity : ReactActivity() {
+          if (content.includes('class MainActivity : ReactActivity()')) {
+            content = content.replace(
+              /class\s+MainActivity\s*:\s*ReactActivity\(\)\s*\{/,
+              'class MainActivity : CallxReactActivity() {'
+            );
+            classModified = true;
+          }
+          // Pattern 2: class MainActivity : ReactActivity {
+          else if (content.includes('class MainActivity : ReactActivity')) {
+            content = content.replace(
+              /class\s+MainActivity\s*:\s*ReactActivity\s*\{/,
+              'class MainActivity : CallxReactActivity() {'
+            );
+            classModified = true;
+          }
+          // Pattern 3: class MainActivity extends ReactActivity {
+          else if (
+            content.includes('class MainActivity extends ReactActivity')
+          ) {
+            content = content.replace(
+              /class\s+MainActivity\s+extends\s+ReactActivity\s*\{/,
+              'class MainActivity : CallxReactActivity() {'
+            );
+            classModified = true;
+          }
+
+          if (classModified) {
+            modified = true;
+          }
         }
 
         // Add comment if not already present
@@ -155,12 +181,6 @@ export const withCallxModifyMainActivity: ConfigPlugin<
             `[callx] ✓ Modified ${path.basename(
               mainActivityFile
             )} to extend CallxReactActivity`
-          );
-        } else {
-          console.log(
-            `[callx] ✓ ${path.basename(
-              mainActivityFile
-            )} already extends CallxReactActivity`
           );
         }
       } catch (error) {

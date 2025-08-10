@@ -19,9 +19,7 @@ const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
   }
 
   const { mode = 'native', package: packageName } = options;
-  console.log(
-    `[callx] Initializing Callx plugin in ${mode} mode for package: ${packageName}`
-  );
+  console.log(`[callx] Initializing Callx plugin in ${mode} mode`);
 
   // Android plugins - always copy assets and modify MainActivity
   config = withCallxCopyAssets(config);

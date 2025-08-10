@@ -62,11 +62,11 @@ If this library helps you, please consider supporting its development:
 ### 📦 Install
 
 ```bash
-npm install @bear-block/callx@beta
+npm install @bear-block/callx@0.1.5-beta
 ```
 
 ```bash
-yarn add @bear-block/callx@beta
+yarn add @bear-block/callx@0.1.5-beta
 ```
 
 ---
