@@ -2,7 +2,7 @@
 
 **Beautiful React Native incoming call UI with Firebase Cloud Messaging integration**
 
-[![npm version](https://img.shields.io/npm/v/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
+[![npm version](https://img.shields.io/npm/v/@bear-block/callx/beta.svg)](https://www.npmjs.com/package/@bear-block/callx)  
 [![license](https://img.shields.io/npm/l/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
 [![GitHub stars](https://img.shields.io/github/stars/bear-block/callx.svg?style=social&label=Star)](https://github.com/bear-block/callx)  
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red.svg)](https://github.com/sponsors/bear-block)
@@ -29,9 +29,7 @@
 - 🤖 **Android**: Custom incoming call UI with FCM
 - 🔔 **Push Notifications**: Firebase Cloud Messaging (FCM)
 - 🎥 **Video call support** for both platforms
-- 📞 **Call end scenarios** (answered elsewhere, timeout, cancelled, busy, rejected)
 - 📋 **Call logging** to phone's native call history
-- 🎛️ **Call Controls**: Mute/Unmute, Speaker Mode, DTMF Keypad
 - ⚙️ **Configuration**: JSON-based configuration (`callx.json`)
 - 🚀 **Expo plugin** for automatic configuration
 - 🔧 **TypeScript**: Full TypeScript support
@@ -64,11 +62,11 @@ If this library helps you, please consider supporting its development:
 ### 📦 Install
 
 ```bash
-npm install @bear-block/callx@latest
+npm install @bear-block/callx@beta
 ```
 
 ```bash
-yarn add @bear-block/callx@latest
+yarn add @bear-block/callx@beta
 ```
 
 ---
@@ -226,6 +224,15 @@ Create a `callx.json` file in the root of your project.
 - `enabledLogPhoneCall`: Master switch for call logging
 
 > 📝 This config is read at build time by the native module. You must rebuild the app after changing it.
+> 
+> **Note:** Notification settings (channelId, channelName, etc.) are now hardcoded in the native module and don't need to be configured in `callx.json`.
+> 
+> **Hardcoded Notification Settings:**
+> - **channelId**: "callx_incoming_calls"
+> - **channelName**: "Incoming Calls"
+> - **channelDescription**: "Incoming call notifications with ringtone"
+> - **importance**: "high"
+> - **sound**: "default"
 
 ### 4. Initialize in JS
 
@@ -539,6 +546,26 @@ console.log('VoIP token:', await Callx.getVoIPToken());
 
 ---
 
+## 🔔 Notification Configuration
+
+Callx uses hardcoded notification settings for consistent behavior across all installations:
+
+### Android Notification Channel
+- **Channel ID**: `callx_incoming_calls`
+- **Channel Name**: `Incoming Calls`
+- **Description**: `Incoming call notifications with ringtone`
+- **Importance**: `high`
+- **Sound**: `default`
+
+### iOS Push Notifications
+- **Category**: VoIP push notifications
+- **Sound**: Default system sound
+- **Priority**: High priority for immediate delivery
+
+> **Note:** These settings are built into the native module and cannot be customized. This ensures consistent notification behavior across all Callx installations.
+
+---
+
 ## 📖 API Reference
 
 ### Methods
@@ -570,7 +597,7 @@ console.log('VoIP token:', await Callx.getVoIPToken());
 | `onCallEnded`              | Call ended after it was answered       |
 | `onCallMissed`             | Call was missed (no response)          |
 | `onCallAnsweredElsewhere` | Call answered on another device  |
-| `onTokenUpdated`                | VoiP or FCM token was updated            | Both |
+| `onTokenUpdated`                | VoIP or FCM token was updated            | Both |
 
 ---
 

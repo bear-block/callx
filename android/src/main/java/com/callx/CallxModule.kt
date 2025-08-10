@@ -479,7 +479,13 @@ class CallxModule(reactContext: ReactApplicationContext) :
         app = appConfig,
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
         fields = fields.ifEmpty { CallxConfiguration().fields },
-        notification = NotificationConfig(),
+        notification = NotificationConfig(
+          channelId = "callx_incoming_calls",
+          channelName = "Incoming Calls",
+          channelDescription = "Incoming call notifications with ringtone",
+          importance = "high",
+          sound = "default"
+        ),
         callLogging = callLogging
       )
     } catch (e: Exception) {
@@ -605,10 +611,10 @@ class CallxModule(reactContext: ReactApplicationContext) :
       
       val channel = NotificationChannel(
         CHANNEL_ID,
-        "Incoming Calls",
+        configuration.notification.channelName,
         NotificationManager.IMPORTANCE_HIGH
       ).apply {
-        description = "Incoming call notifications"
+        description = configuration.notification.channelDescription
         setShowBadge(true)
         lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
         enableVibration(true)
