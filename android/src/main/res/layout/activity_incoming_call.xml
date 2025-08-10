@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/call_background_gradient"
+    tools:context=".IncomingCallActivity">
+
+    <!-- Background overlay -->
+    <View
+        android:id="@+id/background_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/call_overlay_color"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Incoming call label -->
+    <TextView
+        android:id="@+id/tv_incoming_call_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="64dp"
+        android:text="@string/incoming_call"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:alpha="0.9"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Caller avatar container -->
+    <FrameLayout
+        android:id="@+id/fl_avatar_container"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:layout_marginTop="40dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_incoming_call_label">
+
+        <!-- Avatar with border overlay -->
+        <FrameLayout
+            android:layout_width="168dp"
+            android:layout_height="168dp"
+            android:layout_gravity="center">
+            
+            <!-- Background circle (border) -->
+            <View
+                android:layout_width="168dp"
+                android:layout_height="168dp"
+                android:background="@drawable/avatar_border_background" />
+            
+            <!-- Caller avatar -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/iv_caller_avatar"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                android:layout_gravity="center"
+                android:scaleType="centerCrop"
+                android:src="@drawable/default_avatar"
+                app:shapeAppearanceOverlay="@style/CircularAvatarStyle" />
+                
+        </FrameLayout>
+
+    </FrameLayout>
+
+    <!-- Caller name -->
+    <TextView
+        android:id="@+id/tv_caller_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="32dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:text="@string/default_caller_name"
+        android:textColor="@color/white"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/fl_avatar_container" />
+
+    <!-- Caller phone -->
+    <TextView
+        android:id="@+id/tv_caller_phone"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="32dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="@string/default_caller_phone"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:alpha="0.9"
+        android:textStyle="normal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tv_caller_name" />
+
+
+
+
+
+    <!-- Action buttons container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cl_action_buttons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="120dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Decline button container -->
+        <FrameLayout
+            android:id="@+id/fl_decline_container"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/guideline_center"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            
+            <!-- Custom circular decline button -->
+            <FrameLayout
+                android:id="@+id/fab_decline"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@drawable/circular_button_decline"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="8dp"
+                android:stateListAnimator="@null"
+                android:contentDescription="@string/decline_call">
+                
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_call_end"
+                    android:scaleType="centerInside"
+                    app:tint="@color/white" />
+                    
+            </FrameLayout>
+                
+        </FrameLayout>
+
+        <!-- Center guideline -->
+        <androidx.constraintlayout.widget.Guideline
+            android:id="@+id/guideline_center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_constraintGuide_percent="0.5" />
+
+        <!-- Answer button container -->
+        <FrameLayout
+            android:id="@+id/fl_answer_container"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="@+id/guideline_center"
+            app:layout_constraintTop_toTopOf="parent">
+            
+            <!-- Custom circular answer button -->
+            <FrameLayout
+                android:id="@+id/fab_answer"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@drawable/circular_button_answer"
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="8dp"
+                android:stateListAnimator="@null"
+                android:contentDescription="@string/answer_call">
+                
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_call_answer"
+                    android:scaleType="centerInside"
+                    app:tint="@color/white" />
+                    
+            </FrameLayout>
+                
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Additional actions (optional) -->
+    <LinearLayout
+        android:id="@+id/ll_additional_actions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/cl_action_buttons"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <!-- Message button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_message"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="@string/message"
+            android:textColor="@color/white"
+            app:icon="@drawable/ic_message"
+            app:iconTint="@color/white" />
+
+        <!-- Remind me button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_remind_me"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="@string/remind_me"
+            android:textColor="@color/white"
+            app:icon="@drawable/ic_schedule"
+            app:iconTint="@color/white" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout> 

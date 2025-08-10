@@ -1,0 +1,34 @@
+# Firebase config
+android/app/google-services.json
+ios/GoogleService-Info.plist
+# Callx server
+callx-server/firebase-service-account.json
+
+# React Native
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# iOS
+ios/build/
+ios/Pods/
+*.xcworkspace/
+*.xcuserdata/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db 
+
