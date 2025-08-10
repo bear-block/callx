@@ -31,6 +31,10 @@ export const withCallxModifyMainActivity: ConfigPlugin<
           'AndroidManifest.xml'
         );
 
+        console.log(
+          `[callx] 🔍 Looking for AndroidManifest.xml at: ${manifestPath}`
+        );
+
         if (!fs.existsSync(manifestPath)) {
           console.warn(
             '[callx] AndroidManifest.xml not found, using fallback package'
@@ -38,39 +42,58 @@ export const withCallxModifyMainActivity: ConfigPlugin<
           return configMod;
         }
 
-        const manifest =
-          await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
-        const packageName = manifest.manifest.$.package;
+        console.log(`[callx] 📄 Found AndroidManifest.xml, reading package...`);
 
-        if (!packageName) {
-          console.warn(
-            '[callx] No package found in AndroidManifest.xml, using fallback package'
+        let packageName: string | null = null;
+
+        try {
+          const manifest =
+            await AndroidConfig.Manifest.readAndroidManifestAsync(manifestPath);
+
+          console.log(
+            `[callx] 📋 Manifest content:`,
+            JSON.stringify(manifest, null, 2)
           );
-          return configMod;
-        }
 
-        console.log(
-          `[callx] 📱 Found package from AndroidManifest.xml: ${packageName}`
-        );
+          packageName = manifest.manifest?.$?.package || null;
+
+          if (packageName) {
+            console.log(
+              `[callx] 📱 Found package from AndroidManifest.xml: ${packageName}`
+            );
+          } else {
+            console.warn(
+              '[callx] No package found in AndroidManifest.xml, using fallback package'
+            );
+            packageName = fallbackPackage;
+          }
+        } catch (manifestError) {
+          console.warn(
+            '[callx] Error reading AndroidManifest.xml:',
+            manifestError instanceof Error
+              ? manifestError.message
+              : manifestError
+          );
+          console.warn('[callx] Using fallback package');
+          packageName = fallbackPackage;
+        }
 
         // Chuyển package name thành path folder
         const packagePath = packageName.replace(/\./g, '/');
 
-        // Tìm file MainActivity.kt
-        const mainActivityPath = path.join(
-          configMod.modRequest.platformProjectRoot,
-          'app',
-          'src',
-          'main',
-          'java',
-          packagePath,
-          'MainActivity.kt'
-        );
-
-        // Thử tìm trong thư mục kotlin nếu không có trong java
-        let mainActivityFile = mainActivityPath;
-        if (!fs.existsSync(mainActivityPath)) {
-          const kotlinPath = path.join(
+        // Tìm file MainActivity.kt - thử nhiều vị trí
+        const possiblePaths = [
+          // Standard paths
+          path.join(
+            configMod.modRequest.platformProjectRoot,
+            'app',
+            'src',
+            'main',
+            'java',
+            packagePath,
+            'MainActivity.kt'
+          ),
+          path.join(
             configMod.modRequest.platformProjectRoot,
             'app',
             'src',
@@ -78,17 +101,66 @@ export const withCallxModifyMainActivity: ConfigPlugin<
             'kotlin',
             packagePath,
             'MainActivity.kt'
-          );
+          ),
+          // Alternative paths (some projects use different structure)
+          path.join(
+            configMod.modRequest.platformProjectRoot,
+            'app',
+            'src',
+            'main',
+            'java',
+            packagePath,
+            'MainActivity.java'
+          ),
+          path.join(
+            configMod.modRequest.platformProjectRoot,
+            'app',
+            'src',
+            'main',
+            'kotlin',
+            packagePath,
+            'MainActivity.java'
+          ),
+          // Root level search
+          path.join(
+            configMod.modRequest.platformProjectRoot,
+            'app',
+            'src',
+            'main',
+            'MainActivity.kt'
+          ),
+          path.join(
+            configMod.modRequest.platformProjectRoot,
+            'app',
+            'src',
+            'main',
+            'MainActivity.java'
+          ),
+        ];
 
-          if (fs.existsSync(kotlinPath)) {
-            mainActivityFile = kotlinPath;
-          } else {
-            console.warn(
-              `[callx] MainActivity.kt not found at:\n  - ${mainActivityPath}\n  - ${kotlinPath}`
-            );
-            console.warn('[callx] Skipping MainActivity modification');
-            return configMod;
+        console.log(
+          `[callx] 🔍 Searching for MainActivity in package: ${packageName}`
+        );
+        console.log(`[callx] 📁 Package path: ${packagePath}`);
+
+        let mainActivityFile: string | null = null;
+        for (const possiblePath of possiblePaths) {
+          if (fs.existsSync(possiblePath)) {
+            mainActivityFile = possiblePath;
+            console.log(`[callx] ✅ Found MainActivity at: ${possiblePath}`);
+            break;
           }
+        }
+
+        if (!mainActivityFile) {
+          console.warn(
+            `[callx] MainActivity not found in any of these locations:`
+          );
+          possiblePaths.forEach((p, i) => {
+            console.warn(`  ${i + 1}. ${p}`);
+          });
+          console.warn('[callx] Skipping MainActivity modification');
+          return configMod;
         }
 
         console.log(`[callx] Found MainActivity.kt at: ${mainActivityFile}`);
