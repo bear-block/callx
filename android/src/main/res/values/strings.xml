@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Callx</string>
+    
+    <!-- Call Interface Strings -->
+    <string name="incoming_call">Incoming call</string>
+    <string name="outgoing_call">Calling…</string>
+    <string name="connected_call">Connected</string>
+    
+    <!-- Default Values -->
+    <string name="default_caller_name">Unknown Caller</string>
+    <string name="default_caller_phone">No Number</string>
+    
+    <!-- Button Labels -->
+    <string name="answer_call">Answer</string>
+    <string name="decline_call">Decline</string>
+    <string name="end_call">End Call</string>
+    <string name="message">Message</string>
+    <string name="remind_me">Remind me</string>
+    
+    <!-- Call Status -->
+    <string name="call_connecting">Connecting…</string>
+    <string name="call_ended">Call ended</string>
+    <string name="call_missed">Missed call</string>
+    <string name="call_declined">Call declined</string>
+    
+    <!-- Accessibility -->
+    <string name="answer_call_description">Answer the incoming call</string>
+    <string name="decline_call_description">Decline the incoming call</string>
+    <string name="caller_avatar_description">Caller avatar</string>
+    
+    <!-- Notifications -->
+    <string name="notification_channel_name">Incoming Calls</string>
+    <string name="notification_channel_description">Notifications for incoming calls</string>
+    <string name="notification_title">Incoming call</string>
+    <string name="notification_text">%s is calling</string>
+    
+    <!-- Error Messages -->
+    <string name="error_call_failed">Call failed</string>
+    <string name="error_network">Network error</string>
+    <string name="error_permission_denied">Permission denied</string>
+</resources> 

@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📞 Callx Server</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+      }
+      .header p {
+        opacity: 0.9;
+        font-size: 1.2em;
+      }
+
+      .status {
+        background: #f8f9fa;
+        padding: 20px;
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 15px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .status-item {
+        text-align: center;
+        flex: 1;
+        min-width: 120px;
+      }
+
+      .status-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      .status-label {
+        color: #6c757d;
+        margin-top: 5px;
+        font-size: 14px;
+      }
+
+      .main {
+        padding: 30px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .section {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid #dee2e6;
+      }
+
+      .section h2 {
+        color: #333;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #495057;
+        font-weight: 500;
+      }
+
+      .form-group input,
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      .form-group input:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .form-group textarea {
+        resize: vertical;
+        height: 80px;
+      }
+
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .checkbox input {
+        width: auto;
+        margin: 0;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn.success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      }
+      .btn.danger {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      }
+      .btn.warning {
+        background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        color: #333;
+      }
+
+      .calls {
+        grid-column: 1 / -1;
+      }
+
+      .call {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+
+      .call-info {
+        flex: 1;
+      }
+      .call-id {
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 5px;
+      }
+      .call-details {
+        color: #6c757d;
+        font-size: 14px;
+      }
+
+      .call-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .call-actions .btn {
+        width: auto;
+        margin: 0;
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+
+      .alert {
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border: 1px solid;
+      }
+
+      .alert.success {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+      }
+      .alert.error {
+        background: #f8d7da;
+        border-color: #f5c6cb;
+        color: #721c24;
+      }
+      .alert.warning {
+        background: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+      }
+
+      .devices {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+        border: 1px solid #dee2e6;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .device {
+        font-family: monospace;
+        font-size: 12px;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        margin-bottom: 8px;
+        word-break: break-all;
+      }
+
+      .device-group {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #667eea;
+      }
+
+      .device-header {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .device-badge {
+        background: #667eea;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 12px;
+      }
+
+      .priority-normal {
+        border-left-color: #6c757d;
+      }
+      .priority-high {
+        border-left-color: #ffc107;
+      }
+      .priority-urgent {
+        border-left-color: #dc3545;
+      }
+
+      .queue-position {
+        background: #667eea;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 11px;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>📞 Callx Server</h1>
+        <p>Control FCM calls via web interface</p>
+      </div>
+
+      <div class="status">
+        <div class="status-item">
+          <div class="status-value" id="server-status">●</div>
+          <div class="status-label">Server</div>
+        </div>
+        <div class="status-item">
+          <div class="status-value" id="config-status">⚠️</div>
+          <div class="status-label">Config</div>
+        </div>
+        <div class="status-item">
+          <div class="status-value" id="devices-count">0</div>
+          <div class="status-label">Devices</div>
+        </div>
+        <div class="status-item">
+          <div class="status-value" id="calls-count">0</div>
+          <div class="status-label">Active Calls</div>
+        </div>
+      </div>
+
+      <div class="main">
+        <!-- Device Registration -->
+        <div class="section">
+          <h2>📱 Register Device</h2>
+          <div id="device-alert"></div>
+
+          <div class="form-group">
+            <label for="fcm-token">FCM Token from React Native App:</label>
+            <textarea
+              id="fcm-token"
+              placeholder="Paste token here..."
+            ></textarea>
+          </div>
+
+          <button class="btn" onclick="registerDevice()">📝 Register</button>
+          <button class="btn success" onclick="loadDevices()">
+            🔄 Refresh
+          </button>
+
+          <div id="devices-list"></div>
+        </div>
+
+        <!-- Call Controls -->
+        <div class="section">
+          <h2>📞 Call Controls</h2>
+          <div id="call-alert"></div>
+
+          <div class="form-group">
+            <label for="target-device">Target Device:</label>
+            <select id="target-device">
+              <option value="">Select device...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="caller-name">Caller Name:</label>
+            <input
+              type="text"
+              id="caller-name"
+              value="Web UI Test"
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="caller-phone">Phone:</label>
+            <input
+              type="text"
+              id="caller-phone"
+              value="+84123456789"
+              placeholder="+1234567890"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="caller-avatar">Avatar URL:</label>
+            <input
+              type="text"
+              id="caller-avatar"
+              value="https://picsum.photos/200/200"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="call-priority">Call Priority:</label>
+            <select id="call-priority">
+              <option value="normal">🔵 Normal</option>
+              <option value="high">🟡 High</option>
+              <option value="urgent">🔴 Urgent</option>
+            </select>
+          </div>
+
+          <div class="checkbox">
+            <input type="checkbox" id="with-notification" />
+            <label for="with-notification">Include notification</label>
+          </div>
+
+          <button class="btn success" onclick="startCall()">
+            📞 Start Call
+          </button>
+          <button class="btn" onclick="testNotification()">
+            🔔 Test Basic Notification
+          </button>
+          <button class="btn warning" onclick="broadcast()">
+            📡 Broadcast
+          </button>
+
+          <!-- Multiple Calls Quick Test -->
+          <div
+            style="
+              margin-top: 15px;
+              padding-top: 15px;
+              border-top: 2px solid #dee2e6;
+            "
+          >
+            <strong>🔥 Multiple Calls Test:</strong>
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                margin-top: 10px;
+                flex-wrap: wrap;
+              "
+            >
+              <button
+                class="btn"
+                onclick="startMultipleCalls(2)"
+                style="font-size: 14px; padding: 8px 12px"
+              >
+                📞×2 Start 2 Calls
+              </button>
+              <button
+                class="btn"
+                onclick="startMultipleCalls(3)"
+                style="font-size: 14px; padding: 8px 12px"
+              >
+                📞×3 Start 3 Calls
+              </button>
+              <button
+                class="btn warning"
+                onclick="startMultipleCalls(5)"
+                style="font-size: 14px; padding: 8px 12px"
+              >
+                📞×5 Max Calls
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Calls -->
+        <div class="section calls">
+          <h2>📋 Active Calls</h2>
+          <div id="calls-container">
+            <p style="text-align: center; color: #6c757d; padding: 20px">
+              No active calls
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap">
+            <button class="btn" onclick="loadCalls()">🔄 Refresh</button>
+            <button class="btn danger" onclick="endAllCalls()">
+              📵 End All Calls
+            </button>
+            <button class="btn warning" onclick="toggleSettings()">
+              ⚙️ Settings
+            </button>
+          </div>
+
+          <!-- Settings Panel -->
+          <div
+            id="settings-panel"
+            style="
+              display: none;
+              margin-top: 20px;
+              padding: 20px;
+              background: white;
+              border-radius: 10px;
+              border: 2px solid #667eea;
+            "
+          >
+            <h3>⚙️ Call Settings</h3>
+            <div class="form-group">
+              <label for="call-timeout">Auto-miss calls after (seconds):</label>
+              <input
+                type="number"
+                id="call-timeout"
+                value="60"
+                min="10"
+                max="300"
+              />
+            </div>
+            <div class="form-group">
+              <label for="max-calls-per-device">Max calls per device:</label>
+              <input
+                type="number"
+                id="max-calls-per-device"
+                value="5"
+                min="1"
+                max="10"
+                readonly
+              />
+            </div>
+            <p style="color: #6c757d; font-size: 14px">
+              ℹ️ Multiple calls are queued on the same device. First call has
+              priority. Auto-expire timer applies to all calls individually.
+            </p>
+            <div
+              style="
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                border-radius: 5px;
+                padding: 10px;
+                margin-top: 10px;
+              "
+            >
+              <strong>🔥 Multiple Calls Features:</strong><br />
+              • Call queueing with position tracking<br />
+              • Priority levels (Normal/High/Urgent)<br />
+              • Device-specific call limits<br />
+              • Queue updates when calls end<br />
+              • Bulk testing with multiple calls
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let status = {};
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', function () {
+        loadStatus();
+        loadDevices();
+        loadCalls();
+
+        // Auto refresh
+        setInterval(() => {
+          loadStatus();
+          loadCalls();
+        }, 5000);
+      });
+
+      // Load status
+      async function loadStatus() {
+        try {
+          const res = await fetch('/api/status');
+          status = await res.json();
+
+          document.getElementById('server-status').textContent = '🟢';
+          document.getElementById('config-status').textContent =
+            status.configured ? '✅' : '⚠️';
+          document.getElementById('devices-count').textContent = status.devices;
+          document.getElementById('calls-count').textContent =
+            status.activeCalls;
+
+          if (!status.configured) {
+            showAlert('call-alert', 'warning', '⚠️ Firebase not configured');
+          }
+        } catch (error) {
+          document.getElementById('server-status').textContent = '🔴';
+        }
+      }
+
+      // Register device
+      async function registerDevice() {
+        const token = document.getElementById('fcm-token').value.trim();
+        if (!token)
+          return showAlert('device-alert', 'error', 'Enter FCM token');
+
+        try {
+          const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'device-alert',
+              'success',
+              `✅ Registered! Total: ${data.total}`
+            );
+            document.getElementById('fcm-token').value = '';
+            loadDevices();
+            loadStatus();
+          } else {
+            showAlert('device-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('device-alert', 'error', 'Network error');
+        }
+      }
+
+      // Load devices
+      async function loadDevices() {
+        try {
+          const res = await fetch('/api/devices');
+          const data = await res.json();
+
+          const select = document.getElementById('target-device');
+          const list = document.getElementById('devices-list');
+
+          // Update dropdown
+          select.innerHTML = '<option value="">Select device...</option>';
+          data.tokens.forEach((token, i) => {
+            const option = document.createElement('option');
+            option.value = token;
+            option.textContent = `Device ${i + 1} (${token.substring(0, 20)}...)`;
+            select.appendChild(option);
+          });
+
+          // Update list
+          if (data.tokens.length > 0) {
+            list.innerHTML = `
+                        <div class="devices">
+                            <strong>Registered Devices (${data.tokens.length}):</strong>
+                            ${data.tokens
+                              .map(
+                                (token, i) =>
+                                  `<div class="device">Device ${i + 1}: ${token}</div>`
+                              )
+                              .join('')}
+                        </div>
+                    `;
+          } else {
+            list.innerHTML = '';
+          }
+        } catch (error) {
+          console.error('Load devices error:', error);
+        }
+      }
+
+      // Start call
+      async function startCall() {
+        const token = document.getElementById('target-device').value;
+        const callerName = document.getElementById('caller-name').value;
+        const callerPhone = document.getElementById('caller-phone').value;
+        const callerAvatar = document.getElementById('caller-avatar').value;
+        const priority = document.getElementById('call-priority').value;
+        const withNotification =
+          document.getElementById('with-notification').checked;
+
+        if (!token) return showAlert('call-alert', 'error', 'Select device');
+        if (!status.configured)
+          return showAlert('call-alert', 'error', 'Not configured');
+
+        try {
+          const res = await fetch('/api/call/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token,
+              callerName,
+              callerPhone,
+              callerAvatar,
+              priority,
+              withNotification,
+            }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'call-alert',
+              'success',
+              `📞 Call started: ${data.callId} (Queue: ${data.queuePosition}/${data.deviceActiveCallsCount})`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Start multiple calls for testing
+      async function startMultipleCalls(count) {
+        const token = document.getElementById('target-device').value;
+        const callerName = document.getElementById('caller-name').value;
+        const callerPhone = document.getElementById('caller-phone').value;
+
+        if (!token) return showAlert('call-alert', 'error', 'Select device');
+        if (!status.configured)
+          return showAlert('call-alert', 'error', 'Not configured');
+
+        showAlert('call-alert', 'warning', `🔄 Starting ${count} calls...`);
+
+        const priorities = ['normal', 'high', 'urgent'];
+        const results = [];
+
+        for (let i = 0; i < count; i++) {
+          try {
+            const priority = priorities[i % priorities.length];
+            const testCallerName = `${callerName} #${i + 1}`;
+
+            const res = await fetch('/api/call/start', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                token,
+                callerName: testCallerName,
+                callerPhone: callerPhone,
+                callerAvatar: `https://picsum.photos/200/200?random=${i}`,
+                priority,
+                withNotification: false,
+              }),
+            });
+
+            const data = await res.json();
+            results.push({
+              success: data.success,
+              callId: data.callId,
+              error: data.error,
+            });
+          } catch (error) {
+            results.push({ success: false, error: 'Network error' });
+          }
+        }
+
+        const successful = results.filter((r) => r.success).length;
+        showAlert(
+          'call-alert',
+          successful === count ? 'success' : 'warning',
+          `📞 Multiple calls: ${successful}/${count} started successfully`
+        );
+
+        loadCalls();
+        loadStatus();
+      }
+
+      // Test basic notification
+      async function testNotification() {
+        const token = document.getElementById('target-device').value;
+
+        if (!token) return showAlert('call-alert', 'error', 'Select device');
+        if (!status.configured)
+          return showAlert('call-alert', 'error', 'Not configured');
+
+        try {
+          const res = await fetch('/api/test-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token,
+              title: 'Callx Server Test',
+              body: 'Basic FCM notification test - should appear immediately',
+            }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'call-alert',
+              'success',
+              '🔔 Basic notification sent! Check device for popup'
+            );
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Broadcast
+      async function broadcast() {
+        const callerName = document.getElementById('caller-name').value;
+        const callerPhone = document.getElementById('caller-phone').value;
+        const priority = document.getElementById('call-priority').value;
+        const withNotification =
+          document.getElementById('with-notification').checked;
+
+        if (!status.configured)
+          return showAlert('call-alert', 'error', 'Not configured');
+        if (!confirm('Broadcast to all devices?')) return;
+
+        try {
+          const res = await fetch('/api/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              callerName,
+              callerPhone,
+              priority,
+              withNotification,
+            }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            const success = data.results.filter((r) => r.success).length;
+            showAlert(
+              'call-alert',
+              'success',
+              `📡 Broadcast (${priority}): ${success}/${data.results.length} devices`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Load calls
+      async function loadCalls() {
+        try {
+          const res = await fetch('/api/calls');
+          const data = await res.json();
+
+          const container = document.getElementById('calls-container');
+
+          if (data.calls.length === 0) {
+            container.innerHTML =
+              '<p style="text-align: center; color: #6c757d; padding: 20px;">No active calls</p>';
+            return;
+          }
+
+          // Display grouped by device for better organization
+          if (data.deviceGroups && Object.keys(data.deviceGroups).length > 0) {
+            container.innerHTML = Object.entries(data.deviceGroups)
+              .map(
+                ([deviceKey, deviceGroup]) => `
+                            <div class="device-group">
+                                <div class="device-header">
+                                    <span>📱 Device: ${deviceKey}</span>
+                                    <span class="device-badge">${deviceGroup.totalCalls}/${data.maxCallsPerDevice} calls</span>
+                                </div>
+                                ${deviceGroup.calls
+                                  .map(
+                                    (call) => `
+                                    <div class="call priority-${call.priority}">
+                                        <div class="call-info">
+                                            <div class="call-id">
+                                                <span class="queue-position">#${call.queuePosition}</span>
+                                                ${call.callId}
+                                                ${getPriorityIcon(call.priority)}
+                                            </div>
+                                            <div class="call-details">
+                                                📞 ${call.callerName} (${call.callerPhone})<br>
+                                                ⏱️ ${call.duration}s | ⏰ ${call.remainingTime || 0}s left | ${new Date(call.startTime).toLocaleTimeString()}
+                                                ${call.queuePosition > 1 ? `<br>📋 Position ${call.queuePosition} in queue` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="call-actions">
+                                            <button class="btn danger" onclick="endCall('${call.callId}')">📵 End</button>
+                                            <button class="btn warning" onclick="missedCall('${call.callId}')">📵 Missed</button>
+                                        </div>
+                                    </div>
+                                `
+                                  )
+                                  .join('')}
+                            </div>
+                        `
+              )
+              .join('');
+          } else {
+            // Fallback to simple list view
+            container.innerHTML = data.calls
+              .map(
+                (call) => `
+                            <div class="call priority-${call.priority}">
+                                <div class="call-info">
+                                    <div class="call-id">
+                                        <span class="queue-position">#${call.queuePosition}</span>
+                                        ${call.callId}
+                                        ${getPriorityIcon(call.priority)}
+                                    </div>
+                                    <div class="call-details">
+                                        📞 ${call.callerName} (${call.callerPhone})<br>
+                                        ⏱️ ${call.duration}s | ⏰ ${call.remainingTime || 0}s left | ${new Date(call.startTime).toLocaleTimeString()}
+                                    </div>
+                                </div>
+                                <div class="call-actions">
+                                    <button class="btn danger" onclick="endCall('${call.callId}')">📵 End</button>
+                                    <button class="btn warning" onclick="missedCall('${call.callId}')">📵 Missed</button>
+                                </div>
+                            </div>
+                        `
+              )
+              .join('');
+          }
+        } catch (error) {
+          console.error('Load calls error:', error);
+        }
+      }
+
+      // Helper function to get priority icon
+      function getPriorityIcon(priority) {
+        switch (priority) {
+          case 'urgent':
+            return '🔴';
+          case 'high':
+            return '🟡';
+          case 'normal':
+          default:
+            return '🔵';
+        }
+      }
+
+      // End call
+      async function endCall(callId) {
+        try {
+          const res = await fetch('/api/call/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'call-alert',
+              'success',
+              `📵 Call ended: ${data.callId} (${data.callerName || 'Unknown'}) - ${data.duration || 0}s`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Mark call as missed
+      async function missedCall(callId) {
+        try {
+          const res = await fetch('/api/call/missed', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'call-alert',
+              'warning',
+              `📵 Call missed: ${data.callId} (${data.callerName || 'Unknown'}) - ${data.duration || 0}s`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // End all calls
+      async function endAllCalls() {
+        if (!confirm('⚠️ End ALL active calls? This action cannot be undone.'))
+          return;
+
+        try {
+          const res = await fetch('/api/calls/end-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            const successful = data.results.filter((r) => r.success).length;
+            const total = data.results.length;
+            showAlert(
+              'call-alert',
+              'success',
+              `📵 Mass end completed: ${successful}/${total} calls ended successfully`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Toggle settings panel
+      function toggleSettings() {
+        const panel = document.getElementById('settings-panel');
+        if (panel.style.display === 'none') {
+          panel.style.display = 'block';
+        } else {
+          panel.style.display = 'none';
+        }
+      }
+
+      // Show alert
+      function showAlert(id, type, message) {
+        const container = document.getElementById(id);
+        container.innerHTML = `<div class="alert ${type}">${message}</div>`;
+        setTimeout(() => {
+          if (container.innerHTML.includes(message)) {
+            container.innerHTML = '';
+          }
+        }, 5000);
+      }
+    </script>
+  </body>
+</html>
