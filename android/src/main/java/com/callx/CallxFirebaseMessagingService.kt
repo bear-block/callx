@@ -84,15 +84,15 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         return try {
                             val appConfig = json.optJSONObject("app")?.let { appJson ->
                     AppConfig(
-                        packageName = appJson.optString("packageName", "").ifEmpty { detectAppPackageName(context) },
-                        mainActivity = appJson.optString("mainActivity", "").ifEmpty { detectMainActivity(context) },
+                        packageName = appJson.optString("packageName", "").ifEmpty { detectAppPackageName(this) },
+                        mainActivity = appJson.optString("mainActivity", "").ifEmpty { detectMainActivity(this) },
                         showOverLockscreen = appJson.optBoolean("showOverLockscreen", true),
                         requireUnlock = appJson.optBoolean("requireUnlock", false),
                         supportsVideo = appJson.optBoolean("supportsVideo", false)
                     )
                 } ?: AppConfig(
-                    packageName = detectAppPackageName(context),
-                    mainActivity = detectMainActivity(context)
+                    packageName = detectAppPackageName(this),
+                    mainActivity = detectMainActivity(this)
                 )
 
             val triggers = json.optJSONObject("triggers")?.let { triggersJson ->
@@ -277,7 +277,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         private fun detectMainActivity(context: Context): String {
             return try {
                 val packageManager = context.packageManager
-                val appPackageName = detectAppPackageName(context)
+                val appPackageName = detectAppPackageName(this)
                 val launchIntent = packageManager.getLaunchIntentForPackage(appPackageName)
                 
                 if (launchIntent != null && launchIntent.component != null) {

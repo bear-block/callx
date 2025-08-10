@@ -135,7 +135,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
     loadConfigurationFromAssets()
     // Auto-setup Callx lifecycle (auto setup, no need to extend Application)
     try {
-      CallxAutoSetup.setup(reactApplicationContext)
+      CallxAutoSetup.initialize(reactApplicationContext as android.app.Application)
     } catch (e: Exception) {
       android.util.Log.w(NAME, "Auto-setup failed, manual setup required: ${e.message}")
     }
@@ -830,14 +830,13 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   private fun handleCallEnded(callId: String, callerName: String) {
-    val callData = currentCall?.copy(endReason = "ended") ?: return
+    val callData = currentCall ?: return
     sendEventToJS("onCallEnded", callDataToWritableMap(callData))
     android.util.Log.d(NAME, "📞 Call ended: $callId, reason: ended")
   }
 
   private fun handleMissedCall(callData: CallData) {
-    val missedCall = callData.copy(endReason = "missed")
-    sendEventToJS("onCallMissed", callDataToWritableMap(missedCall))
+    sendEventToJS("onCallMissed", callDataToWritableMap(callData))
     android.util.Log.d(NAME, "📞 Call missed: ${callData.callId}")
   }
 
