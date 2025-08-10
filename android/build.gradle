@@ -37,7 +37,7 @@ android {
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
     targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
     versionCode 1
-            versionName "0.1.5-beta"
+            versionName "0.1.6-beta"
   }
 
   buildFeatures {
