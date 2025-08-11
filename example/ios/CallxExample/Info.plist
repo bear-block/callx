@@ -48,5 +48,16 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<!-- CallKit and VoIP Support -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>remote-notification</string>
+		<string>background-fetch</string>
+	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone for voice calls</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera for video calls</string>
 </dict>
 </plist>

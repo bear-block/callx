@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/android/copyassets.ts","./src/android/manifest.ts","./src/android/modifymainactivity.ts","./src/ios/copyassets.ts","./src/ios/infoplist.ts"],"version":"5.8.3"}

@@ -1,0 +1,44 @@
+{
+  "app": {
+    "showOverLockscreen": true,
+    "requireUnlock": false
+  },
+  "triggers": {
+    "incoming": {
+      "field": "type",
+      "value": "call.started"
+    },
+    "ended": {
+      "field": "type",
+      "value": "call.ended"
+    },
+    "missed": {
+      "field": "type",
+      "value": "call.missed"
+    }
+  },
+  "fields": {
+    "callId": {
+      "field": "callId"
+    },
+    "callerName": {
+      "field": "callerName",
+      "fallback": "Unknown Caller"
+    },
+    "callerPhone": {
+      "field": "callerPhone",
+      "fallback": "No Number"
+    },
+    "callerAvatar": {
+      "field": "callerAvatar",
+      "fallback": "https://picsum.photos/200/200"
+    }
+  },
+  "notification": {
+    "channelId": "callx_ios_calls",
+    "channelName": "iOS Calls",
+    "channelDescription": "iOS call notifications with CallKit integration",
+    "importance": "high",
+    "sound": "default"
+  }
+} 

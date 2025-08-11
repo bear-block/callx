@@ -1,0 +1,48 @@
+{
+  "app": {
+    "showOverLockscreen": true,
+    "requireUnlock": false,
+    "supportsVideo": true
+  },
+  "triggers": {
+    "incoming": {
+      "field": "type",
+      "value": "call.started"
+    },
+    "ended": {
+      "field": "type",
+      "value": "call.ended"
+    },
+    "missed": {
+      "field": "type",
+      "value": "call.missed"
+    },
+    "answered_elsewhere": {
+      "field": "type",
+      "value": "call.answered_elsewhere"
+    }
+  },
+  "fields": {
+    "callId": {
+      "field": "callId"
+    },
+    "callerName": {
+      "field": "callerName",
+      "fallback": "Unknown Caller"
+    },
+    "callerPhone": {
+      "field": "callerPhone",
+      "fallback": "No Number"
+    },
+    "callerAvatar": {
+      "field": "callerAvatar",
+      "fallback": "https://picsum.photos/200/200"
+    },
+    "hasVideo": {
+      "field": "hasVideo",
+      "fallback": false
+    }
+  },
+  
+  "enabledLogPhoneCall": true
+}
