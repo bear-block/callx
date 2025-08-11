@@ -318,6 +318,38 @@ app.post('/api/call/end', async (req, res) => {
   }
 });
 
+app.post('/api/call/answered-elsewhere', async (req, res) => {
+  try {
+    const { callId } = req.body;
+    const call = activeCalls.get(callId);
+
+    if (!call) return res.status(404).json({ error: 'Call not found' });
+
+    if (serviceAccount) {
+      await sendFCM(call.token, {
+        type: 'call.answered_elsewhere',
+        callId: call.callId,
+        callerName: call.callerName,
+        callerPhone: call.callerPhone,
+        callerAvatar: call.callerAvatar,
+        at: new Date().toISOString(),
+      });
+    }
+
+    // Clean up call tracking
+    activeCalls.delete(callId);
+    removeCallFromDevice(callId, call.token);
+    await updateQueuePositions(call.token);
+
+    console.log(`🤝 Call answered elsewhere: ${callId} (${call.callerName})`);
+    const remainingCalls = deviceCalls.get(call.token)?.size || 0;
+    res.json({ success: true, callId, remainingCallsOnDevice: remainingCalls });
+  } catch (error) {
+    console.error('❌ Answered-elsewhere error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/call/missed', async (req, res) => {
   try {
     const { callId } = req.body;

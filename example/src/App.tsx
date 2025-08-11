@@ -16,7 +16,6 @@ import messaging from '@react-native-firebase/messaging';
 import CallxInstance from '@bear-block/callx';
 
 export default function App() {
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
   const [currentCall, setCurrentCall] = useState<any | null>(null);
   const [fcmToken, setFcmToken] = useState<string>('');
@@ -42,13 +41,12 @@ export default function App() {
 
   const initializeApp = async () => {
     try {
-      console.log('🚀 Initializing app...');
+      Alert.alert('🚀 Initializing app...');
 
       console.log('1️⃣ Requesting permissions...');
       await requestPermissions();
 
       console.log('2️⃣ Initializing Callx...');
-      await initializeCallx();
 
       console.log('3️⃣ Initializing FCM (with Callx integration)...');
       await initializeFCM();
@@ -66,6 +64,23 @@ export default function App() {
   const requestPermissions = async () => {
     if (Platform.OS === 'android') {
       try {
+        // Android 13+ notifications permission
+        if (Platform.Version >= 33) {
+          const notif = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Notifications Permission',
+              message: 'Allow notifications for incoming calls',
+              buttonPositive: 'OK',
+              buttonNegative: 'Cancel',
+            }
+          );
+          if (notif === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('✅ POST_NOTIFICATIONS granted');
+          } else {
+            console.log('⚠️ POST_NOTIFICATIONS denied');
+          }
+        }
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
@@ -110,28 +125,6 @@ export default function App() {
           console.log('📱 FCM token refreshed:', newToken);
           setFcmToken(newToken);
         });
-
-        // Listen for foreground messages
-        const unsubscribe = messaging().onMessage(async (remoteMessage) => {
-          console.log('📱 FCM foreground message received:', remoteMessage);
-          Alert.alert('FCM Message', 'Received foreground message');
-
-          // Handle call data if present
-          if (remoteMessage.data) {
-            await CallxInstance.handleFcmMessage(remoteMessage.data);
-            await refreshCallStatus();
-          }
-        });
-
-        // Handle background messages (mostly handled by native service now)
-        messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-          console.log('📱 FCM background message received:', remoteMessage);
-          return Promise.resolve();
-        });
-
-        return () => {
-          unsubscribe();
-        };
       } else {
         console.log('❌ FCM permission denied');
         Alert.alert('FCM Permission', 'Push notifications are disabled');
@@ -141,56 +134,6 @@ export default function App() {
     } catch (error) {
       console.error('❌ FCM initialization failed:', error);
       return () => {}; // Return empty cleanup function on error
-    }
-  };
-
-  const initializeCallx = async () => {
-    try {
-      // Config is now baked into native code from callx.json
-      // Only need to set event listeners
-      CallxInstance.initialize({
-        onIncomingCall: (data: any) => {
-          console.log('📞 Incoming call:', data);
-          setCurrentCall(data);
-          setIsCallActive(true);
-        },
-        onCallAnswered: (data: any) => {
-          console.log('✅ Call answered:', data);
-          setIsCallActive(false);
-        },
-        onCallDeclined: (data: any) => {
-          console.log('❌ Call declined:', data);
-          setIsCallActive(false);
-        },
-        onCallEnded: (data: any) => {
-          console.log('📞 Call ended:', data);
-          setIsCallActive(false);
-          setCurrentCall(null);
-        },
-        onCallMissed: (data: any) => {
-          console.log('⏰ Call missed:', data);
-          setIsCallActive(false);
-        },
-        onCallAnsweredElsewhere: (data: any) => {
-          console.log('📞 Call answered elsewhere:', data);
-          setIsCallActive(false);
-          setCurrentCall(null);
-        },
-        onTokenUpdated: (tokenData: { token: string }) => {
-          console.log('📱 Token updated:', tokenData.token);
-          if (Platform.OS === 'android') {
-            setFcmToken(tokenData.token);
-          } else {
-            setVoipToken(tokenData.token);
-          }
-        },
-      });
-
-      setIsInitialized(true);
-      console.log('✅ Callx initialized successfully');
-    } catch (error) {
-      console.error('❌ Callx initialization failed:', error);
-      Alert.alert('Callx Error', 'Failed to initialize Callx');
     }
   };
 
@@ -239,15 +182,17 @@ export default function App() {
 
   const handleFcmTest = async () => {
     try {
-      const testData = {
+      // Match example/callx.json mapping (no data.* prefix)
+      const data = {
         type: 'call.started',
         callId: 'fcm-test-' + Date.now(),
         callerName: 'FCM Test Caller',
-        callerPhone: '+1234567890',
+        callerPhone: 'Medgate',
         callerAvatar: 'https://picsum.photos/200/200',
-      };
+        hasVideo: 'false',
+      } as any;
 
-      await CallxInstance.handleFcmMessage(testData);
+      await CallxInstance.handleFcmMessage(data);
       Alert.alert('✅ FCM Test', 'FCM message handled!');
     } catch (error) {
       console.error('❌ FCM test error:', error);
@@ -374,14 +319,6 @@ export default function App() {
           <View style={styles.statusGrid}>
             <View style={styles.statusItem}>
               <Text style={styles.statusLabel}>Initialized</Text>
-              <Text
-                style={[
-                  styles.statusValue,
-                  { color: isInitialized ? '#28a745' : '#dc3545' },
-                ]}
-              >
-                {isInitialized ? '✅' : '❌'}
-              </Text>
             </View>
             <View style={styles.statusItem}>
               <Text style={styles.statusLabel}>Call Active</Text>
@@ -421,17 +358,15 @@ export default function App() {
           <Text style={styles.sectionTitle}>🔑 Tokens</Text>
           <View style={styles.tokenContainer}>
             <Text style={styles.tokenLabel}>FCM Token:</Text>
-            <Text style={styles.tokenValue} numberOfLines={2}>
-              {fcmToken ? `${fcmToken.substring(0, 30)}...` : 'Not available'}
+            <Text style={styles.tokenValue} selectable>
+              {fcmToken || 'Not available'}
             </Text>
           </View>
           {Platform.OS === 'ios' && (
             <View style={styles.tokenContainer}>
               <Text style={styles.tokenLabel}>VoIP Token:</Text>
-              <Text style={styles.tokenValue} numberOfLines={2}>
-                {voipToken
-                  ? `${voipToken.substring(0, 30)}...`
-                  : 'Not available'}
+              <Text style={styles.tokenValue} selectable>
+                {voipToken || 'Not available'}
               </Text>
             </View>
           )}

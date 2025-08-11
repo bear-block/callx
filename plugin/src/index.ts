@@ -1,14 +1,13 @@
 import type { ConfigPlugin } from '@expo/config-plugins';
 import { createRunOncePlugin } from '@expo/config-plugins';
-import { withCallxCopyAssets } from './android/copyAssets';
 import { withCallxModifyMainActivity } from './android/modifyMainActivity';
-// Removed manifest modification from plugin to avoid duplication; library declares service
 import { withCallxInfoPlist } from './ios/infoPlist';
-import { withCallxCopyAssets as withCallxCopyAssetsIOS } from './ios/copyAssets';
+import { withCallxAndroidManifest } from './android/manifest';
 
 export interface CallxPluginOptions {
-  mode?: 'native' | 'js';
   package: string;
+  triggers?: Record<string, { field: string; value: string }>;
+  fields?: Record<string, { field: string; fallback?: string }>;
 }
 
 const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
@@ -21,15 +20,18 @@ const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
   const { package: packageName } = options;
   // Intentionally no general logs: keep output minimal
 
-  // Android plugins - always copy assets and modify MainActivity
-  config = withCallxCopyAssets(config);
+  // Android plugins - modify MainActivity and inject mapping/meta-data
   config = withCallxModifyMainActivity(config, { package: packageName });
+  config = withCallxAndroidManifest(config, {
+    triggers: options?.triggers,
+    fields: options?.fields,
+  });
 
-  // No AndroidManifest modifications here (service declared in library)
-
-  // Apply iOS setup
-  config = withCallxInfoPlist(config);
-  config = withCallxCopyAssetsIOS(config);
+  // Apply iOS setup + inject mapping (no asset copy)
+  config = withCallxInfoPlist(config, {
+    triggers: options?.triggers,
+    fields: options?.fields,
+  });
 
   return config;
 };

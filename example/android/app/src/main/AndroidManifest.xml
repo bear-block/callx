@@ -10,6 +10,21 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+      <!-- Callx mapping via meta-data (no callx.json) -->
+      <meta-data android:name="callx.triggers.incoming.field" android:value="type" />
+      <meta-data android:name="callx.triggers.incoming.value" android:value="call.started" />
+      <meta-data android:name="callx.triggers.ended.field" android:value="type" />
+      <meta-data android:name="callx.triggers.ended.value" android:value="call.ended" />
+      <meta-data android:name="callx.triggers.missed.field" android:value="type" />
+      <meta-data android:name="callx.triggers.missed.value" android:value="call.missed" />
+      <meta-data android:name="callx.triggers.answered_elsewhere.field" android:value="type" />
+      <meta-data android:name="callx.triggers.answered_elsewhere.value" android:value="call.answered_elsewhere" />
+
+      <meta-data android:name="callx.fields.callId" android:value="callId" />
+      <meta-data android:name="callx.fields.callerName" android:value="callerName" />
+      <meta-data android:name="callx.fields.callerPhone" android:value="callerPhone" />
+      <meta-data android:name="callx.fields.callerAvatar" android:value="callerAvatar" />
+      <meta-data android:name="callx.fields.hasVideo" android:value="hasVideo" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"

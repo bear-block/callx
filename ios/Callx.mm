@@ -22,6 +22,8 @@ RCT_EXPORT_MODULE()
         
         // Setup for JS interface compatibility (but don't create new providers)
         [self loadConfiguration];
+        // Observe native events from PushKit handler
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNativeEvent:) name:@"CallxEvent" object:nil];
     }
     return self;
 }
@@ -63,39 +65,39 @@ RCT_EXPORT_MODULE()
 #pragma mark - Configuration
 
 - (void)loadConfiguration {
-    NSString *configPath = [[NSBundle mainBundle] pathForResource:@"callx" ofType:@"json"];
-    if (configPath) {
-        NSData *configData = [NSData dataWithContentsOfFile:configPath];
-        if (configData) {
-            NSError *error;
-            self.configuration = [NSJSONSerialization JSONObjectWithData:configData options:0 error:&error];
-            if (error) {
-                RCTLogError(@"Callx: Failed to parse configuration: %@", error.localizedDescription);
-            } else {
-                RCTLogInfo(@"Callx: Configuration loaded successfully");
-            }
-        }
-    } else {
-        RCTLogWarn(@"Callx: No callx.json found, using default configuration");
-        // Set default configuration
-        self.configuration = @{
-            @"triggers": @{
-                @"incoming": @{@"field": @"type", @"value": @"call.started"},
-                @"ended": @{@"field": @"type", @"value": @"call.ended"},
-                @"missed": @{@"field": @"type", @"value": @"call.missed"},
-                @"answered_elsewhere": @{@"field": @"type", @"value": @"call.answered_elsewhere"}
-            },
-            @"fields": @{
-                @"callId": @{@"field": @"callId"},
-                @"callerName": @{@"field": @"callerName", @"fallback": @"Unknown Caller"},
-                @"callerPhone": @{@"field": @"callerPhone", @"fallback": @"No Number"},
-                @"callerAvatar": @{@"field": @"callerAvatar", @"fallback": @""},
-                @"hasVideo": @{@"field": @"hasVideo", @"fallback": @NO}
-            },
+    // Prefer Info.plist mapping injected by plugin; fallback to defaults
+    NSBundle *bundle = [NSBundle mainBundle];
+    NSDictionary *triggers = [bundle objectForInfoDictionaryKey:@"CallxTriggers"];
+    NSDictionary *fields = [bundle objectForInfoDictionaryKey:@"CallxFields"];
 
-            @"enabledLogPhoneCall": @YES
-        };
+    if (triggers || fields) {
+        NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
+        if (triggers) cfg[@"triggers"] = triggers;
+        if (fields) cfg[@"fields"] = fields;
+        cfg[@"enabledLogPhoneCall"] = @YES;
+        self.configuration = cfg;
+        RCTLogInfo(@"Callx: Configuration loaded from Info.plist");
+        return;
     }
+
+    // Fallback defaults (no Info.plist mapping)
+    self.configuration = @{
+        @"triggers": @{
+            @"incoming": @{@"field": @"type", @"value": @"call.started"},
+            @"ended": @{@"field": @"type", @"value": @"call.ended"},
+            @"missed": @{@"field": @"type", @"value": @"call.missed"},
+            @"answered_elsewhere": @{ @"field": @"type", @"value": @"call.answered_elsewhere" }
+        },
+        @"fields": @{
+            @"callId": @{ @"field": @"callId" },
+            @"callerName": @{ @"field": @"callerName", @"fallback": @"Unknown Caller" },
+            @"callerPhone": @{ @"field": @"callerPhone", @"fallback": @"No Number" },
+            @"callerAvatar": @{ @"field": @"callerAvatar", @"fallback": @"" },
+            @"hasVideo": @{ @"field": @"hasVideo", @"fallback": @NO }
+        },
+        @"enabledLogPhoneCall": @YES
+    };
+    RCTLogInfo(@"Callx: Using default configuration (no Info.plist mapping)");
 }
 
 #pragma mark - Native Methods Implementation
@@ -112,6 +114,8 @@ RCT_EXPORT_METHOD(initialize:(NSDictionary *)config
         }
         
         RCTLogInfo(@"Callx: Initialized with configuration");
+        // Flush any pending action saved while JS was not ready
+        [self flushPendingActionIfAny];
         resolve(@YES);
     } @catch (NSException *exception) {
         reject(@"INITIALIZATION_ERROR", exception.reason, nil);
@@ -462,6 +466,53 @@ RCT_EXPORT_METHOD(getConfiguration:(RCTPromiseResolveBlock)resolve
 
 - (void)sendEventWithName:(NSString *)name body:(id)body {
     [super sendEventWithName:name body:body];
+}
+
+#pragma mark - Native Event Bridge
+
+- (void)handleNativeEvent:(NSNotification *)note {
+    NSDictionary *userInfo = note.userInfo;
+    NSString *event = userInfo[@"event"];
+    NSDictionary *data = userInfo[@"data"];
+    if (!event) { return; }
+    [self sendEventWithName:event body:data];
+    // Clear matching pending action if any
+    [self clearPendingIfMatches:event data:data];
+}
+
+- (void)flushPendingActionIfAny {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSDictionary *pending = [defaults objectForKey:@"callx_pending_action"];
+    if (!pending) return;
+    NSString *action = pending[@"action"];
+    NSDictionary *data = pending[@"data"];
+    if (!action || !data) {
+        [defaults removeObjectForKey:@"callx_pending_action"]; return;
+    }
+    if ([action isEqualToString:@"ended"]) {
+        [self sendEventWithName:@"onCallEnded" body:data];
+    } else if ([action isEqualToString:@"missed"]) {
+        [self sendEventWithName:@"onCallMissed" body:data];
+    } else if ([action isEqualToString:@"answered_elsewhere"]) {
+        [self sendEventWithName:@"onCallAnsweredElsewhere" body:data];
+    }
+    [defaults removeObjectForKey:@"callx_pending_action"];
+}
+
+- (void)clearPendingIfMatches:(NSString *)event data:(NSDictionary *)data {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    NSDictionary *pending = [defaults objectForKey:@"callx_pending_action"];
+    if (!pending) return;
+    NSString *action = pending[@"action"]; NSDictionary *pdata = pending[@"data"];
+    NSString *callId = data[@"callId"]; NSString *pcallId = pdata[@"callId"];
+    if (!callId || !pcallId) return;
+    BOOL same = [pcallId isEqualToString:callId];
+    if (!same) return;
+    if (([event isEqualToString:@"onCallEnded"] && [action isEqualToString:@"ended"]) ||
+        ([event isEqualToString:@"onCallMissed"] && [action isEqualToString:@"missed"]) ||
+        ([event isEqualToString:@"onCallAnsweredElsewhere"] && [action isEqualToString:@"answered_elsewhere"])) {
+        [defaults removeObjectForKey:@"callx_pending_action"];
+    }
 }
 
 #pragma mark - Token Management

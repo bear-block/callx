@@ -30,7 +30,7 @@
 - 🔔 **Push Notifications**: Firebase Cloud Messaging (FCM)
 - 🎥 **Video call support** for both platforms
 - 📋 **Call logging** to phone's native call history
-- ⚙️ **Configuration**: JSON-based configuration (`callx.json`)
+- ⚙️ **Configuration**: via Android `AndroidManifest.xml` meta-data and iOS `Info.plist` (no `callx.json`)
 - 🚀 **Expo plugin** for automatic configuration
 - 🔧 **TypeScript**: Full TypeScript support
 
@@ -125,83 +125,81 @@ For manual setup, add to `ios/YourApp/Info.plist`:
 </array>
 ```
 
-### 3. Create `callx.json`
+### 3. Configure Triggers & Fields (no `callx.json`)
 
-Create a `callx.json` file in the root of your project.
+Configuration now lives in native files.
 
-```json
-{
-  "triggers": {
-    "incoming": {
-      "field": "type", // can be "data.call.type" for nested JSON paths
-      "value": "call.started"
-    },
-    "ended": {
-      "field": "type",
-      "value": "call.ended"
-    },
-    "missed": {
-      "field": "type",
-      "value": "call.missed"
-    },
-    "answered_elsewhere": {
-      "field": "type",
-      "value": "call.answered_elsewhere"
-    },
-  },
-  "fields": {
-    "callId": {
-      "field": "callId"
-    },
-    "callerName": {
-      "field": "callerName",
-      "fallback": "Unknown Caller"
-    },
-    "callerPhone": {
-      "field": "callerPhone",
-      "fallback": "No Number"
-    },
-    "callerAvatar": {
-      "field": "callerAvatar",
-      "fallback": "https://picsum.photos/200/200"
-    },
-    "hasVideo": {
-      "field": "hasVideo",
-      "fallback": false
-    },
-  },
-  "app": {
-    "showOverLockscreen": true,
-    "requireUnlock": false,
-    "supportsVideo": true
-  },
-  "enabledLogPhoneCall": true
-}
+#### Android: `AndroidManifest.xml` (inside `<application>`)
+
+```xml
+<!-- Triggers: which FCM data indicates each event -->
+<meta-data android:name="callx.triggers.incoming.field" android:value="type" />
+<meta-data android:name="callx.triggers.incoming.value" android:value="call.started" />
+<meta-data android:name="callx.triggers.ended.field" android:value="type" />
+<meta-data android:name="callx.triggers.ended.value" android:value="call.ended" />
+<meta-data android:name="callx.triggers.missed.field" android:value="type" />
+<meta-data android:name="callx.triggers.missed.value" android:value="call.missed" />
+<meta-data android:name="callx.triggers.answered_elsewhere.field" android:value="type" />
+<meta-data android:name="callx.triggers.answered_elsewhere.value" android:value="call.answered_elsewhere" />
+
+<!-- Fields: where to read values from in FCM data -->
+<meta-data android:name="callx.fields.callId" android:value="callId" />
+<meta-data android:name="callx.fields.callerName" android:value="callerName" />
+<meta-data android:name="callx.fields.callerPhone" android:value="callerPhone" />
+<meta-data android:name="callx.fields.callerAvatar" android:value="callerAvatar" />
+<meta-data android:name="callx.fields.hasVideo" android:value="hasVideo" />
+
+<!-- Recommended permissions for full-screen call UI and notifications -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 ```
 
-#### Configuration Fields
+Notes:
+- Put the `<meta-data>` entries inside your app `<application>` tag.
+- Field paths are flat by default (e.g. `type`, `callId`). If your payload nests fields, set paths accordingly (e.g. `data.type`).
 
-**Triggers** - Define when to show call UI:
+#### iOS: `Info.plist`
 
-- `incoming.field`: FCM field path to check (e.g., `"type"` or `"data.call.type"`)
-- `incoming.value`: Value that triggers incoming call (e.g., `"call.started"`)
-- `ended.field/value`: Triggers when call ends
-- `missed.field/value`: Triggers when call is missed
-- `answered_elsewhere`: Triggers when call is interacted from else where
+```xml
+<key>CallxTriggers</key>
+<dict>
+  <key>incoming</key>
+  <dict>
+    <key>field</key><string>type</string>
+    <key>value</key><string>call.started</string>
+  </dict>
+  <key>ended</key>
+  <dict>
+    <key>field</key><string>type</string>
+    <key>value</key><string>call.ended</string>
+  </dict>
+  <key>missed</key>
+  <dict>
+    <key>field</key><string>type</string>
+    <key>value</key><string>call.missed</string>
+  </dict>
+  <key>answered_elsewhere</key>
+  <dict>
+    <key>field</key><string>type</string>
+    <key>value</key><string>call.answered_elsewhere</string>
+  </dict>
+  
+  <!-- Optional: token event name etc. -->
+</dict>
 
-**App** - App-specific settings:
-
-- `showOverLockscreen`: `true` to show over lock screen
-- `requireUnlock`: `false` to allow interaction without unlocking
-- `supportsVideo`: `true` to enable video call support
-
-**Call Logging** - Native call history logging:
-
-- `enabledLogPhoneCall`: Master switch for call logging
+<key>CallxFields</key>
+<dict>
+  <key>callId</key><string>callId</string>
+  <key>callerName</key><string>callerName</string>
+  <key>callerPhone</key><string>callerPhone</string>
+  <key>callerAvatar</key><string>callerAvatar</string>
+  <key>hasVideo</key><string>hasVideo</string>
+</dict>
+```
 
 ### 4. Initialize in JS
 
-Callx should be initialized as early as possible in your app's lifecycle (e.g., `index.js`):
+Callx should be initialized as early as possible in your app's lifecycle (e.g., `index.js`). The module buffers events when the app is killed/backgrounded and flushes them on initialize:
 
 ```ts
 // index.js - Initialize before app renders
@@ -246,20 +244,22 @@ Add the plugin to your `app.json`:
 ```json
 {
   "expo": {
-    "plugins": ["@bear-block/callx", { package: "your.package.name" }]
+    "plugins": [
+      ["@bear-block/callx", { "package": "your.package.name" }]
+    ]
   }
 }
 ```
 
 The plugin will automatically:
-- Copy `callx.json` to the app bundle
-- Add required permissions
-- Configure MainActivity (Android)
-- Configure Info.plist (iOS)
+- Inject `<meta-data>` config into `AndroidManifest.xml`
+- Update `MainActivity` to extend `CallxReactActivity` (Android)
+- Inject `CallxTriggers` and `CallxFields` into `Info.plist` (iOS)
+- Add required background modes and privacy strings (iOS)
 
-### 2. Create `callx.json`
+### 2. Configure triggers/fields
 
-Create a `callx.json` file in the root of your project (same configuration as React Native CLI).
+Use plugin options or edit the native files as above. No `callx.json` is required.
 
 ### 3. Initialize in JS
 
@@ -319,7 +319,7 @@ interface CallData {
 
 ### Android (FCM)
 
-Callx automatically handles FCM messages for Android. Just send a data-only message:
+Callx automatically handles FCM messages for Android. Just send a data-only message (flat keys by default to match manifest/plist):
 
 ```json
 {
@@ -328,8 +328,22 @@ Callx automatically handles FCM messages for Android. Just send a data-only mess
     "callId": "call-123",
     "callerName": "John Doe",
     "callerPhone": "+1234567890",
-    "hasVideo": false
+    "hasVideo": "false"
   }
+}
+```
+
+Other events:
+
+```json
+{
+  "data": { "type": "call.ended", "callId": "call-123" }
+}
+{
+  "data": { "type": "call.missed", "callId": "call-123" }
+}
+{
+  "data": { "type": "call.answered_elsewhere", "callId": "call-123" }
 }
 ```
 
@@ -453,7 +467,7 @@ Callx.initialize({
     console.log('Call missed:', data);
   },
   onCallAnsweredElsewhere: (data) => {
-    console.log('Call answered elsewhere:', data);
+    console.log('Call answered elsewhere:', data); // closes UI like missed
   },
   onTokenUpdated: (tokenData) => {
     console.log('FCM token updated:', tokenData.token);

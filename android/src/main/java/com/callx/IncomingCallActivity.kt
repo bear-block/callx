@@ -139,6 +139,13 @@ class IncomingCallActivity : AppCompatActivity() {
                     finish()
                     return
                 }
+                "dismiss" -> {
+                    android.util.Log.d("IncomingCallActivity", "🛑 Direct dismiss action - closing UI without decline event")
+                    // Just close UI cleanly (used for missed/cancelled)
+                    stopRingtoneAndVibration()
+                    finish()
+                    return
+                }
             }
         }
     }
@@ -280,7 +287,16 @@ class IncomingCallActivity : AppCompatActivity() {
         animateButtonPress(answerButton) {
             android.util.Log.d("IncomingCallActivity", "📞 Call answered - launching main app")
             // Send answer event to module - this will stop notification ringtone
-            CallxModule.onCallAnswered(callId, callerNameText)
+            try {
+                val module = CallxModule.getInstance()
+                if (module != null) {
+                    CallxModule.onCallAnswered(callId, callerNameText)
+                } else {
+                    CallxStorage.savePendingAction(applicationContext, "answer", CallData(callId, callerNameText, callerPhoneText, callerAvatarUrl))
+                }
+            } catch (_: Exception) {
+                CallxStorage.savePendingAction(applicationContext, "answer", CallData(callId, callerNameText, callerPhoneText, callerAvatarUrl))
+            }
             
             // Launch main app and finish this activity
             launchMainApp()
@@ -293,7 +309,16 @@ class IncomingCallActivity : AppCompatActivity() {
         animateButtonPress(declineButton) {
             android.util.Log.d("IncomingCallActivity", "❌ Call declined - notifying module to stop notification ringtone")
             // Send decline event to module - this will stop notification ringtone
-            CallxModule.onCallDeclined(callId, callerNameText)
+            try {
+                val module = CallxModule.getInstance()
+                if (module != null) {
+                    CallxModule.onCallDeclined(callId, callerNameText)
+                } else {
+                    CallxStorage.savePendingAction(applicationContext, "decline", CallData(callId, callerNameText, callerPhoneText, callerAvatarUrl))
+                }
+            } catch (_: Exception) {
+                CallxStorage.savePendingAction(applicationContext, "decline", CallData(callId, callerNameText, callerPhoneText, callerAvatarUrl))
+            }
             
             // Finish activity
             finish()

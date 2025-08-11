@@ -7,6 +7,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
+import android.content.Intent
 import java.io.IOException
 import java.util.UUID
 
@@ -33,8 +34,8 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
                 fcmData.put(key, value)
             }
             
-            // Load configuration and process message
-            val config = loadConfigurationFromAssets()
+            // Load configuration from AndroidManifest meta-data and process message
+            val config = loadConfigurationFromManifest()
             if (config != null) {
                 processFcmMessage(fcmData, config)
             } else {
@@ -62,21 +63,46 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun loadConfigurationFromAssets(): CallxConfiguration? {
+    private fun loadConfigurationFromManifest(): CallxConfiguration? {
         return try {
-            val inputStream = assets.open("callx.json")
-            val size = inputStream.available()
-            val buffer = ByteArray(size)
-            inputStream.read(buffer)
-            inputStream.close()
-            
-            val jsonString = String(buffer, Charsets.UTF_8)
-            val jsonObject = JSONObject(jsonString)
-            
-            parseConfigurationFromJson(jsonObject)
+            val pm = applicationContext.packageManager
+            val appInfo = pm.getApplicationInfo(applicationContext.packageName, android.content.pm.PackageManager.GET_META_DATA)
+            val meta = appInfo.metaData ?: return CallxConfiguration()
+
+            val triggers = mutableMapOf<String, TriggerConfig>()
+            val triggerKeys = listOf("incoming", "ended", "missed", "answered_elsewhere")
+            for (key in triggerKeys) {
+                val field = meta.getString("callx.triggers.$key.field")
+                val value = meta.getString("callx.triggers.$key.value")
+                if (!field.isNullOrEmpty() && !value.isNullOrEmpty()) {
+                    triggers[key] = TriggerConfig(field, value)
+                }
+            }
+
+            val fields = mutableMapOf<String, FieldConfig>()
+            val fieldKeys = listOf("callId", "callerName", "callerPhone", "callerAvatar", "hasVideo")
+            for (key in fieldKeys) {
+                val path = meta.getString("callx.fields.$key")
+                val fallback = meta.getString("callx.fields.$key.fallback")
+                if (!path.isNullOrEmpty()) fields[key] = FieldConfig(path, fallback)
+            }
+
+            CallxConfiguration(
+                app = AppConfig(),
+                triggers = if (triggers.isNotEmpty()) triggers else CallxConfiguration().triggers,
+                fields = if (fields.isNotEmpty()) fields else CallxConfiguration().fields,
+                notification = NotificationConfig(
+                    channelId = "callx_incoming_calls_v2",
+                    channelName = "Incoming Calls",
+                    channelDescription = "Incoming call notifications with ringtone",
+                    importance = "high",
+                    sound = "default"
+                ),
+                callLogging = CallLoggingConfig()
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load configuration from assets", e)
-            null
+            Log.w(TAG, "Failed to load config from manifest: ${e.message}")
+            CallxConfiguration()
         }
     }
 
@@ -173,12 +199,58 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
                     showIncomingCallNotification(callData, config)
                 }
                 "ended" -> {
-                    Log.d(TAG, "Dismissing call notification")
+                    Log.d(TAG, "Handling call ended")
                     dismissIncomingCallNotification()
+                    val module = CallxModule.getInstance()
+                    if (module != null) {
+                        module.notifyEndedFromService(callData)
+                    } else {
+                        try {
+                            CallxStorage.savePendingAction(applicationContext, "end", callData)
+                        } catch (_: Exception) {}
+                    }
                 }
                 "missed" -> {
                     Log.d(TAG, "Handling missed call")
-                    // Could show missed call notification
+                    val module = CallxModule.getInstance()
+                    if (module != null) {
+                        try {
+                            val closeIntent = Intent(applicationContext, IncomingCallActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                putExtra("action", "dismiss")
+                                putExtra(IncomingCallActivity.EXTRA_CALL_ID, callData.callId)
+                            }
+                            applicationContext.startActivity(closeIntent)
+                        } catch (_: Exception) {}
+                        module.notifyMissedFromService(callData)
+                    } else {
+                        try {
+                            CallxStorage.savePendingAction(applicationContext, "missed", callData)
+                        } catch (_: Exception) {}
+                    }
+                }
+                "answered_elsewhere" -> {
+                    Log.d(TAG, "Handling answered elsewhere (close UI + JS event)")
+                    // Close incoming UI
+                    try {
+                        val closeIntent = Intent(applicationContext, IncomingCallActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            putExtra("action", "dismiss")
+                            putExtra(IncomingCallActivity.EXTRA_CALL_ID, callData.callId)
+                        }
+                        applicationContext.startActivity(closeIntent)
+                    } catch (_: Exception) {}
+                    // Dismiss notification
+                    dismissIncomingCallNotification()
+                    // Emit answered_elsewhere like missed flow (close UI + send event)
+                    val module = CallxModule.getInstance()
+                    if (module != null) {
+                        module.notifyAnsweredElsewhereFromService(callData)
+                    } else {
+                        try {
+                            CallxStorage.savePendingAction(applicationContext, "answered_elsewhere", callData)
+                        } catch (_: Exception) {}
+                    }
                 }
                 else -> {
                     Log.w(TAG, "Unknown trigger type: $triggerType")

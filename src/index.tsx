@@ -1,5 +1,13 @@
 import Callx from './NativeCallx';
 import type { CallData, CallxConfig } from './NativeCallx';
+import {
+  Platform,
+  NativeEventEmitter,
+  NativeModules,
+  DeviceEventEmitter,
+} from 'react-native';
+
+type Subscription = { remove: () => void };
 
 export interface CallEventListeners {
   onIncomingCall?: (data: CallData) => void;
@@ -19,6 +27,8 @@ export interface CallEventListeners {
  */
 class CallxManager {
   private listeners: CallEventListeners = {};
+  private subscriptions: Subscription[] = [];
+  private nativeEmitter?: NativeEventEmitter;
 
   /**
    * Initialize Callx with configuration
@@ -39,6 +49,9 @@ class CallxManager {
 
     // Initialize native module
     await Callx.initialize(config);
+
+    // Wire native events -> JS listeners
+    this.attachNativeEventListeners();
   }
 
   /**
@@ -75,6 +88,39 @@ class CallxManager {
    */
   async handleFcmMessage(data: any): Promise<void> {
     await Callx.handleFcmMessage(data);
+  }
+
+  private attachNativeEventListeners() {
+    // Clean up old subs
+    this.subscriptions.forEach((s) => s.remove());
+    this.subscriptions = [];
+
+    // iOS uses NativeEventEmitter; Android can use DeviceEventEmitter
+    if (Platform.OS === 'ios') {
+      this.nativeEmitter = new NativeEventEmitter((NativeModules as any).Callx);
+    } else {
+      this.nativeEmitter = undefined;
+    }
+
+    const add = (event: string, handler: (data: any) => void) => {
+      if (Platform.OS === 'ios' && this.nativeEmitter) {
+        this.subscriptions.push(this.nativeEmitter.addListener(event, handler));
+      } else {
+        // Android
+        // @ts-ignore React Native typing
+        this.subscriptions.push(DeviceEventEmitter.addListener(event, handler));
+      }
+    };
+
+    add('onIncomingCall', (d) => this.listeners.onIncomingCall?.(d));
+    add('onCallAnswered', (d) => this.listeners.onCallAnswered?.(d));
+    add('onCallDeclined', (d) => this.listeners.onCallDeclined?.(d));
+    add('onCallEnded', (d) => this.listeners.onCallEnded?.(d));
+    add('onCallMissed', (d) => this.listeners.onCallMissed?.(d));
+    add('onCallAnsweredElsewhere', (d) =>
+      this.listeners.onCallAnsweredElsewhere?.(d)
+    );
+    add('onTokenUpdated', (d) => this.listeners.onTokenUpdated?.(d));
   }
 
   /**

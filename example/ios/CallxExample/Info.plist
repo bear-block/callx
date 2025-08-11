@@ -26,14 +26,23 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera for video calls</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone for voice calls</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>voip</string>
+		<string>remote-notification</string>
+		<string>background-fetch</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -48,16 +57,72 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-	<!-- CallKit and VoIP Support -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>voip</string>
-		<string>remote-notification</string>
-		<string>background-fetch</string>
-	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs access to microphone for voice calls</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app needs access to camera for video calls</string>
+	<key>CallxTriggers</key>
+	<dict>
+		<key>incoming</key>
+		<dict>
+			<key>field</key>
+			<string>type</string>
+			<key>value</key>
+			<string>call.started</string>
+		</dict>
+		<key>ended</key>
+		<dict>
+			<key>field</key>
+			<string>type</string>
+			<key>value</key>
+			<string>call.ended</string>
+		</dict>
+		<key>missed</key>
+		<dict>
+			<key>field</key>
+			<string>type</string>
+			<key>value</key>
+			<string>call.missed</string>
+		</dict>
+		<key>answered_elsewhere</key>
+		<dict>
+			<key>field</key>
+			<string>type</string>
+			<key>value</key>
+			<string>call.answered_elsewhere</string>
+		</dict>
+	</dict>
+	<key>CallxFields</key>
+	<dict>
+		<key>callId</key>
+		<dict>
+			<key>field</key>
+			<string>callId</string>
+		</dict>
+		<key>callerName</key>
+		<dict>
+			<key>field</key>
+			<string>callerName</string>
+			<key>fallback</key>
+			<string>Unknown Caller</string>
+		</dict>
+		<key>callerPhone</key>
+		<dict>
+			<key>field</key>
+			<string>callerPhone</string>
+			<key>fallback</key>
+			<string>No Number</string>
+		</dict>
+		<key>callerAvatar</key>
+		<dict>
+			<key>field</key>
+			<string>callerAvatar</string>
+			<key>fallback</key>
+			<string></string>
+		</dict>
+		<key>hasVideo</key>
+		<dict>
+			<key>field</key>
+			<string>hasVideo</string>
+			<key>fallback</key>
+			<false/>
+		</dict>
+	</dict>
 </dict>
 </plist>

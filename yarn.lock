@@ -1587,11 +1587,13 @@ __metadata:
     turbo: ^1.10.7
     typescript: ^5.8.3
   peerDependencies:
-    "@expo/config-plugins": "*"
     "@react-native-firebase/app": "*"
     "@react-native-firebase/messaging": "*"
     react: "*"
     react-native: "*"
+  peerDependenciesMeta:
+    "@expo/config-plugins":
+      optional: true
   languageName: unknown
   linkType: soft
 

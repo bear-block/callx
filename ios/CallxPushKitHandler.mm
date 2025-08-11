@@ -88,31 +88,20 @@
 #pragma mark - Configuration
 
 - (void)loadConfiguration {
-    NSString *configPath = [[NSBundle mainBundle] pathForResource:@"callx" ofType:@"json"];
-    if (configPath) {
-        NSData *configData = [NSData dataWithContentsOfFile:configPath];
-        if (configData) {
-            NSError *error;
-            NSDictionary *config = [NSJSONSerialization JSONObjectWithData:configData options:0 error:&error];
-            if (error) {
-                RCTLogError(@"CallxPushKitHandler: Failed to parse configuration: %@", error.localizedDescription);
-                [self setDefaultConfiguration];
-            } else {
-                // Validate configuration
-                [self validateConfiguration:config];
-                self.configuration = config;
-                RCTLogInfo(@"CallxPushKitHandler: ✅ Configuration loaded successfully");
-                RCTLogInfo(@"CallxPushKitHandler: 📋 Triggers: %lu", (unsigned long)[config[@"triggers"] count]);
-                RCTLogInfo(@"CallxPushKitHandler: 📋 Fields: %lu", (unsigned long)[config[@"fields"] count]);
-            }
-        } else {
-            RCTLogWarn(@"CallxPushKitHandler: ⚠️ Could not read callx.json file");
-            [self setDefaultConfiguration];
-        }
-    } else {
-        RCTLogWarn(@"CallxPushKitHandler: ⚠️ No callx.json found, using default configuration");
-        [self setDefaultConfiguration];
+    // Load mapping from Info.plist (injected by plugin)
+    NSBundle *bundle = [NSBundle mainBundle];
+    NSDictionary *triggers = [bundle objectForInfoDictionaryKey:@"CallxTriggers"];
+    NSDictionary *fields = [bundle objectForInfoDictionaryKey:@"CallxFields"];
+    if (triggers || fields) {
+        NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
+        if (triggers) cfg[@"triggers"] = triggers;
+        if (fields) cfg[@"fields"] = fields;
+        cfg[@"enabledLogPhoneCall"] = @YES;
+        self.configuration = cfg;
+        RCTLogInfo(@"CallxPushKitHandler: ✅ Configuration loaded from Info.plist");
+        return;
     }
+    [self setDefaultConfiguration];
 }
 
 - (void)validateConfiguration:(NSDictionary *)config {
@@ -178,6 +167,8 @@
     
     // Generate UUID immediately
     self.currentCallUUID = [NSUUID UUID];
+    self.currentCallData = callData;
+    self.hasAnswered = NO;
     
     // Parse video setting from call data
     BOOL hasVideo = NO;
@@ -187,7 +178,10 @@
     
     // Create CallKit update immediately
     CXCallUpdate *update = [[CXCallUpdate alloc] init];
-    update.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypeGeneric value:callData[@"callerPhone"] ?: @""];
+    // Normalize E.164 number for display if needed
+    NSString *rawNumber = callData[@"callerPhone"] ?: @"";
+    NSString *displayNumber = rawNumber.length > 0 ? rawNumber : @"Unknown";
+    update.remoteHandle = [[CXHandle alloc] initWithType:CXHandleTypePhoneNumber value:displayNumber];
     update.localizedCallerName = callData[@"callerName"] ?: @"Unknown Caller";
     update.hasVideo = hasVideo;
     
@@ -201,6 +195,8 @@
             RCTLogInfo(@"CallxPushKitHandler: Incoming call reported successfully");
             RCTLogInfo(@"CallxPushKitHandler: Call data: %@", callData);
             RCTLogInfo(@"CallxPushKitHandler: Video call: %@", hasVideo ? @"YES" : @"NO");
+            // Emit incoming event to JS for parity with Android
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onIncomingCall", @"data": self.currentCallData ?: @{} }];
         }
     }];
 }
@@ -233,6 +229,11 @@
     if (self.currentCallUUID) {
         [self endCallImmediately:callData[@"callId"]];
     }
+    // Notify JS and buffer pending action
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallAnsweredElsewhere", @"data": callData ?: @{} }];
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setObject:@{ @"action": @"answered_elsewhere", @"data": callData ?: @{} } forKey:@"callx_pending_action"];
+    [defaults synchronize];
 }
 
 - (void)answerCall:(NSString *)callId {
@@ -261,6 +262,13 @@
             // Note: CallKit UI will now show the connected call interface
             // The incoming call UI will be replaced by the active call UI
             RCTLogInfo(@"CallxPushKitHandler: CallKit UI updated to connected state");
+            self.hasAnswered = YES;
+            // Emit answered to JS (Android parity)
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallAnswered", @"data": self.currentCallData ?: @{} }];
+            // Buffer pending action in case JS not ready
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            [defaults setObject:@{ @"action": @"answer", @"data": self.currentCallData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults synchronize];
         }
     }];
 }
@@ -281,6 +289,12 @@
         } else {
             RCTLogInfo(@"CallxPushKitHandler: Call declined successfully");
             self.currentCallUUID = nil;
+            // Emit declined to JS (Android parity)
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallDeclined", @"data": self.currentCallData ?: @{} }];
+            // Buffer pending action in case JS not ready
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            [defaults setObject:@{ @"action": @"decline", @"data": self.currentCallData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults synchronize];
         }
     }];
 }
@@ -413,70 +427,28 @@
             if (completion) {
                 completion();
             }
-        } else if ([triggerType isEqualToString:@"ended"] || [triggerType isEqualToString:@"missed"]) {
-            RCTLogInfo(@"CallxPushKitHandler: Processing call ended/missed");
-            
-            // End call immediately
+        } else if ([triggerType isEqualToString:@"ended"]) {
+            RCTLogInfo(@"CallxPushKitHandler: Processing call ended");
             [self endCallImmediately:callData[@"callId"]];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallEnded", @"data": callData ?: @{} }];
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            [defaults setObject:@{ @"action": @"ended", @"data": callData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults synchronize];
+            if (completion) { completion(); }
+        } else if ([triggerType isEqualToString:@"missed"]) {
+            RCTLogInfo(@"CallxPushKitHandler: Processing call missed");
+            [self endCallImmediately:callData[@"callId"]];
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallMissed", @"data": callData ?: @{} }];
+            NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+            [defaults setObject:@{ @"action": @"missed", @"data": callData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults synchronize];
+            if (completion) { completion(); }
         } else if ([triggerType isEqualToString:@"answered_elsewhere"]) {
             RCTLogInfo(@"CallxPushKitHandler: Processing call answered elsewhere");
             
             // Handle call answered elsewhere
             [self handleCallAnsweredElsewhere:callData];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
-        } else if ([triggerType isEqualToString:@"declined"] || [triggerType isEqualToString:@"rejected"]) {
-            RCTLogInfo(@"CallxPushKitHandler: Processing call declined/rejected");
-            
-            // Handle declined/rejected call
-            // No specific handler for declined/rejected, just end the call
-            [self endCallImmediately:callData[@"callId"]];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
-        } else if ([triggerType isEqualToString:@"timeout"]) {
-            RCTLogInfo(@"CallxPushKitHandler: Processing call timeout");
-            
-            // Handle call timeout
-            // No specific handler for timeout, just end the call
-            [self endCallImmediately:callData[@"callId"]];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
-        } else if ([triggerType isEqualToString:@"cancelled"]) {
-            RCTLogInfo(@"CallxPushKitHandler: Processing call cancelled");
-            
-            // Handle call cancelled
-            // No specific handler for cancelled, just end the call
-            [self endCallImmediately:callData[@"callId"]];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
-        } else if ([triggerType isEqualToString:@"busy"]) {
-            RCTLogInfo(@"CallxPushKitHandler: Processing call busy");
-            
-            // Handle call busy
-            // No specific handler for busy, just end the call
-            [self endCallImmediately:callData[@"callId"]];
-            
-            // Complete the push notification
-            if (completion) {
-                completion();
-            }
+            if (completion) { completion(); }
         } else {
             RCTLogWarn(@"CallxPushKitHandler: Unknown trigger type or invalid data - completing anyway");
             

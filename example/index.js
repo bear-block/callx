@@ -1,20 +1,32 @@
 import { AppRegistry } from 'react-native';
 import App from './src/App';
 import { name as appName } from './app.json';
-import messaging from '@react-native-firebase/messaging';
+import CallxInstance from '@bear-block/callx';
 
-// 🚨 Background FCM handler - Now handled by native service!
-messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-  console.log(
-    '📱 [index.js] FCM Background message (delegated to native):',
-    remoteMessage
-  );
-
-  // Native CallxFirebaseMessagingService handles the actual processing
-  // This is just for any JS-specific requirements
-  console.log('✅ [index.js] Message processing delegated to native service');
+// Config is now baked into native code from callx.json
+// Only need to set event listeners
+CallxInstance.initialize({
+  onIncomingCall: (data) => {
+    console.log('📞 Incoming call', data);
+  },
+  onCallAnswered: (data) => {
+    console.log('✅ Call answered', data);
+  },
+  onCallDeclined: (data) => {
+    console.log('❌ Call declined', data);
+  },
+  onCallEnded: (data) => {
+    console.log('📞 Call ended', data);
+  },
+  onCallMissed: (data) => {
+    console.log('⏰ Call missed', data);
+  },
+  onCallAnsweredElsewhere: (data) => {
+    console.log('📞 Call answered elsewhere', data);
+  },
+  onTokenUpdated: (tokenData) => {
+    console.log('📱 Token updated', tokenData.token);
+  },
 });
-
-console.log('🚀 [index.js] Background FCM handler registered (native-first)');
 
 AppRegistry.registerComponent(appName, () => App);

@@ -46,6 +46,8 @@ Add the plugin to your `app.json` or `app.config.js`:
 |--------|------|---------|-------------|
 | `mode` | `'native' \| 'js'` | `'native'` | Plugin operation mode |
 | `package` | `string` | **Required** | Your Android package name (e.g., `com.your.app.package`) |
+| `triggers` | object | optional | Keys: `incoming`, `ended`, `missed`, `answered_elsewhere` each with `{ field, value }` |
+| `fields` | object | optional | Keys: `callId`, `callerName`, `callerPhone`, `callerAvatar`, `hasVideo` mapping to FCM paths |
 
 ## Modes
 
@@ -53,10 +55,10 @@ Add the plugin to your `app.json` or `app.config.js`:
 
 **Default mode.** Provides full native integration:
 
-- ✅ **Android:** Adds `CallxFirebaseMessagingService` to AndroidManifest.xml
-- ✅ **Android:** Modifies MainActivity to extend `CallxReactActivity` *(always applied)*
-- ✅ **iOS:** Configures Info.plist for VoIP and background modes
-- ✅ **Both:** Copies callx.json assets to native projects
+- ✅ **Android:** Injects `<meta-data>` triggers/fields into AndroidManifest.xml
+- ✅ **Android:** Modifies MainActivity to extend `CallxReactActivity` (always applied)
+- ✅ **Android:** Adds `CallxFirebaseMessagingService` for background FCM
+- ✅ **iOS:** Injects `CallxTriggers` and `CallxFields` into Info.plist and adds background modes
 
 **Use this mode when you want:**
 - Automatic background FCM handling
@@ -69,9 +71,8 @@ Add the plugin to your `app.json` or `app.config.js`:
 **JavaScript-controlled mode.** Selective native integration:
 
 - ❌ **Android:** Does NOT add FCM service (you handle FCM in JS)
-- ✅ **Android:** STILL modifies MainActivity to extend `CallxReactActivity` *(always required)*
+- ✅ **Android:** STILL modifies MainActivity to extend `CallxReactActivity` (always required)
 - ✅ **iOS:** Still configures Info.plist for VoIP
-- ✅ **Both:** Copies callx.json assets
 
 **Use this mode when you want:**
 - Handle FCM messages manually in JavaScript
@@ -98,8 +99,7 @@ Add the plugin to your `app.json` or `app.config.js`:
 ### iOS
 
 **Both Modes:**
-1. **Info.plist**: Adds VoIP and background processing capabilities
-2. **Assets**: Copies `callx.json` configuration to iOS bundle
+1. **Info.plist**: Adds VoIP/background modes and injects `CallxTriggers`/`CallxFields`
 
 ## Package Configuration
 

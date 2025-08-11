@@ -17,8 +17,7 @@ import com.facebook.react.module.annotations.ReactModule
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import org.json.JSONObject
 import com.callx.NativeCallxSpec
-import java.io.IOException
-import java.io.InputStream
+ 
 import android.app.Application
 import java.util.UUID
 import android.provider.CallLog
@@ -86,7 +85,7 @@ data class CallxConfiguration(
         "hasVideo" to FieldConfig("data.hasVideo", "false")
     ),
     val notification: NotificationConfig = NotificationConfig(
-        channelId = "callx_incoming_calls",
+        channelId = "callx_incoming_calls_v2",
         channelName = "Incoming Calls",
         channelDescription = "Incoming call notifications with ringtone",
         importance = "high",
@@ -110,7 +109,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   companion object {
     const val NAME = "Callx"
-    const val CHANNEL_ID = "callx_incoming_calls"
+    const val CHANNEL_ID = "callx_incoming_calls_v2"
     const val NOTIFICATION_ID = 1001
     private var moduleInstance: CallxModule? = null
 
@@ -131,8 +130,8 @@ class CallxModule(reactContext: ReactApplicationContext) :
   init {
     moduleInstance = this
     createNotificationChannel()
-    // Load configuration from assets
-    loadConfigurationFromAssets()
+    // Load configuration from AndroidManifest <meta-data>; fallback to defaults
+    loadConfigurationFromManifest()
     // Auto-setup Callx lifecycle (auto setup, no need to extend Application)
     try {
       CallxAutoSetup.initialize(reactApplicationContext as android.app.Application)
@@ -151,8 +150,31 @@ class CallxModule(reactContext: ReactApplicationContext) :
       if (config != null && (config.hasKey("triggers") || config.hasKey("fields") || config.hasKey("notification"))) {
         configuration = parseConfiguration(config)
       }
-      // Otherwise use configuration loaded from assets in init()
+      // Use configuration loaded from manifest in init()
       isInitialized = true
+
+      // Flush any pending state saved while JS was not ready
+      try {
+        val pendingCall = CallxStorage.getAndClearPendingCall(reactApplicationContext)
+        if (pendingCall != null) {
+          currentCall = pendingCall
+          showIncomingCallActivity(pendingCall)
+          sendEventToJS("onIncomingCall", callDataToWritableMap(pendingCall))
+        }
+
+        val pendingAction = CallxStorage.getAndClearPendingAction(reactApplicationContext)
+        if (pendingAction != null) {
+          when (pendingAction.action) {
+            "answer" -> handleCallAnswered(pendingAction.callData.callId, pendingAction.callData.callerName)
+            "decline" -> handleCallDeclined(pendingAction.callData.callId, pendingAction.callData.callerName)
+            "end" -> handleCallEnded(pendingAction.callData.callId, pendingAction.callData.callerName)
+            "missed" -> handleMissedCall(pendingAction.callData)
+            "answered_elsewhere" -> handleCallAnsweredElsewhere(pendingAction.callData.callId, pendingAction.callData.callerName)
+          }
+        }
+      } catch (_: Exception) {
+      }
+
       promise.resolve(null)
     } catch (e: Exception) {
       promise.reject("INITIALIZATION_ERROR", "Failed to initialize Callx: ${e.message}", e)
@@ -480,7 +502,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
         fields = fields.ifEmpty { CallxConfiguration().fields },
         notification = NotificationConfig(
-          channelId = "callx_incoming_calls",
+          channelId = "callx_incoming_calls_v2",
           channelName = "Incoming Calls",
           channelDescription = "Incoming call notifications with ringtone",
           importance = "high",
@@ -640,6 +662,31 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  // Public notifications for service when app is already running
+  fun notifyEndedFromService(callData: CallData) {
+    try {
+      sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+    } catch (_: Exception) {
+      // ignore
+    }
+  }
+
+  fun notifyMissedFromService(callData: CallData) {
+    try {
+      sendEventToJS("onCallMissed", callDataToWritableMap(callData))
+    } catch (_: Exception) {
+      // ignore
+    }
+  }
+
+  fun notifyAnsweredElsewhereFromService(callData: CallData) {
+    try {
+      sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(callData))
+    } catch (_: Exception) {
+      // ignore
+    }
+  }
+
   private fun showIncomingCallActivity(callData: CallData) {
     try {
       val context = reactApplicationContext
@@ -786,15 +833,14 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  // Handle call answered elsewhere (desktop, web, other device)
+  // Handle call answered elsewhere (desktop, web, other device): close UI and emit JS event
   private fun handleCallAnsweredElsewhere(callId: String, callerName: String) {
     currentCall?.let { call ->
       if (call.callId == callId) {
-        handleEndCall(call)
+        sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(call))
         dismissIncomingCall()
         currentCall = null
-        
-        android.util.Log.d(NAME, "📞 Call answered elsewhere: $callId")
+        android.util.Log.d(NAME, "🤝 Call answered elsewhere (UI dismissed, event emitted): $callId")
       }
     }
   }
@@ -918,108 +964,51 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  // Load configuration from callx.json in assets
-  private fun loadConfigurationFromAssets() {
+
+  // Load configuration from AndroidManifest meta-data
+  private fun loadConfigurationFromManifest() {
     try {
-      val inputStream = reactApplicationContext.assets.open("callx.json")
-      val size = inputStream.available()
-      val buffer = ByteArray(size)
-      inputStream.read(buffer)
-      inputStream.close()
-      
-      val jsonString = String(buffer, Charsets.UTF_8)
-      val jsonObject = JSONObject(jsonString)
-      
-      configuration = parseConfigurationFromJson(jsonObject)
-      android.util.Log.i(NAME, "Configuration loaded from assets successfully")
+      val pm = reactApplicationContext.packageManager
+      val appInfo = pm.getApplicationInfo(reactApplicationContext.packageName, android.content.pm.PackageManager.GET_META_DATA)
+      val meta = appInfo.metaData
+      if (meta == null) {
+        configuration = CallxConfiguration()
+        return
+      }
+
+      // Read triggers
+      val triggers = mutableMapOf<String, TriggerConfig>()
+      val triggerKeys = listOf("incoming", "ended", "missed", "answered_elsewhere")
+      for (key in triggerKeys) {
+        val field = meta.getString("callx.triggers.$key.field")
+        val value = meta.getString("callx.triggers.$key.value")
+        if (!field.isNullOrEmpty() && !value.isNullOrEmpty()) {
+          triggers[key] = TriggerConfig(field, value)
+        }
+      }
+
+      // Read fields
+      val fields = mutableMapOf<String, FieldConfig>()
+      val fieldKeys = listOf("callId", "callerName", "callerPhone", "callerAvatar", "hasVideo")
+      for (key in fieldKeys) {
+        val path = meta.getString("callx.fields.$key")
+        val fallback = meta.getString("callx.fields.$key.fallback")
+        if (!path.isNullOrEmpty()) {
+          fields[key] = FieldConfig(path, fallback)
+        }
+      }
+
+      configuration = CallxConfiguration(
+        app = configuration.app,
+        triggers = if (triggers.isNotEmpty()) triggers else CallxConfiguration().triggers,
+        fields = if (fields.isNotEmpty()) fields else CallxConfiguration().fields,
+        notification = configuration.notification,
+        callLogging = configuration.callLogging
+      )
+      android.util.Log.i(NAME, "Configuration loaded from AndroidManifest meta-data")
     } catch (e: Exception) {
-      android.util.Log.e(NAME, "Failed to load configuration from assets, using defaults", e)
-      // Use minimal default configuration if file loading fails
+      android.util.Log.w(NAME, "Failed to load config from manifest: ${e.message}")
       configuration = CallxConfiguration()
-    }
-  }
-
-
-
-
-
-  // Parse configuration from JSON object
-  private fun parseConfigurationFromJson(json: JSONObject): CallxConfiguration {
-    return try {
-              val appConfig = json.optJSONObject("app")?.let { appJson ->
-            AppConfig(
-                packageName = appJson.optString("packageName", "").ifEmpty { detectAppPackageName() },
-                mainActivity = appJson.optString("mainActivity", "").ifEmpty { detectMainActivity() },
-                showOverLockscreen = appJson.optBoolean("showOverLockscreen", true),
-                requireUnlock = appJson.optBoolean("requireUnlock", false),
-                supportsVideo = appJson.optBoolean("supportsVideo", false)
-            )
-        } ?: AppConfig(
-            packageName = detectAppPackageName(),
-            mainActivity = detectMainActivity()
-        )
-
-      val triggers = json.optJSONObject("triggers")?.let { triggersJson ->
-        val triggersMap = mutableMapOf<String, TriggerConfig>()
-        val keys = triggersJson.keys()
-        while (keys.hasNext()) {
-          val key = keys.next()
-          val triggerJson = triggersJson.getJSONObject(key)
-          triggersMap[key] = TriggerConfig(
-            field = triggerJson.optString("field", ""),
-            value = triggerJson.optString("value", "")
-          )
-        }
-        triggersMap
-      } ?: mapOf(
-        "incoming" to TriggerConfig("data.type", "call.started"),
-        "ended" to TriggerConfig("data.type", "call.ended"),
-        "missed" to TriggerConfig("data.type", "call.missed"),
-        "answered_elsewhere" to TriggerConfig("data.type", "call.answered_elsewhere")
-      )
-
-      val fields = json.optJSONObject("fields")?.let { fieldsJson ->
-        val fieldsMap = mutableMapOf<String, FieldConfig>()
-        val keys = fieldsJson.keys()
-        while (keys.hasNext()) {
-          val key = keys.next()
-          val fieldJson = fieldsJson.getJSONObject(key)
-          fieldsMap[key] = FieldConfig(
-            field = fieldJson.optString("field", ""),
-            fallback = fieldJson.optString("fallback", null)
-          )
-        }
-        fieldsMap
-      } ?: mapOf(
-        "callId" to FieldConfig("data.callId", null),
-        "callerName" to FieldConfig("data.callerName", "Unknown Caller"),
-        "callerPhone" to FieldConfig("data.callerPhone", "No Number"),
-        "callerAvatar" to FieldConfig("data.callerAvatar", null),
-        "hasVideo" to FieldConfig("data.hasVideo", "false")
-      )
-
-      val notificationConfig = NotificationConfig(
-          channelId = "callx_incoming_calls",
-          channelName = "Incoming Calls",
-          channelDescription = "Incoming call notifications with ringtone",
-          importance = "high",
-          sound = "default"
-      )
-
-      // Parse enabledLogPhoneCall from root level
-      val enabledLogPhoneCall = json.optBoolean("enabledLogPhoneCall", true)
-      val callLoggingConfig = CallLoggingConfig(enabledLogPhoneCall = enabledLogPhoneCall)
-
-      CallxConfiguration(
-        app = appConfig,
-        triggers = triggers,
-        fields = fields,
-        notification = notificationConfig,
-        callLogging = callLoggingConfig
-      )
-    } catch (e: Exception) {
-      android.util.Log.e(NAME, "Failed to parse configuration JSON, using defaults", e)
-      CallxConfiguration()
     }
   }
 

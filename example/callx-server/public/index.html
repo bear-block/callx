@@ -867,6 +867,7 @@
                                         <div class="call-actions">
                                             <button class="btn danger" onclick="endCall('${call.callId}')">📵 End</button>
                                             <button class="btn warning" onclick="missedCall('${call.callId}')">📵 Missed</button>
+                                            <button class="btn" onclick="answeredElsewhere('${call.callId}')">🤝 Answer Elsewhere</button>
                                         </div>
                                     </div>
                                 `
@@ -896,6 +897,7 @@
                                 <div class="call-actions">
                                     <button class="btn danger" onclick="endCall('${call.callId}')">📵 End</button>
                                     <button class="btn warning" onclick="missedCall('${call.callId}')">📵 Missed</button>
+                                    <button class="btn" onclick="answeredElsewhere('${call.callId}')">🤝 Answer Elsewhere</button>
                                 </div>
                             </div>
                         `
@@ -991,6 +993,32 @@
               'call-alert',
               'success',
               `📵 Mass end completed: ${successful}/${total} calls ended successfully`
+            );
+            loadCalls();
+            loadStatus();
+          } else {
+            showAlert('call-alert', 'error', data.error);
+          }
+        } catch (error) {
+          showAlert('call-alert', 'error', 'Network error');
+        }
+      }
+
+      // Answer elsewhere (close incoming UI on device only)
+      async function answeredElsewhere(callId) {
+        try {
+          const res = await fetch('/api/call/answered-elsewhere', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId }),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            showAlert(
+              'call-alert',
+              'success',
+              `🤝 Answered elsewhere: ${data.callId}`
             );
             loadCalls();
             loadStatus();

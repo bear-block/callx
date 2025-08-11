@@ -8,6 +8,8 @@
 @property (nonatomic, strong) CXProvider *provider;
 @property (nonatomic, strong) CXCallController *callController;
 @property (nonatomic, strong) NSUUID *currentCallUUID;
+@property (nonatomic, strong) NSDictionary *currentCallData;
+@property (nonatomic, assign) BOOL hasAnswered;
 
 // PushKit properties
 @property (nonatomic, strong) PKPushRegistry *pushRegistry;
