@@ -10,6 +10,7 @@ const FCM_SERVICE = {
 export const withCallxAndroidManifest: ConfigPlugin<{
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
+  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
 }> = (config: any, options?: any) => {
   return withAndroidManifest(config, (modConfig: any) => {
     const app = modConfig.modResults.manifest.application?.[0];
@@ -40,8 +41,8 @@ export const withCallxAndroidManifest: ConfigPlugin<{
       // No logs
     }
 
-    // Inject Callx mapping as <meta-data> so native can read without assets
-    if (options?.triggers || options?.fields) {
+    // Inject Callx mapping as <meta-data> (shorthand only)
+    if (options?.triggers || options?.fields || options?.app) {
       const meta: any[] = app['meta-data'] || [];
 
       const upsertMeta = (name: string, value: string) => {
@@ -53,22 +54,35 @@ export const withCallxAndroidManifest: ConfigPlugin<{
         else meta.push(entry);
       };
 
-      // Triggers
+      // Triggers (shorthand): name => "<field>:<value>"
       if (options?.triggers) {
         Object.entries(options.triggers).forEach(([key, cfg]: any) => {
-          upsertMeta(`callx.triggers.${key}.field`, cfg.field);
-          upsertMeta(`callx.triggers.${key}.value`, cfg.value);
+          upsertMeta(key, `${cfg.field}:${cfg.value}`);
         });
       }
 
-      // Fields
+      // Fields (shorthand): name => "<path>[:<fallback>]"
       if (options?.fields) {
         Object.entries(options.fields).forEach(([key, cfg]: any) => {
-          upsertMeta(`callx.fields.${key}`, cfg.field);
-          if (cfg.fallback != null) {
-            upsertMeta(`callx.fields.${key}.fallback`, String(cfg.fallback));
-          }
+          const value =
+            cfg.fallback != null
+              ? `${cfg.field}:${String(cfg.fallback)}`
+              : cfg.field;
+          upsertMeta(key, value);
         });
+      }
+
+      // App flags
+      if (options?.app) {
+        if (typeof options.app.supportsVideo === 'boolean') {
+          upsertMeta('supportsVideo', String(options.app.supportsVideo));
+        }
+        if (typeof options.app.enabledLogPhoneCall === 'boolean') {
+          upsertMeta(
+            'enabledLogPhoneCall',
+            String(options.app.enabledLogPhoneCall)
+          );
+        }
       }
 
       app['meta-data'] = meta;

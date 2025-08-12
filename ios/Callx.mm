@@ -69,12 +69,20 @@ RCT_EXPORT_MODULE()
     NSBundle *bundle = [NSBundle mainBundle];
     NSDictionary *triggers = [bundle objectForInfoDictionaryKey:@"CallxTriggers"];
     NSDictionary *fields = [bundle objectForInfoDictionaryKey:@"CallxFields"];
+    NSDictionary *app = [bundle objectForInfoDictionaryKey:@"CallxApp"];
 
-    if (triggers || fields) {
+    if (triggers || fields || app) {
         NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
         if (triggers) cfg[@"triggers"] = triggers;
         if (fields) cfg[@"fields"] = fields;
-        cfg[@"enabledLogPhoneCall"] = @YES;
+        // App config (supportsVideo, enabledLogPhoneCall)
+        BOOL supportsVideo = NO;
+        BOOL enabledLogPhoneCall = YES;
+        if (app && [app isKindOfClass:[NSDictionary class]]) {
+            id sv = app[@"supportsVideo"]; if (sv) supportsVideo = [sv boolValue];
+            id el = app[@"enabledLogPhoneCall"]; if (el) enabledLogPhoneCall = [el boolValue];
+        }
+        cfg[@"app"] = @{ @"supportsVideo": @(supportsVideo), @"enabledLogPhoneCall": @(enabledLogPhoneCall) };
         self.configuration = cfg;
         RCTLogInfo(@"Callx: Configuration loaded from Info.plist");
         return;
@@ -95,7 +103,7 @@ RCT_EXPORT_MODULE()
             @"callerAvatar": @{ @"field": @"callerAvatar", @"fallback": @"" },
             @"hasVideo": @{ @"field": @"hasVideo", @"fallback": @NO }
         },
-        @"enabledLogPhoneCall": @YES
+        @"app": @{ @"supportsVideo": @NO, @"enabledLogPhoneCall": @YES }
     };
     RCTLogInfo(@"Callx: Using default configuration (no Info.plist mapping)");
 }

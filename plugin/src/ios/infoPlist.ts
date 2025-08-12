@@ -4,6 +4,7 @@ import { withInfoPlist } from '@expo/config-plugins';
 export const withCallxInfoPlist: ConfigPlugin<{
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
+  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
 }> = (config, options?: any) => {
   return withInfoPlist(config, (config) => {
     // Add background modes for VoIP and push notifications
@@ -45,6 +46,19 @@ export const withCallxInfoPlist: ConfigPlugin<{
         if (cfg.fallback != null) fields[key].fallback = cfg.fallback;
       });
       (config.modResults as any).CallxFields = fields;
+    }
+
+    if (options?.app) {
+      const appCfg: any = {};
+      if (typeof options.app.supportsVideo === 'boolean') {
+        appCfg.supportsVideo = options.app.supportsVideo;
+      }
+      if (typeof options.app.enabledLogPhoneCall === 'boolean') {
+        appCfg.enabledLogPhoneCall = options.app.enabledLogPhoneCall;
+      }
+      if (Object.keys(appCfg).length) {
+        (config.modResults as any).CallxApp = appCfg;
+      }
     }
 
     return config;

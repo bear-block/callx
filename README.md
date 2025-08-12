@@ -34,6 +34,8 @@
 - 🚀 **Expo plugin** for automatic configuration
 - 🔧 **TypeScript**: Full TypeScript support
 
+> Note: Android flow has been tested end-to-end. iOS configuration is updated and aligned, but real-device VoIP push testing is still pending.
+
 ### 📋 Platform Support
 
 | Feature | iOS | Android |
@@ -129,34 +131,31 @@ For manual setup, add to `ios/YourApp/Info.plist`:
 
 Configuration now lives in native files.
 
-#### Android: `AndroidManifest.xml` (inside `<application>`)
+#### Android: `AndroidManifest.xml` (inside `<application>`) – shorthand meta-data
 
 ```xml
-<!-- Triggers: which FCM data indicates each event -->
-<meta-data android:name="callx.triggers.incoming.field" android:value="type" />
-<meta-data android:name="callx.triggers.incoming.value" android:value="call.started" />
-<meta-data android:name="callx.triggers.ended.field" android:value="type" />
-<meta-data android:name="callx.triggers.ended.value" android:value="call.ended" />
-<meta-data android:name="callx.triggers.missed.field" android:value="type" />
-<meta-data android:name="callx.triggers.missed.value" android:value="call.missed" />
-<meta-data android:name="callx.triggers.answered_elsewhere.field" android:value="type" />
-<meta-data android:name="callx.triggers.answered_elsewhere.value" android:value="call.answered_elsewhere" />
+<!-- Triggers (shorthand): android:value="<field>:<value>" -->
+<meta-data android:name="incoming" android:value="type:call.started" />
+<meta-data android:name="ended" android:value="type:call.ended" />
+<meta-data android:name="missed" android:value="type:call.missed" />
+<meta-data android:name="answered_elsewhere" android:value="type:call-answered_elsewhere" />
 
-<!-- Fields: where to read values from in FCM data -->
-<meta-data android:name="callx.fields.callId" android:value="callId" />
-<meta-data android:name="callx.fields.callerName" android:value="callerName" />
-<meta-data android:name="callx.fields.callerPhone" android:value="callerPhone" />
-<meta-data android:name="callx.fields.callerAvatar" android:value="callerAvatar" />
-<meta-data android:name="callx.fields.hasVideo" android:value="hasVideo" />
+<!-- Fields (shorthand): android:value="<path>[:<fallback>]" -->
+<meta-data android:name="callId" android:value="callId" />
+<meta-data android:name="callerName" android:value="callerName:Unknown Caller" />
+<meta-data android:name="callerPhone" android:value="callerPhone:No Number" />
+<meta-data android:name="callerAvatar" android:value="callerAvatar" />
+<meta-data android:name="hasVideo" android:value="hasVideo:false" />
 
-<!-- Recommended permissions for full-screen call UI and notifications -->
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+<!-- App flags -->
+<meta-data android:name="supportsVideo" android:value="true" />
+<meta-data android:name="enabledLogPhoneCall" android:value="true" />
 ```
 
 Notes:
 - Put the `<meta-data>` entries inside your app `<application>` tag.
-- Field paths are flat by default (e.g. `type`, `callId`). If your payload nests fields, set paths accordingly (e.g. `data.type`).
+- Field paths can be nested (e.g. `data.type`).
+- Ensure your server payload `type` matches your meta-data (e.g., `call.started`).
 
 #### iOS: `Info.plist`
 
@@ -213,7 +212,9 @@ Callx.initialize({
   onCallAnswered: (data) => {
     // Called when call is accepted by user
   },
-
+  onCallDeclined: (data) => {
+    // Called when call is declined by user
+  },
   onCallEnded: (data) => {
     // Called when call ends
   },
@@ -245,21 +246,40 @@ Add the plugin to your `app.json`:
 {
   "expo": {
     "plugins": [
-      ["@bear-block/callx", { "package": "your.package.name" }]
+      [
+        "@bear-block/callx",
+        {
+          "package": "your.package.name",
+          "triggers": {
+            "incoming": { "field": "type", "value": "call.started" },
+            "ended": { "field": "type", "value": "call.ended" },
+            "missed": { "field": "type", "value": "call.missed" },
+            "answered_elsewhere": { "field": "type", "value": "call.answered_elsewhere" }
+          },
+          "fields": {
+            "callId": { "field": "callId" },
+            "callerName": { "field": "callerName", "fallback": "Unknown Caller" },
+            "callerPhone": { "field": "callerPhone", "fallback": "No Number" },
+            "callerAvatar": { "field": "callerAvatar" },
+            "hasVideo": { "field": "hasVideo", "fallback": "false" }
+          },
+          "app": { "supportsVideo": true, "enabledLogPhoneCall": true }
+        }
+      ]
     ]
   }
 }
 ```
 
 The plugin will automatically:
-- Inject `<meta-data>` config into `AndroidManifest.xml`
+- Inject shorthand `<meta-data>` config into `AndroidManifest.xml`
 - Update `MainActivity` to extend `CallxReactActivity` (Android)
-- Inject `CallxTriggers` and `CallxFields` into `Info.plist` (iOS)
+- Inject `CallxTriggers`, `CallxFields`, and `CallxApp` into `Info.plist` (iOS)
 - Add required background modes and privacy strings (iOS)
 
 ### 2. Configure triggers/fields
 
-Use plugin options or edit the native files as above. No `callx.json` is required.
+Use plugin options or edit the native files as above.
 
 ### 3. Initialize in JS
 
@@ -289,15 +309,6 @@ Callx now supports both voice and video calls:
     "callerName": "John Doe",
     "callerPhone": "+1234567890",
     "hasVideo": true  // or false for voice calls
-  }
-}
-```
-
-**Configuration:**
-```json
-{
-  "app": {
-    "supportsVideo": true  // Enable video call support
   }
 }
 ```
@@ -445,35 +456,6 @@ messaging().onMessage(async (remoteMessage) => {
 ```
 
 ---
-
-
-### **Event Listeners**
-```ts
-Callx.initialize({
-  // Call state events
-  onIncomingCall: (data) => {
-    console.log('Incoming call:', data);
-  },
-  onCallAnswered: (data) => {
-    console.log('Call answered:', data);
-  },
-  onCallDeclined: (data) => {
-    console.log('Call declined:', data);
-  },
-  onCallEnded: (data) => {
-    console.log('Call ended:', data);
-  },
-  onCallMissed: (data) => {
-    console.log('Call missed:', data);
-  },
-  onCallAnsweredElsewhere: (data) => {
-    console.log('Call answered elsewhere:', data); // closes UI like missed
-  },
-  onTokenUpdated: (tokenData) => {
-    console.log('FCM token updated:', tokenData.token);
-  },
-});
-```
 
 ---
 

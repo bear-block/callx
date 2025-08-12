@@ -50,11 +50,10 @@ data class FieldConfig(
 )
 
 data class AppConfig(
-    val packageName: String = "",  // Will be auto-detected
-    val mainActivity: String = "", // Will be auto-detected
     val showOverLockscreen: Boolean = true,
     val requireUnlock: Boolean = false,
-    val supportsVideo: Boolean = false
+    val supportsVideo: Boolean = false,
+    val enabledLogPhoneCall: Boolean = true
 )
 
 data class NotificationConfig(
@@ -65,9 +64,6 @@ data class NotificationConfig(
     val sound: String
 )
 
-data class CallLoggingConfig(
-    val enabledLogPhoneCall: Boolean = true
-)
 
 data class CallxConfiguration(
     val app: AppConfig = AppConfig(),
@@ -90,8 +86,7 @@ data class CallxConfiguration(
         channelDescription = "Incoming call notifications with ringtone",
         importance = "high",
         sound = "default"
-    ),
-    val callLogging: CallLoggingConfig = CallLoggingConfig()
+    )
 )
 
 @ReactModule(name = CallxModule.NAME)
@@ -400,22 +395,6 @@ class CallxModule(reactContext: ReactApplicationContext) :
     }
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   override fun getConfiguration(promise: Promise) {
     try {
       val config = mapOf(
@@ -433,10 +412,8 @@ class CallxModule(reactContext: ReactApplicationContext) :
         },
         // Notification config is hardcoded, not exposed via API
         "app" to mapOf(
-          "supportsVideo" to configuration.app.supportsVideo
-        ),
-        "callLogging" to mapOf(
-          "enabledLogPhoneCall" to configuration.callLogging.enabledLogPhoneCall
+          "supportsVideo" to configuration.app.supportsVideo,
+          "enabledLogPhoneCall" to configuration.app.enabledLogPhoneCall
         )
       )
       promise.resolve(config)
@@ -451,16 +428,14 @@ class CallxModule(reactContext: ReactApplicationContext) :
       var appConfig = AppConfig()
       val triggers = mutableMapOf<String, TriggerConfig>()
       val fields = mutableMapOf<String, FieldConfig>()
-      var callLogging = CallLoggingConfig()
       
       // Parse app config
       config.getMap("app")?.let { appMap ->
         appConfig = AppConfig(
-          packageName = appMap.getString("packageName") ?: "",
-          mainActivity = appMap.getString("mainActivity") ?: "",
           showOverLockscreen = if (appMap.hasKey("showOverLockscreen")) appMap.getBoolean("showOverLockscreen") else true,
           requireUnlock = if (appMap.hasKey("requireUnlock")) appMap.getBoolean("requireUnlock") else false,
-          supportsVideo = if (appMap.hasKey("supportsVideo")) appMap.getBoolean("supportsVideo") else false
+          supportsVideo = if (appMap.hasKey("supportsVideo")) appMap.getBoolean("supportsVideo") else false,
+          enabledLogPhoneCall = if (appMap.hasKey("enabledLogPhoneCall")) appMap.getBoolean("enabledLogPhoneCall") else true
         )
       }
       
@@ -490,13 +465,6 @@ class CallxModule(reactContext: ReactApplicationContext) :
         }
       }
       
-      // Parse call logging config
-      config.getMap("callLogging")?.let { callLoggingMap ->
-        callLogging = CallLoggingConfig(
-          enabledLogPhoneCall = if (callLoggingMap.hasKey("enabledLogPhoneCall")) callLoggingMap.getBoolean("enabledLogPhoneCall") else true
-        )
-      }
-      
       CallxConfiguration(
         app = appConfig,
         triggers = triggers.ifEmpty { CallxConfiguration().triggers },
@@ -507,8 +475,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
           channelDescription = "Incoming call notifications with ringtone",
           importance = "high",
           sound = "default"
-        ),
-        callLogging = callLogging
+        )
       )
     } catch (e: Exception) {
       CallxConfiguration()
@@ -976,36 +943,66 @@ class CallxModule(reactContext: ReactApplicationContext) :
         return
       }
 
-      // Read triggers
+      fun readMetaString(key: String): String? = try { meta.getString(key) } catch (_: Exception) { null }
+      fun readMetaBoolean(key: String, default: Boolean): Boolean {
+        return try {
+          val value = meta.get(key)
+          when (value) {
+            is Boolean -> value
+            is String -> value.equals("true", true) || value == "1"
+            is Int -> value != 0
+            else -> default
+          }
+        } catch (_: Exception) { default }
+      }
+
+      // 1) Read triggers (shorthand only)
       val triggers = mutableMapOf<String, TriggerConfig>()
       val triggerKeys = listOf("incoming", "ended", "missed", "answered_elsewhere")
       for (key in triggerKeys) {
-        val field = meta.getString("callx.triggers.$key.field")
-        val value = meta.getString("callx.triggers.$key.value")
-        if (!field.isNullOrEmpty() && !value.isNullOrEmpty()) {
-          triggers[key] = TriggerConfig(field, value)
+        val compact = readMetaString(key)
+        if (!compact.isNullOrEmpty() && ":" in compact) {
+          val idx = compact.indexOf(":")
+          val field = compact.substring(0, idx).trim()
+          val value = compact.substring(idx + 1).trim()
+          if (field.isNotEmpty() && value.isNotEmpty()) {
+            triggers[key] = TriggerConfig(field, value)
+          }
         }
       }
 
-      // Read fields
+      // 2) Read fields (shorthand only)
       val fields = mutableMapOf<String, FieldConfig>()
       val fieldKeys = listOf("callId", "callerName", "callerPhone", "callerAvatar", "hasVideo")
       for (key in fieldKeys) {
-        val path = meta.getString("callx.fields.$key")
-        val fallback = meta.getString("callx.fields.$key.fallback")
-        if (!path.isNullOrEmpty()) {
-          fields[key] = FieldConfig(path, fallback)
+        val compact = readMetaString(key)
+        if (!compact.isNullOrEmpty()) {
+          val parts = compact.split(":", limit = 2)
+          val path = parts.getOrNull(0)?.trim().orEmpty()
+          val fallback = parts.getOrNull(1)?.trim()
+          if (path.isNotEmpty()) {
+            fields[key] = FieldConfig(path, fallback)
+          }
         }
       }
 
+      // 3) App and call logging flags (support both plain and callx.app.* keys)
+      val showOverLockscreen = readMetaBoolean("showOverLockscreen", configuration.app.showOverLockscreen)
+      val requireUnlock = readMetaBoolean("requireUnlock", configuration.app.requireUnlock)
+      val supportsVideo = readMetaBoolean("supportsVideo", configuration.app.supportsVideo)
+      val enabledLogPhoneCall = readMetaBoolean("enabledLogPhoneCall", configuration.app.enabledLogPhoneCall)
+
       configuration = CallxConfiguration(
-        app = configuration.app,
+        app = configuration.app.copy(
+          showOverLockscreen = showOverLockscreen,
+          requireUnlock = requireUnlock,
+          supportsVideo = supportsVideo
+        ),
         triggers = if (triggers.isNotEmpty()) triggers else CallxConfiguration().triggers,
         fields = if (fields.isNotEmpty()) fields else CallxConfiguration().fields,
-        notification = configuration.notification,
-        callLogging = configuration.callLogging
+        notification = configuration.notification
       )
-      android.util.Log.i(NAME, "Configuration loaded from AndroidManifest meta-data")
+      android.util.Log.i(NAME, "Configuration loaded from AndroidManifest meta-data (shorthand)")
     } catch (e: Exception) {
       android.util.Log.w(NAME, "Failed to load config from manifest: ${e.message}")
       configuration = CallxConfiguration()
@@ -1035,7 +1032,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private fun logCallToPhoneHistory(callData: CallData, callType: String) {
     try {
       // Check if call logging is enabled
-      if (!configuration.callLogging.enabledLogPhoneCall) {
+      if (!configuration.app.enabledLogPhoneCall) {
         android.util.Log.d(NAME, "📞 Call logging is disabled in configuration")
         return
       }
@@ -1063,13 +1060,6 @@ class CallxModule(reactContext: ReactApplicationContext) :
         put(CallLog.Calls.DATE, callData.timestamp)
         put(CallLog.Calls.DURATION, 0) // Duration not tracked in simplified version
         put(CallLog.Calls.NEW, 1)
-        
-        // Only log caller info if enabled
-        // if (configuration.callLogging.logCallerInfo) { // This line is removed as per new CallLoggingConfig
-        //   put(CallLog.Calls.CACHED_NAME, callData.callerName)
-        //   put(CallLog.Calls.CACHED_NUMBER_TYPE, TelephonyManager.PHONE_TYPE_NONE)
-        //   put(CallLog.Calls.CACHED_NUMBER_LABEL, "Callx")
-        // }
       }
 
       val uri = reactApplicationContext.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
@@ -1097,40 +1087,5 @@ class CallxModule(reactContext: ReactApplicationContext) :
       else -> CallLog.Calls.INCOMING_TYPE
     }
   }
-
-      private fun detectAppPackageName(): String {
-        return try {
-            // Use application context to get the main app's package name
-            val appContext = reactApplicationContext.applicationContext
-            val appPackageName = appContext.packageName
-            android.util.Log.d(NAME, "🔍 Auto-detected App Package: $appPackageName")
-            appPackageName
-        } catch (e: Exception) {
-            android.util.Log.e(NAME, "❌ Error detecting App Package: ${e.message}")
-            // Fallback to module package name if detection fails
-            reactApplicationContext.packageName
-        }
-    }
-
-    private fun detectMainActivity(): String {
-        return try {
-            val packageManager = reactApplicationContext.packageManager
-            val appPackageName = detectAppPackageName()
-            val launchIntent = packageManager.getLaunchIntentForPackage(appPackageName)
-
-            if (launchIntent != null && launchIntent.component != null) {
-                val fullClassName = launchIntent.component!!.className
-                val activityName = fullClassName.substringAfterLast(".")
-                android.util.Log.d(NAME, "🔍 Auto-detected MainActivity: $activityName for package: $appPackageName")
-                activityName
-            } else {
-                android.util.Log.w(NAME, "⚠️ Could not detect MainActivity for package: $appPackageName, using default")
-                "MainActivity"
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(NAME, "❌ Error detecting MainActivity: ${e.message}")
-            "MainActivity"
-        }
-    }
 
 }

@@ -50,9 +50,9 @@
     
     providerConfig.ringtoneSound = @"default";
     
-    // Check if call logging is enabled
-    NSNumber *enabledLogPhoneCall = self.configuration[@"enabledLogPhoneCall"];
-    BOOL callLoggingEnabled = enabledLogPhoneCall ? [enabledLogPhoneCall boolValue] : YES;
+    // Check if call logging is enabled (from app config)
+    NSDictionary *appCfg = self.configuration[@"app"];
+    BOOL callLoggingEnabled = appCfg && appCfg[@"enabledLogPhoneCall"] ? [appCfg[@"enabledLogPhoneCall"] boolValue] : YES;
     
     // Configure provider based on call logging setting
     providerConfig.includesCallsInRecents = callLoggingEnabled;
@@ -92,11 +92,19 @@
     NSBundle *bundle = [NSBundle mainBundle];
     NSDictionary *triggers = [bundle objectForInfoDictionaryKey:@"CallxTriggers"];
     NSDictionary *fields = [bundle objectForInfoDictionaryKey:@"CallxFields"];
-    if (triggers || fields) {
+    NSDictionary *app = [bundle objectForInfoDictionaryKey:@"CallxApp"];
+    if (triggers || fields || app) {
         NSMutableDictionary *cfg = [NSMutableDictionary dictionary];
         if (triggers) cfg[@"triggers"] = triggers;
         if (fields) cfg[@"fields"] = fields;
-        cfg[@"enabledLogPhoneCall"] = @YES;
+        // App config (supportsVideo, enabledLogPhoneCall)
+        BOOL supportsVideo = NO;
+        BOOL enabledLogPhoneCall = YES;
+        if (app && [app isKindOfClass:[NSDictionary class]]) {
+            id sv = app[@"supportsVideo"]; if (sv) supportsVideo = [sv boolValue];
+            id el = app[@"enabledLogPhoneCall"]; if (el) enabledLogPhoneCall = [el boolValue];
+        }
+        cfg[@"app"] = @{ @"supportsVideo": @(supportsVideo), @"enabledLogPhoneCall": @(enabledLogPhoneCall) };
         self.configuration = cfg;
         RCTLogInfo(@"CallxPushKitHandler: ✅ Configuration loaded from Info.plist");
         return;
@@ -148,11 +156,10 @@
             @"callerPhone": @{@"field": @"callerPhone", @"fallback": @"No Number"},
             @"callerAvatar": @{@"field": @"callerAvatar", @"fallback": @""}
         },
-
         @"app": @{
-            @"supportsVideo": @NO
-        },
-        @"enabledLogPhoneCall": @YES
+            @"supportsVideo": @NO,
+            @"enabledLogPhoneCall": @YES
+        }
     };
     RCTLogInfo(@"CallxPushKitHandler: 📋 Using default configuration");
 }
@@ -499,9 +506,9 @@
     
     [self.provider reportCallWithUUID:action.callUUID updated:update];
     
-    // Check if call logging is enabled for answered calls
-    NSNumber *enabledLogPhoneCall = self.configuration[@"enabledLogPhoneCall"];
-    BOOL callLoggingEnabled = enabledLogPhoneCall ? [enabledLogPhoneCall boolValue] : YES;
+    // Check if call logging is enabled for answered calls (from app config)
+    NSDictionary *appCfg = self.configuration[@"app"];
+    BOOL callLoggingEnabled = appCfg && appCfg[@"enabledLogPhoneCall"] ? [appCfg[@"enabledLogPhoneCall"] boolValue] : YES;
     
     if (callLoggingEnabled) {
         RCTLogInfo(@"CallxPushKitHandler: Call logged to phone history (answered)");
@@ -525,9 +532,9 @@
     
     [self.provider reportCallWithUUID:action.callUUID updated:update];
     
-    // Check if call logging is enabled for ended calls
-    NSNumber *enabledLogPhoneCall = self.configuration[@"enabledLogPhoneCall"];
-    BOOL callLoggingEnabled = enabledLogPhoneCall ? [enabledLogPhoneCall boolValue] : YES;
+    // Check if call logging is enabled for ended calls (from app config)
+    NSDictionary *appCfg = self.configuration[@"app"];
+    BOOL callLoggingEnabled = appCfg && appCfg[@"enabledLogPhoneCall"] ? [appCfg[@"enabledLogPhoneCall"] boolValue] : YES;
     
     if (callLoggingEnabled) {
         RCTLogInfo(@"CallxPushKitHandler: Call logged to phone history (ended)");

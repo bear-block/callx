@@ -10,21 +10,6 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
-      <!-- Callx mapping via meta-data (no callx.json) -->
-      <meta-data android:name="callx.triggers.incoming.field" android:value="type" />
-      <meta-data android:name="callx.triggers.incoming.value" android:value="call.started" />
-      <meta-data android:name="callx.triggers.ended.field" android:value="type" />
-      <meta-data android:name="callx.triggers.ended.value" android:value="call.ended" />
-      <meta-data android:name="callx.triggers.missed.field" android:value="type" />
-      <meta-data android:name="callx.triggers.missed.value" android:value="call.missed" />
-      <meta-data android:name="callx.triggers.answered_elsewhere.field" android:value="type" />
-      <meta-data android:name="callx.triggers.answered_elsewhere.value" android:value="call.answered_elsewhere" />
-
-      <meta-data android:name="callx.fields.callId" android:value="callId" />
-      <meta-data android:name="callx.fields.callerName" android:value="callerName" />
-      <meta-data android:name="callx.fields.callerPhone" android:value="callerPhone" />
-      <meta-data android:name="callx.fields.callerAvatar" android:value="callerAvatar" />
-      <meta-data android:name="callx.fields.hasVideo" android:value="hasVideo" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -37,16 +22,23 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <!-- Trigger events from FCM data, example path is payload.type value is call.started -->
+      <meta-data android:name="incoming" android:value="type:call.started" />
+      <meta-data android:name="ended" android:value="type:call.ended" />
+      <meta-data android:name="missed" android:value="type:call.missed" />
+      <meta-data android:name="answered_elsewhere" android:value="type:answered_elsewhere" />
 
-      <!-- FCM Service for background notifications -->
-      <service
-        android:name="com.callx.CallxFirebaseMessagingService"
-        android:directBootAware="true"
-        android:exported="false">
-        <intent-filter android:priority="1">
-          <action android:name="com.google.firebase.MESSAGING_EVENT" />
-        </intent-filter>
-      </service>
+      <!-- Fields: where to read values from in FCM data -->
+      <meta-data android:name="callId" android:value="callId" />
+      <meta-data android:name="callerName" android:value="callerName:Medgate" />
+      <meta-data android:name="callerPhone" android:value="callerPhone:1234567890" />
+      <meta-data android:name="callerAvatar" android:value="callerAvatar:https://via.placeholder.com/150" />
+      <meta-data android:name="hasVideo" android:value="hasVideo:true" />
 
+      <!-- Optional: token event name etc. -->
+      <meta-data android:name="showOverLockscreen" android:value="true" />
+      <meta-data android:name="requireUnlock" android:value="false" />
+      <meta-data android:name="supportsVideo" android:value="true" />
+      <meta-data android:name="enabledLogPhoneCall" android:value="true" />
     </application>
 </manifest>

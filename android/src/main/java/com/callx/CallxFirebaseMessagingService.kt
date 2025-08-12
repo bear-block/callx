@@ -3,12 +3,10 @@ package com.callx
 import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
 import android.content.Intent
-import java.io.IOException
 import java.util.UUID
 
 /**
@@ -69,26 +67,59 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
             val appInfo = pm.getApplicationInfo(applicationContext.packageName, android.content.pm.PackageManager.GET_META_DATA)
             val meta = appInfo.metaData ?: return CallxConfiguration()
 
+            fun readMetaString(key: String): String? = try { meta.getString(key) } catch (_: Exception) { null }
+            fun readMetaBoolean(key: String, default: Boolean): Boolean {
+                return try {
+                    val value = meta.get(key)
+                    when (value) {
+                        is Boolean -> value
+                        is String -> value.equals("true", true) || value == "1"
+                        is Int -> value != 0
+                        else -> default
+                    }
+                } catch (_: Exception) { default }
+            }
+
+            // Triggers: shorthand only
             val triggers = mutableMapOf<String, TriggerConfig>()
             val triggerKeys = listOf("incoming", "ended", "missed", "answered_elsewhere")
             for (key in triggerKeys) {
-                val field = meta.getString("callx.triggers.$key.field")
-                val value = meta.getString("callx.triggers.$key.value")
-                if (!field.isNullOrEmpty() && !value.isNullOrEmpty()) {
-                    triggers[key] = TriggerConfig(field, value)
+                val compact = readMetaString(key)
+                if (!compact.isNullOrEmpty() && ":" in compact) {
+                    val idx = compact.indexOf(":")
+                    val field = compact.substring(0, idx).trim()
+                    val value = compact.substring(idx + 1).trim()
+                    if (field.isNotEmpty() && value.isNotEmpty()) {
+                        triggers[key] = TriggerConfig(field, value)
+                    }
                 }
             }
 
+            // Fields: shorthand only
             val fields = mutableMapOf<String, FieldConfig>()
             val fieldKeys = listOf("callId", "callerName", "callerPhone", "callerAvatar", "hasVideo")
             for (key in fieldKeys) {
-                val path = meta.getString("callx.fields.$key")
-                val fallback = meta.getString("callx.fields.$key.fallback")
-                if (!path.isNullOrEmpty()) fields[key] = FieldConfig(path, fallback)
+                val compact = readMetaString(key)
+                if (!compact.isNullOrEmpty()) {
+                    val parts = compact.split(":", limit = 2)
+                    val path = parts.getOrNull(0)?.trim().orEmpty()
+                    val fallback = parts.getOrNull(1)?.trim()
+                    if (path.isNotEmpty()) fields[key] = FieldConfig(path, fallback)
+                }
             }
 
+            val showOverLockscreen = readMetaBoolean("showOverLockscreen", true)
+            val requireUnlock = readMetaBoolean("requireUnlock", false)
+            val supportsVideo = readMetaBoolean("supportsVideo", false)
+            val enabledLogPhoneCall = readMetaBoolean("enabledLogPhoneCall", true)
+
             CallxConfiguration(
-                app = AppConfig(),
+                app = AppConfig(
+                    showOverLockscreen = showOverLockscreen,
+                    requireUnlock = requireUnlock,
+                    supportsVideo = supportsVideo,
+                    enabledLogPhoneCall = enabledLogPhoneCall
+                ),
                 triggers = if (triggers.isNotEmpty()) triggers else CallxConfiguration().triggers,
                 fields = if (fields.isNotEmpty()) fields else CallxConfiguration().fields,
                 notification = NotificationConfig(
@@ -97,8 +128,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
                     channelDescription = "Incoming call notifications with ringtone",
                     importance = "high",
                     sound = "default"
-                ),
-                callLogging = CallLoggingConfig()
+                )
             )
         } catch (e: Exception) {
             Log.w(TAG, "Failed to load config from manifest: ${e.message}")
@@ -106,84 +136,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun parseConfigurationFromJson(json: JSONObject): CallxConfiguration {
-        return try {
-                            val appConfig = json.optJSONObject("app")?.let { appJson ->
-                    AppConfig(
-                        packageName = appJson.optString("packageName", "").ifEmpty { detectAppPackageName(this) },
-                        mainActivity = appJson.optString("mainActivity", "").ifEmpty { detectMainActivity(this) },
-                        showOverLockscreen = appJson.optBoolean("showOverLockscreen", true),
-                        requireUnlock = appJson.optBoolean("requireUnlock", false),
-                        supportsVideo = appJson.optBoolean("supportsVideo", false)
-                    )
-                } ?: AppConfig(
-                    packageName = detectAppPackageName(this),
-                    mainActivity = detectMainActivity(this)
-                )
-
-            val triggers = json.optJSONObject("triggers")?.let { triggersJson ->
-                val triggersMap = mutableMapOf<String, TriggerConfig>()
-                val keys = triggersJson.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    val triggerJson = triggersJson.getJSONObject(key)
-                    triggersMap[key] = TriggerConfig(
-                        field = triggerJson.optString("field", ""),
-                        value = triggerJson.optString("value", "")
-                    )
-                }
-                triggersMap
-            } ?: mapOf(
-                "incoming" to TriggerConfig("data.type", "call.started"),
-                "ended" to TriggerConfig("data.type", "call.ended"),
-                "missed" to TriggerConfig("data.type", "call.missed"),
-                "answered_elsewhere" to TriggerConfig("data.type", "call.answered_elsewhere")
-            )
-
-            val fields = json.optJSONObject("fields")?.let { fieldsJson ->
-                val fieldsMap = mutableMapOf<String, FieldConfig>()
-                val keys = fieldsJson.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    val fieldJson = fieldsJson.getJSONObject(key)
-                    fieldsMap[key] = FieldConfig(
-                        field = fieldJson.optString("field", ""),
-                        fallback = fieldJson.optString("fallback", null)
-                    )
-                }
-                fieldsMap
-            } ?: mapOf(
-                "callId" to FieldConfig("data.callId", null),
-                "callerName" to FieldConfig("data.callerName", "Unknown Caller"),
-                "callerPhone" to FieldConfig("data.callerPhone", "No Number"),
-                "callerAvatar" to FieldConfig("data.callerAvatar", null),
-                "hasVideo" to FieldConfig("data.hasVideo", "false")
-            )
-
-            val notificationConfig = NotificationConfig(
-                channelId = "callx_incoming_calls",
-                channelName = "Incoming Calls",
-                channelDescription = "Incoming call notifications with ringtone",
-                importance = "high",
-                sound = "default"
-            )
-
-            // Parse enabledLogPhoneCall from root level
-            val enabledLogPhoneCall = json.optBoolean("enabledLogPhoneCall", true)
-            val callLoggingConfig = CallLoggingConfig(enabledLogPhoneCall = enabledLogPhoneCall)
-
-            CallxConfiguration(
-                app = appConfig,
-                triggers = triggers,
-                fields = fields,
-                notification = notificationConfig,
-                callLogging = callLoggingConfig
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse configuration JSON, using defaults", e)
-            CallxConfiguration()
-        }
-    }
+    // Removed JSON config parsing: we no longer support callx.json. Config comes from AndroidManifest meta-data only.
 
     private fun processFcmMessage(fcmData: JSONObject, config: CallxConfiguration) {
         Log.d(TAG, "Processing FCM data")
@@ -332,38 +285,5 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         return UUID.randomUUID().toString()
     }
 
-            private fun detectAppPackageName(context: Context): String {
-            return try {
-                // Use application context to get the main app's package name
-                val appContext = context.applicationContext
-                val appPackageName = appContext.packageName
-                Log.d(TAG, "🔍 Auto-detected App Package: $appPackageName")
-                appPackageName
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error detecting App Package: ${e.message}")
-                // Fallback to module package name if detection fails
-                context.packageName
-            }
-        }
-
-        private fun detectMainActivity(context: Context): String {
-            return try {
-                val packageManager = context.packageManager
-                val appPackageName = detectAppPackageName(this)
-                val launchIntent = packageManager.getLaunchIntentForPackage(appPackageName)
-                
-                if (launchIntent != null && launchIntent.component != null) {
-                    val fullClassName = launchIntent.component!!.className
-                    val activityName = fullClassName.substringAfterLast(".")
-                    Log.d(TAG, "🔍 Auto-detected MainActivity: $activityName for package: $appPackageName")
-                    activityName
-                } else {
-                    Log.w(TAG, "⚠️ Could not detect MainActivity for package: $appPackageName, using default")
-                    "MainActivity"
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Error detecting MainActivity: ${e.message}")
-                "MainActivity"
-            }
-        }
+        // Removed unused helpers detectAppPackageName/detectMainActivity
 } 

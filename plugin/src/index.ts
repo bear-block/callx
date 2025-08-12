@@ -8,6 +8,7 @@ export interface CallxPluginOptions {
   package: string;
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
+  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
 }
 
 const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
@@ -25,12 +26,14 @@ const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {
   config = withCallxAndroidManifest(config, {
     triggers: options?.triggers,
     fields: options?.fields,
+    app: options?.app,
   });
 
   // Apply iOS setup + inject mapping (no asset copy)
   config = withCallxInfoPlist(config, {
     triggers: options?.triggers,
     fields: options?.fields,
+    app: options?.app,
   });
 
   return config;
