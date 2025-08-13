@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night mode overrides -->
+    <color name="call_background_start">#FF0D47A1</color>
+    <color name="call_background_end">#FF0A3879</color>
+    <color name="call_overlay_color">#66000000</color>
+
+    <!-- Text colors adapt to dark background -->
+    <color name="call_text_primary">#FFFFFFFF</color>
+    <color name="call_text_secondary">#CCFFFFFF</color>
+    <color name="call_text_hint">#80FFFFFF</color>
+
+    <!-- Buttons keep contrast in dark -->
+    <color name="answer_button_color">#FF4CAF50</color>
+    <color name="answer_button_pressed">#FF388E3C</color>
+    <color name="decline_button_color">#FFE53935</color>
+    <color name="decline_button_pressed">#FFC62828</color>
+</resources>
+

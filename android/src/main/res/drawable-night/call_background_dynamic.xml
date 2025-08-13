@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Base deep gradient for night -->
+    <item>
+        <shape>
+            <gradient
+                android:angle="135"
+                android:startColor="@color/call_background_start"
+                android:centerColor="#FF0F5CA8"
+                android:endColor="@color/call_background_end"
+                android:type="linear" />
+        </shape>
+    </item>
+
+    <!-- Accent glow top-left (night) -->
+    <item android:top="-120dp" android:left="-120dp">
+        <shape>
+            <size android:width="420dp" android:height="420dp" />
+            <gradient
+                android:type="radial"
+                android:gradientRadius="280dp"
+                android:centerX="0%"
+                android:centerY="0%"
+                android:startColor="#3355E0FF"
+                android:endColor="#0055E0FF" />
+        </shape>
+    </item>
+
+    <!-- Accent glow bottom-right (night) -->
+    <item android:bottom="-140dp" android:right="-140dp">
+        <shape>
+            <size android:width="460dp" android:height="460dp" />
+            <gradient
+                android:type="radial"
+                android:gradientRadius="320dp"
+                android:centerX="100%"
+                android:centerY="100%"
+                android:startColor="#334CAF50"
+                android:endColor="#004CAF50" />
+        </shape>
+    </item>
+
+    <!-- Stronger vignette in dark mode -->
+    <item>
+        <shape>
+            <gradient
+                android:type="radial"
+                android:gradientRadius="120%"
+                android:centerX="50%"
+                android:centerY="50%"
+                android:startColor="#00000000"
+                android:endColor="#55000000" />
+        </shape>
+    </item>
+
+    <!-- Subtle top highlight adjusted for dark -->
+    <item>
+        <shape>
+            <gradient
+                android:angle="270"
+                android:startColor="#1AFFFFFF"
+                android:endColor="#00000000"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>
+

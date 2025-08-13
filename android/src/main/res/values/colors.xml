@@ -14,10 +14,10 @@
     <color name="call_primary_dark">#FF0D47A1</color>
     <color name="call_accent">#FF4CAF50</color>
     
-    <!-- Call Background -->
-    <color name="call_background_start">#FF1565C0</color>
-    <color name="call_background_end">#FF0D47A1</color>
-    <color name="call_overlay_color">#AA000000</color>
+    <!-- Call Background (Light) -->
+    <color name="call_background_start">#FF64B5F6</color>
+    <color name="call_background_end">#FF1E88E5</color>
+    <color name="call_overlay_color">#66FFFFFF</color>
     
     <!-- Button Colors -->
     <color name="answer_button_color">#FF4CAF50</color>
@@ -25,10 +25,10 @@
     <color name="decline_button_color">#FFF44336</color>
     <color name="decline_button_pressed">#FFD32F2F</color>
     
-    <!-- Text Colors -->
-    <color name="text_primary_white">#FFFFFFFF</color>
-    <color name="text_secondary_white">#E6FFFFFF</color>
-    <color name="text_hint_white">#80FFFFFF</color>
+    <!-- Text Colors (Light) -->
+    <color name="call_text_primary">#FF111111</color>
+    <color name="call_text_secondary">#99000000</color>
+    <color name="call_text_hint">#66000000</color>
     
     <!-- Status Colors -->
     <color name="status_connecting">#FFFF9800</color>

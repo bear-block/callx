@@ -4,7 +4,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/call_background_gradient"
+    android:background="@drawable/call_background_dynamic"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".IncomingCallActivity">
 
     <!-- Background overlay -->
@@ -16,7 +18,8 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.08" />
 
     <!-- Incoming call label -->
     <TextView
@@ -25,7 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="64dp"
         android:text="@string/incoming_call"
-        android:textColor="@color/white"
+        android:textColor="@color/call_text_hint"
         android:textSize="16sp"
         android:textStyle="bold"
         android:alpha="0.9"
@@ -41,7 +44,8 @@
         android:layout_marginTop="40dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_incoming_call_label">
+        app:layout_constraintTop_toBottomOf="@+id/tv_incoming_call_label"
+        app:layout_constraintVertical_bias="0.0">
 
         <!-- Avatar with border overlay -->
         <FrameLayout
@@ -81,12 +85,13 @@
         android:gravity="center"
         android:maxLines="2"
         android:text="@string/default_caller_name"
-        android:textColor="@color/white"
+        android:textColor="@color/call_text_primary"
         android:textSize="28sp"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/fl_avatar_container" />
+        app:layout_constraintTop_toBottomOf="@+id/fl_avatar_container"
+        app:layout_constraintVertical_bias="0.0" />
 
     <!-- Caller phone -->
     <TextView
@@ -100,13 +105,14 @@
         android:gravity="center"
         android:maxLines="1"
         android:text="@string/default_caller_phone"
-        android:textColor="@color/white"
+        android:textColor="@color/call_text_secondary"
         android:textSize="18sp"
         android:alpha="0.9"
         android:textStyle="normal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tv_caller_name" />
+        app:layout_constraintTop_toBottomOf="@+id/tv_caller_name"
+        app:layout_constraintVertical_bias="0.0" />
 
 
 
@@ -119,7 +125,9 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
         android:layout_marginEnd="32dp"
-        android:layout_marginBottom="120dp"
+        android:layout_marginBottom="100dp"
+        android:clipToPadding="false"
+        android:clipChildren="false"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -127,8 +135,10 @@
         <!-- Decline button container -->
         <FrameLayout
             android:id="@+id/fl_decline_container"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/guideline_center"
             app:layout_constraintStart_toStartOf="parent"
@@ -143,7 +153,7 @@
                 android:background="@drawable/circular_button_decline"
                 android:clickable="true"
                 android:focusable="true"
-                android:elevation="8dp"
+                android:elevation="12dp"
                 android:stateListAnimator="@null"
                 android:contentDescription="@string/decline_call">
                 
@@ -170,8 +180,10 @@
         <!-- Answer button container -->
         <FrameLayout
             android:id="@+id/fl_answer_container"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
+            android:layout_width="88dp"
+            android:layout_height="88dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@+id/guideline_center"
@@ -186,7 +198,7 @@
                 android:background="@drawable/circular_button_answer"
                 android:clickable="true"
                 android:focusable="true"
-                android:elevation="8dp"
+                android:elevation="12dp"
                 android:stateListAnimator="@null"
                 android:contentDescription="@string/answer_call">
                 
@@ -220,28 +232,28 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <!-- Message button -->
-        <com.google.android.material.button.MaterialButton
+            <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_message"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
             android:text="@string/message"
-            android:textColor="@color/white"
+                android:textColor="@color/call_text_secondary"
             app:icon="@drawable/ic_message"
-            app:iconTint="@color/white" />
+                app:iconTint="@color/call_text_secondary" />
 
         <!-- Remind me button -->
-        <com.google.android.material.button.MaterialButton
+            <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_remind_me"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:text="@string/remind_me"
-            android:textColor="@color/white"
+                android:textColor="@color/call_text_secondary"
             app:icon="@drawable/ic_schedule"
-            app:iconTint="@color/white" />
+                app:iconTint="@color/call_text_secondary" />
 
     </LinearLayout>
 

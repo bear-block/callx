@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base application theme -->
-    <style name="Base.Theme.Callx" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Base.Theme.Callx" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/call_primary</item>
         <item name="colorPrimaryVariant">@color/call_primary_dark</item>
         <item name="colorSecondary">@color/call_accent</item>
@@ -10,10 +10,10 @@
     <style name="Theme.Callx" parent="Base.Theme.Callx" />
 
     <!-- Call Activity Theme -->
-    <style name="Theme.Callx.FullScreen" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Callx.FullScreen" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowShowWallpaper">false</item>
-        <item name="android:windowBackground">@drawable/call_background_gradient</item>
+        <item name="android:windowBackground">@drawable/call_background_dynamic</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
@@ -36,19 +36,19 @@
 
     <!-- Text Styles -->
     <style name="CallTextPrimary">
-        <item name="android:textColor">@color/text_primary_white</item>
+        <item name="android:textColor">@color/call_text_primary</item>
         <item name="android:textSize">@dimen/text_size_large</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="CallTextSecondary">
-        <item name="android:textColor">@color/text_secondary_white</item>
+        <item name="android:textColor">@color/call_text_secondary</item>
         <item name="android:textSize">@dimen/text_size_medium</item>
         <item name="android:textStyle">normal</item>
     </style>
 
     <style name="CallTextLabel">
-        <item name="android:textColor">@color/text_hint_white</item>
+        <item name="android:textColor">@color/call_text_hint</item>
         <item name="android:textSize">@dimen/text_size_normal</item>
         <item name="android:textStyle">bold</item>
     </style>
