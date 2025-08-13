@@ -95,9 +95,12 @@ class CallxManager {
     this.subscriptions.forEach((s) => s.remove());
     this.subscriptions = [];
 
-    // iOS uses NativeEventEmitter; Android can use DeviceEventEmitter
+    // iOS uses NativeEventEmitter; Android uses DeviceEventEmitter
     if (Platform.OS === 'ios') {
-      this.nativeEmitter = new NativeEventEmitter((NativeModules as any).Callx);
+      const nativeCallxModule = (NativeModules as any)?.Callx;
+      this.nativeEmitter = nativeCallxModule
+        ? new NativeEventEmitter(nativeCallxModule)
+        : undefined;
     } else {
       this.nativeEmitter = undefined;
     }

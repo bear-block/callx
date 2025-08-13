@@ -24,12 +24,6 @@ export const withCallxInfoPlist: ConfigPlugin<{
       backgroundModes.push('background-fetch');
     }
 
-    // Add privacy descriptions
-    config.modResults.NSMicrophoneUsageDescription =
-      'This app needs microphone access for voice calls';
-    config.modResults.NSCameraUsageDescription =
-      'This app needs camera access for video calls';
-
     // Inject Callx mapping into Info.plist so native can read without assets
     if (options?.triggers) {
       const triggers: any = {};
