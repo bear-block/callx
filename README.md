@@ -27,6 +27,7 @@
 - 📱 **Cross-platform**: iOS & Android support
 - 🍎 **iOS**: Complete iOS support with CallKit & PushKit
 - 🤖 **Android**: Custom incoming call UI with FCM
+- 🌗 **Auto Dark/Light (Android)**: Incoming call UI adapts to system theme
 - 🔔 **Push Notifications**: Firebase Cloud Messaging (FCM)
 - 🎥 **Video call support** for both platforms
 - 📋 **Call logging** to phone's native call history
@@ -101,6 +102,12 @@ Examples
 <meta-data android:name="supportsVideo" android:value="true" />
 <meta-data android:name="enabledLogPhoneCall" android:value="true" />
 ```
+
+Theming
+
+- Android incoming UI uses a DayNight theme with `values-night/` and `drawable-night/` overrides.
+- No setup needed: the screen follows system Dark/Light automatically.
+- You can override colors by redefining `call_background_*` and `call_text_*` in your app.
 
 - iOS `Info.plist`:
 
