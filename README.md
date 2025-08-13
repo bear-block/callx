@@ -64,10 +64,12 @@ Purpose: let native detect call events from your push payload, map fields for th
 - **Triggers**: define which incoming push type should trigger each call lifecycle event.
   - Keys: `incoming`, `ended`, `missed`, `answered_elsewhere`
   - Value format: `<field>:<value>` (e.g., `type:call.started`)
+  - The field supports nested paths (e.g., `data.type`)
 - **Fields mapping**: map fields from your push payload to Callx’s UI and logic.
   - Keys: `callId`, `callerName`, `callerPhone`, `callerAvatar`, `hasVideo`
   - Value format (Android): `<path>[:<fallback>]` (e.g., `callerName:Unknown Caller`)
   - Value format (iOS): `{ field: <path>, fallback?: <value> }` in `Info.plist`
+  - Paths can be nested (e.g., `data.caller.name`, `data.meta.hasVideo`)
 - **App flags**:
   - `supportsVideo` (boolean): enable video-call affordances
   - `enabledLogPhoneCall` (boolean): write answered calls to the system call log (if allowed)
@@ -212,6 +214,7 @@ See examples in the Configuration section above for Android `AndroidManifest.xml
 
 Notes:
 - Put the Android `<meta-data>` entries inside your app `<application>` tag.
+- Field paths can be nested (e.g., `data.type`, `data.caller.name`).
 - Ensure your server payload matches your mapping (e.g., `type=call.started`).
 
 ### 4. Initialize in JS
