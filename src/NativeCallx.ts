@@ -10,7 +10,8 @@ export interface CallData {
   endReason?: 'answered_elsewhere' | 'missed' | 'ended' | 'unknown';
   timestamp?: number;
   // Full original push payload (FCM on Android, VoIP/APNs on iOS)
-  originalPayload?: Record<string, any>;
+  // Use 'Object' to satisfy React Native Codegen (Record / any not supported in specs)
+  originalPayload?: Object;
 }
 
 export interface TriggerConfigData {
