@@ -301,7 +301,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = callx.example;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bearblock.callx;
 				PRODUCT_NAME = CallxExample;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -328,7 +328,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = callx.example;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bearblock.callx;
 				PRODUCT_NAME = CallxExample;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

@@ -15,6 +15,9 @@ Pod::Spec.new do |s|
 
   s.source_files = "ios/**/*.{h,m,mm,cpp}"
   s.private_header_files = "ios/**/*.h"
+  
+  # Link required Apple system frameworks
+  s.frameworks    = ["CallKit", "PushKit"]
 
 
   install_modules_dependencies(s)

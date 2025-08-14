@@ -111,8 +111,8 @@ RCT_EXPORT_MODULE()
 #pragma mark - Native Methods Implementation
 
 RCT_EXPORT_METHOD(initialize:(NSDictionary *)config
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         // Update configuration if provided
         if (config) {
@@ -131,8 +131,8 @@ RCT_EXPORT_METHOD(initialize:(NSDictionary *)config
 }
 
 RCT_EXPORT_METHOD(showIncomingCall:(NSDictionary *)callData
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         [self handleIncomingCall:callData];
         resolve(@YES);
@@ -142,8 +142,8 @@ RCT_EXPORT_METHOD(showIncomingCall:(NSDictionary *)callData
 }
 
 RCT_EXPORT_METHOD(endCall:(NSString *)callId
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         [self endCall:callId];
         resolve(@YES);
@@ -153,8 +153,8 @@ RCT_EXPORT_METHOD(endCall:(NSString *)callId
 }
 
 RCT_EXPORT_METHOD(answerCall:(NSString *)callId
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         [self answerCall:callId];
         resolve(@YES);
@@ -164,8 +164,8 @@ RCT_EXPORT_METHOD(answerCall:(NSString *)callId
 }
 
 RCT_EXPORT_METHOD(declineCall:(NSString *)callId
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         [self declineCall:callId];
         resolve(@YES);
@@ -175,8 +175,8 @@ RCT_EXPORT_METHOD(declineCall:(NSString *)callId
 }
 
 RCT_EXPORT_METHOD(handleFcmMessage:(NSDictionary *)data
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         NSDictionary *callData = [self parseCallDataFromPush:data];
         if (callData) {
@@ -199,7 +199,7 @@ RCT_EXPORT_METHOD(handleFcmMessage:(NSDictionary *)data
 }
 
 RCT_EXPORT_METHOD(getFCMToken:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     // For iOS, return VoIP token instead of FCM token
     NSString *token = [self getVoIPToken];
     if (token) {
@@ -210,7 +210,7 @@ RCT_EXPORT_METHOD(getFCMToken:(RCTPromiseResolveBlock)resolve
 }
 
 RCT_EXPORT_METHOD(getVoIPToken:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     NSString *token = [self getVoIPToken];
     if (token) {
         resolve(token);
@@ -222,8 +222,8 @@ RCT_EXPORT_METHOD(getVoIPToken:(RCTPromiseResolveBlock)resolve
 RCT_EXPORT_METHOD(setFieldMapping:(NSString *)field
                   path:(NSString *)path
                   fallback:(NSString *)fallback
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         NSMutableDictionary *fields = [self.configuration[@"fields"] mutableCopy];
         fields[field] = @{@"field": path, @"fallback": fallback ?: [NSNull null]};
@@ -241,8 +241,8 @@ RCT_EXPORT_METHOD(setFieldMapping:(NSString *)field
 RCT_EXPORT_METHOD(setTrigger:(NSString *)trigger
                   field:(NSString *)field
                   value:(NSString *)value
-                  resolver:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject) {
     @try {
         NSMutableDictionary *triggers = [self.configuration[@"triggers"] mutableCopy];
         triggers[trigger] = @{@"field": field, @"value": value};
@@ -258,23 +258,23 @@ RCT_EXPORT_METHOD(setTrigger:(NSString *)trigger
 }
 
 RCT_EXPORT_METHOD(getCurrentCall:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     resolve(self.currentCallData ?: [NSNull null]);
 }
 
 RCT_EXPORT_METHOD(isCallActive:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     resolve(@(self.currentCallData != nil));
 }
 
 RCT_EXPORT_METHOD(hideFromLockScreen:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     // iOS handles this automatically through CallKit
     resolve(@YES);
 }
 
 RCT_EXPORT_METHOD(moveAppToBackground:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     // iOS handles this automatically through CallKit
     resolve(@YES);
 }
@@ -296,7 +296,7 @@ RCT_EXPORT_METHOD(moveAppToBackground:(RCTPromiseResolveBlock)resolve
 
 
 RCT_EXPORT_METHOD(getConfiguration:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject) {
+                  reject:(RCTPromiseRejectBlock)reject) {
     if (self.configuration) {
         resolve(self.configuration);
     } else {
