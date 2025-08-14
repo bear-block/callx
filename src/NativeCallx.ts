@@ -9,6 +9,8 @@ export interface CallData {
   hasVideo?: boolean;
   endReason?: 'answered_elsewhere' | 'missed' | 'ended' | 'unknown';
   timestamp?: number;
+  // Full original push payload (FCM on Android, VoIP/APNs on iOS)
+  originalPayload?: Record<string, any>;
 }
 
 export interface TriggerConfigData {

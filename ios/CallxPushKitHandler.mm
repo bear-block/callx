@@ -424,11 +424,17 @@
         NSDictionary *callData = [self parseCallDataFromPush:payload.dictionaryPayload];
         NSString *triggerType = [self detectTriggerType:payload.dictionaryPayload];
         
-        if ([triggerType isEqualToString:@"incoming"] && callData) {
+            if ([triggerType isEqualToString:@"incoming"] && callData) {
             RCTLogInfo(@"CallxPushKitHandler: Processing incoming call - SHOWING CALLKIT IMMEDIATELY");
             
+                // Attach original payload for JS consumers
+                NSMutableDictionary *enriched = [callData mutableCopy];
+                if (payload.dictionaryPayload) {
+                    enriched[@"originalPayload"] = payload.dictionaryPayload;
+                }
+
             // Show CallKit UI immediately (synchronous)
-            [self handleIncomingCallImmediately:callData];
+                [self handleIncomingCallImmediately:enriched];
             
             // Complete the push notification
             if (completion) {
@@ -436,25 +442,31 @@
             }
         } else if ([triggerType isEqualToString:@"ended"]) {
             RCTLogInfo(@"CallxPushKitHandler: Processing call ended");
+            NSMutableDictionary *enriched = [callData mutableCopy];
+            if (payload.dictionaryPayload) { enriched[@"originalPayload"] = payload.dictionaryPayload; }
             [self endCallImmediately:callData[@"callId"]];
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallEnded", @"data": callData ?: @{} }];
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallEnded", @"data": enriched ?: @{} }];
             NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-            [defaults setObject:@{ @"action": @"ended", @"data": callData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults setObject:@{ @"action": @"ended", @"data": enriched ?: @{} } forKey:@"callx_pending_action"];
             [defaults synchronize];
             if (completion) { completion(); }
         } else if ([triggerType isEqualToString:@"missed"]) {
             RCTLogInfo(@"CallxPushKitHandler: Processing call missed");
+            NSMutableDictionary *enriched = [callData mutableCopy];
+            if (payload.dictionaryPayload) { enriched[@"originalPayload"] = payload.dictionaryPayload; }
             [self endCallImmediately:callData[@"callId"]];
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallMissed", @"data": callData ?: @{} }];
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CallxEvent" object:nil userInfo:@{ @"event": @"onCallMissed", @"data": enriched ?: @{} }];
             NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-            [defaults setObject:@{ @"action": @"missed", @"data": callData ?: @{} } forKey:@"callx_pending_action"];
+            [defaults setObject:@{ @"action": @"missed", @"data": enriched ?: @{} } forKey:@"callx_pending_action"];
             [defaults synchronize];
             if (completion) { completion(); }
         } else if ([triggerType isEqualToString:@"answered_elsewhere"]) {
             RCTLogInfo(@"CallxPushKitHandler: Processing call answered elsewhere");
             
             // Handle call answered elsewhere
-            [self handleCallAnsweredElsewhere:callData];
+            NSMutableDictionary *enriched = [callData mutableCopy];
+            if (payload.dictionaryPayload) { enriched[@"originalPayload"] = payload.dictionaryPayload; }
+            [self handleCallAnsweredElsewhere:enriched];
             if (completion) { completion(); }
         } else {
             RCTLogWarn(@"CallxPushKitHandler: Unknown trigger type or invalid data - completing anyway");

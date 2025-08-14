@@ -182,7 +182,7 @@ export default function App() {
 
   const handleFcmTest = async () => {
     try {
-      // Match example/callx.json mapping (no data.* prefix)
+      // Match manifest/plist mapping (flat keys by default)
       const data = {
         type: 'call.started',
         callId: 'fcm-test-' + Date.now(),

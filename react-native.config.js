@@ -21,15 +21,6 @@ module.exports = {
           projectBuildGradle: {
             classpath: 'com.google.gms:google-services:4.4.0',
           },
-          // Auto-copy callx.json to assets
-          assets: {
-            copy: [
-              {
-                from: 'callx.json',
-                to: 'src/main/assets/callx.json',
-              },
-            ],
-          },
         },
       },
     },

@@ -3,8 +3,8 @@ import App from './src/App';
 import { name as appName } from './app.json';
 import CallxInstance from '@bear-block/callx';
 
-// Config is now baked into native code from callx.json
-// Only need to set event listeners
+// Config is now provided via AndroidManifest (Android) and Info.plist (iOS).
+// Only need to set event listeners.
 CallxInstance.initialize({
   onIncomingCall: (data) => {
     console.log('📞 Incoming call', data);

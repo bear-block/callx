@@ -4,7 +4,12 @@ import { withInfoPlist } from '@expo/config-plugins';
 export const withCallxInfoPlist: ConfigPlugin<{
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
-  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
+  app?: {
+    supportsVideo?: boolean;
+    enabledLogPhoneCall?: boolean;
+    showOverLockscreen?: boolean;
+    requireUnlock?: boolean;
+  };
 }> = (config, options?: any) => {
   return withInfoPlist(config, (config) => {
     // Add background modes for VoIP and push notifications
@@ -50,6 +55,9 @@ export const withCallxInfoPlist: ConfigPlugin<{
       if (typeof options.app.enabledLogPhoneCall === 'boolean') {
         appCfg.enabledLogPhoneCall = options.app.enabledLogPhoneCall;
       }
+      // Android-only flags are intentionally NOT injected into iOS Info.plist:
+      // - showOverLockscreen (Android only)
+      // - requireUnlock (Android only)
       if (Object.keys(appCfg).length) {
         (config.modResults as any).CallxApp = appCfg;
       }

@@ -8,7 +8,12 @@ export interface CallxPluginOptions {
   package: string;
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
-  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
+  app?: {
+    supportsVideo?: boolean;
+    enabledLogPhoneCall?: boolean;
+    showOverLockscreen?: boolean;
+    requireUnlock?: boolean;
+  };
 }
 
 const withCallx: ConfigPlugin<CallxPluginOptions> = (config, options) => {

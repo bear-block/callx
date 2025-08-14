@@ -10,7 +10,12 @@ const FCM_SERVICE = {
 export const withCallxAndroidManifest: ConfigPlugin<{
   triggers?: Record<string, { field: string; value: string }>;
   fields?: Record<string, { field: string; fallback?: string }>;
-  app?: { supportsVideo?: boolean; enabledLogPhoneCall?: boolean };
+  app?: {
+    supportsVideo?: boolean;
+    enabledLogPhoneCall?: boolean;
+    showOverLockscreen?: boolean;
+    requireUnlock?: boolean;
+  };
 }> = (config: any, options?: any) => {
   return withAndroidManifest(config, (modConfig: any) => {
     const app = modConfig.modResults.manifest.application?.[0];
@@ -82,6 +87,15 @@ export const withCallxAndroidManifest: ConfigPlugin<{
             'enabledLogPhoneCall',
             String(options.app.enabledLogPhoneCall)
           );
+        }
+        if (typeof options.app.showOverLockscreen === 'boolean') {
+          upsertMeta(
+            'showOverLockscreen',
+            String(options.app.showOverLockscreen)
+          );
+        }
+        if (typeof options.app.requireUnlock === 'boolean') {
+          upsertMeta('requireUnlock', String(options.app.requireUnlock));
         }
       }
 

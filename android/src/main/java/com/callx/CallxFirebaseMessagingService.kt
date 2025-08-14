@@ -149,14 +149,14 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
             when (triggerType) {
                 "incoming" -> {
                     Log.d(TAG, "Showing incoming call notification")
-                    showIncomingCallNotification(callData, config)
+                    showIncomingCallNotification(callData, config, fcmData)
                 }
                 "ended" -> {
                     Log.d(TAG, "Handling call ended")
                     dismissIncomingCallNotification()
                     val module = CallxModule.getInstance()
                     if (module != null) {
-                        module.notifyEndedFromService(callData)
+                        module.notifyEndedFromService(callData, fcmData)
                     } else {
                         try {
                             CallxStorage.savePendingAction(applicationContext, "end", callData)
@@ -175,7 +175,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
                             }
                             applicationContext.startActivity(closeIntent)
                         } catch (_: Exception) {}
-                        module.notifyMissedFromService(callData)
+                        module.notifyMissedFromService(callData, fcmData)
                     } else {
                         try {
                             CallxStorage.savePendingAction(applicationContext, "missed", callData)
@@ -198,7 +198,7 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
                     // Emit answered_elsewhere like missed flow (close UI + send event)
                     val module = CallxModule.getInstance()
                     if (module != null) {
-                        module.notifyAnsweredElsewhereFromService(callData)
+                        module.notifyAnsweredElsewhereFromService(callData, fcmData)
                     } else {
                         try {
                             CallxStorage.savePendingAction(applicationContext, "answered_elsewhere", callData)
@@ -269,11 +269,11 @@ class CallxFirebaseMessagingService : FirebaseMessagingService() {
         }
     }
 
-    private fun showIncomingCallNotification(callData: CallData, config: CallxConfiguration) {
+    private fun showIncomingCallNotification(callData: CallData, config: CallxConfiguration, rawPayload: JSONObject?) {
         // Use CallxModule's existing notification logic
         // Or implement a simplified version here
         val callxModule = CallxModule.getInstance()
-        callxModule?.showIncomingCallFromService(callData)
+        callxModule?.showIncomingCallFromService(callData, rawPayload)
     }
 
     private fun dismissIncomingCallNotification() {

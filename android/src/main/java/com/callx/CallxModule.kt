@@ -95,6 +95,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   private var configuration: CallxConfiguration = CallxConfiguration()
   private var currentCall: CallData? = null
+  private var currentRawPayload: JSONObject? = null
   private var isInitialized: Boolean = false
   private val notificationManager: NotificationManager by lazy {
     reactApplicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -201,9 +202,15 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   override fun endCall(callId: String, promise: Promise) {
     try {
-      if (currentCall?.callId == callId) {
-        currentCall = null
+      val ended = currentCall
+      if (ended?.callId == callId) {
+        // Dismiss incoming UI/notification
         dismissIncomingCall()
+        // Emit ended to JS with original payload if available
+        sendEventToJS("onCallEnded", callDataToWritableMap(ended, currentRawPayload))
+        // Clear state
+        currentCall = null
+        currentRawPayload = null
       }
       promise.resolve(null)
     } catch (e: Exception) {
@@ -246,20 +253,24 @@ class CallxModule(reactContext: ReactApplicationContext) :
         when (triggerType) {
           "incoming" -> {
             currentCall = callData
+            currentRawPayload = fcmData
             showIncomingCallActivity(callData)
-            sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
+            sendEventToJS("onIncomingCall", callDataToWritableMap(callData, fcmData))
           }
           "ended" -> {
+            // Ensure original payload is attached and emit once
+            currentRawPayload = fcmData
             handleCallEnded(callData.callId, callData.callerName)
-            sendEventToJS("onCallEnded", callDataToWritableMap(callData))
           }
           "missed" -> {
+            // Ensure original payload is attached and emit once
+            currentRawPayload = fcmData
             handleMissedCall(callData)
-            sendEventToJS("onCallMissed", callDataToWritableMap(callData))
           }
           "answered_elsewhere" -> {
+            // Ensure original payload is attached and emit once
+            currentRawPayload = fcmData
             handleCallAnsweredElsewhere(callData.callId, callData.callerName)
-            sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(callData))
           }
           else -> {
             android.util.Log.w(NAME, "Unknown trigger type: $triggerType")
@@ -504,6 +515,16 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
     return map
   }
+  private fun callDataToWritableMap(callData: CallData, rawPayload: JSONObject?): WritableMap {
+    val base = callDataToWritableMap(callData)
+    if (rawPayload != null) {
+      try {
+        base.putMap("originalPayload", jsonToWritableMap(rawPayload))
+      } catch (_: Exception) {
+      }
+    }
+    return base
+  }
 
   private fun readableMapToJson(readableMap: ReadableMap): JSONObject {
     val json = JSONObject()
@@ -536,6 +557,27 @@ class CallxModule(reactContext: ReactApplicationContext) :
       android.util.Log.e(NAME, "Error converting ReadableMap to JSON", e)
     }
     return json
+  }
+  private fun jsonToWritableMap(json: JSONObject): WritableMap {
+    val map = Arguments.createMap()
+    try {
+      val keys = json.keys()
+      while (keys.hasNext()) {
+        val key = keys.next()
+        val value = json.get(key)
+        when (value) {
+          is JSONObject -> map.putMap(key, jsonToWritableMap(value))
+          is String -> map.putString(key, value)
+          is Boolean -> map.putBoolean(key, value)
+          is Int -> map.putInt(key, value)
+          is Long -> map.putDouble(key, value.toDouble())
+          is Double -> map.putDouble(key, value)
+          else -> map.putString(key, value.toString())
+        }
+      }
+    } catch (_: Exception) {
+    }
+    return map
   }
 
   private fun extractCallDataFromFcm(fcmData: JSONObject): CallData? {
@@ -617,12 +659,13 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   // Public method for Firebase service to call
-  fun showIncomingCallFromService(callData: CallData) {
+  fun showIncomingCallFromService(callData: CallData, rawPayload: JSONObject? = null) {
     currentCall = callData
+    currentRawPayload = rawPayload
     showIncomingCallActivity(callData)
     // Notify JS layer if app is active
     try {
-      sendEventToJS("onIncomingCall", callDataToWritableMap(callData))
+      sendEventToJS("onIncomingCall", callDataToWritableMap(callData, rawPayload))
     } catch (e: Exception) {
       // JS layer might not be available in background, ignore
       android.util.Log.d(NAME, "JS layer not available, skipping event")
@@ -630,25 +673,25 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   // Public notifications for service when app is already running
-  fun notifyEndedFromService(callData: CallData) {
+  fun notifyEndedFromService(callData: CallData, rawPayload: JSONObject? = null) {
     try {
-      sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+      sendEventToJS("onCallEnded", callDataToWritableMap(callData, rawPayload))
     } catch (_: Exception) {
       // ignore
     }
   }
 
-  fun notifyMissedFromService(callData: CallData) {
+  fun notifyMissedFromService(callData: CallData, rawPayload: JSONObject? = null) {
     try {
-      sendEventToJS("onCallMissed", callDataToWritableMap(callData))
+      sendEventToJS("onCallMissed", callDataToWritableMap(callData, rawPayload))
     } catch (_: Exception) {
       // ignore
     }
   }
 
-  fun notifyAnsweredElsewhereFromService(callData: CallData) {
+  fun notifyAnsweredElsewhereFromService(callData: CallData, rawPayload: JSONObject? = null) {
     try {
-      sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(callData))
+      sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(callData, rawPayload))
     } catch (_: Exception) {
       // ignore
     }
@@ -763,11 +806,11 @@ class CallxModule(reactContext: ReactApplicationContext) :
   }
 
   private fun handleAnswerCall(callData: CallData) {
-    sendEventToJS("onCallAnswered", callDataToWritableMap(callData))
+    sendEventToJS("onCallAnswered", callDataToWritableMap(callData, currentRawPayload))
   }
 
   private fun handleDeclineCall(callData: CallData) {
-    sendEventToJS("onCallDeclined", callDataToWritableMap(callData))
+    sendEventToJS("onCallDeclined", callDataToWritableMap(callData, currentRawPayload))
   }
 
   // Event callbacks from activity
@@ -780,6 +823,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
         handleAnswerCall(call)
         dismissIncomingCall()
         currentCall = null
+        currentRawPayload = null
       }
     }
   }
@@ -794,6 +838,7 @@ class CallxModule(reactContext: ReactApplicationContext) :
         handleDeclineCall(call)
         dismissIncomingCall()
         currentCall = null
+        currentRawPayload = null
         
         android.util.Log.d(NAME, "📞 Call declined: $callId")
       }
@@ -804,9 +849,10 @@ class CallxModule(reactContext: ReactApplicationContext) :
   private fun handleCallAnsweredElsewhere(callId: String, callerName: String) {
     currentCall?.let { call ->
       if (call.callId == callId) {
-        sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(call))
+        sendEventToJS("onCallAnsweredElsewhere", callDataToWritableMap(call, currentRawPayload))
         dismissIncomingCall()
         currentCall = null
+        currentRawPayload = null
         android.util.Log.d(NAME, "🤝 Call answered elsewhere (UI dismissed, event emitted): $callId")
       }
     }
@@ -844,17 +890,17 @@ class CallxModule(reactContext: ReactApplicationContext) :
 
   private fun handleCallEnded(callId: String, callerName: String) {
     val callData = currentCall ?: return
-    sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+    sendEventToJS("onCallEnded", callDataToWritableMap(callData, currentRawPayload))
     android.util.Log.d(NAME, "📞 Call ended: $callId, reason: ended")
   }
 
   private fun handleMissedCall(callData: CallData) {
-    sendEventToJS("onCallMissed", callDataToWritableMap(callData))
+    sendEventToJS("onCallMissed", callDataToWritableMap(callData, currentRawPayload))
     android.util.Log.d(NAME, "📞 Call missed: ${callData.callId}")
   }
 
   private fun handleEndCall(callData: CallData) {
-    sendEventToJS("onCallEnded", callDataToWritableMap(callData))
+    sendEventToJS("onCallEnded", callDataToWritableMap(callData, currentRawPayload))
     android.util.Log.d(NAME, "📞 Call ended: ${callData.callId}")
   }
 

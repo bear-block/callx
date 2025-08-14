@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import android.view.WindowManager
+import android.content.pm.PackageManager
 import org.json.JSONObject
 import java.io.IOException
 
@@ -124,30 +125,37 @@ class CallxActivityHelper(private val activity: Activity) {
     }
 
     /**
-     * Load Callx configuration from assets/callx.json
+     * Load Callx configuration from AndroidManifest <meta-data>
+     * Fallback to sensible defaults when not provided
      */
     private fun loadCallxConfig(): CallxAppConfig {
+        val showOverLockscreen = readMetaBoolean("showOverLockscreen", true)
+        val requireUnlock = readMetaBoolean("requireUnlock", false)
+        return CallxAppConfig(
+            showOverLockscreen = showOverLockscreen,
+            requireUnlock = requireUnlock
+        )
+    }
+
+    private fun readMetaBoolean(key: String, defaultValue: Boolean): Boolean {
         return try {
-            val inputStream = activity.assets.open("callx.json")
-            val jsonString = inputStream.bufferedReader().use { it.readText() }
-            inputStream.close()
-            
-            val jsonConfig = JSONObject(jsonString)
-            if (jsonConfig.has("app")) {
-                val appConfig = jsonConfig.getJSONObject("app")
-                CallxAppConfig(
-                    showOverLockscreen = appConfig.optBoolean("showOverLockscreen", true),
-                    requireUnlock = appConfig.optBoolean("requireUnlock", false)
-                )
-            } else {
-                CallxAppConfig() // Default config
+            val appInfo = activity.packageManager.getApplicationInfo(
+                activity.packageName,
+                PackageManager.GET_META_DATA
+            )
+            val metaData = appInfo.metaData ?: return defaultValue
+            if (!metaData.containsKey(key)) return defaultValue
+
+            val raw = metaData.get(key)
+            when (raw) {
+                is Boolean -> raw
+                is String -> raw.equals("true", ignoreCase = true)
+                is Int -> raw != 0
+                else -> defaultValue
             }
-        } catch (e: IOException) {
-            Log.w(TAG, "callx.json not found, using default config")
-            CallxAppConfig() // Default config
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load callx.json: ${e.message}")
-            CallxAppConfig() // Default config
+            Log.w(TAG, "Failed to read meta-data '$key': ${e.message}")
+            defaultValue
         }
     }
 

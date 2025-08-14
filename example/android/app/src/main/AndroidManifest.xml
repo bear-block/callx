@@ -36,8 +36,8 @@
       <meta-data android:name="hasVideo" android:value="hasVideo:true" />
 
       <!-- Optional: token event name etc. -->
-      <meta-data android:name="showOverLockscreen" android:value="true" />
-      <meta-data android:name="requireUnlock" android:value="false" />
+      <meta-data android:name="showOverLockscreen" android:value="false" />
+      <meta-data android:name="requireUnlock" android:value="true" />
       <meta-data android:name="supportsVideo" android:value="true" />
       <meta-data android:name="enabledLogPhoneCall" android:value="true" />
     </application>

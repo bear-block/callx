@@ -74,6 +74,8 @@ Purpose: let native detect call events from your push payload, map fields for th
 - **App flags**:
   - `supportsVideo` (boolean): enable video-call affordances
   - `enabledLogPhoneCall` (boolean): write answered calls to the system call log (if allowed)
+  - `showOverLockscreen` (boolean, Android-only): when bringing the app to foreground from incoming UI, allow showing over lock screen
+  - `requireUnlock` (boolean, Android-only): require device unlock before entering app from incoming UI
 
 Runtime flow
 
@@ -101,6 +103,8 @@ Examples
 <!-- App flags -->
 <meta-data android:name="supportsVideo" android:value="true" />
 <meta-data android:name="enabledLogPhoneCall" android:value="true" />
+<meta-data android:name="showOverLockscreen" android:value="false" />
+<meta-data android:name="requireUnlock" android:value="true" />
 ```
 
 Theming
@@ -167,6 +171,7 @@ Theming
 <dict>
   <key>supportsVideo</key><true/>
   <key>enabledLogPhoneCall</key><true/>
+  <!-- Android-only flags are not used on iOS -->
 </dict>
 ```
 
@@ -291,7 +296,12 @@ Add the plugin to your `app.json`:
             "callerAvatar": { "field": "callerAvatar" },
             "hasVideo": { "field": "hasVideo", "fallback": "false" }
           },
-          "app": { "supportsVideo": true, "enabledLogPhoneCall": true }
+          "app": {
+            "supportsVideo": true,
+            "enabledLogPhoneCall": true,
+            "showOverLockscreen": false,
+            "requireUnlock": true
+          }
         }
       ]
     ]
