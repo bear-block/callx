@@ -250,6 +250,8 @@ Callx.initialize({
   },
   onCallEnded: (data) => {
     // Called when call ends
+    // Full original push payload is available as data.originalPayload (Android FCM / iOS VoIP)
+    console.log('Ended payload:', data.originalPayload);
   },
   onCallMissed: (data) => {
     // Called when call is missed
@@ -359,6 +361,7 @@ interface CallData {
   callerPhone: string;
   callerAvatar?: string;
   hasVideo?: boolean;  // true for video calls, false for voice calls
+  originalPayload?: Object; // full push payload (FCM/VoIP)
 }
 ```
 
