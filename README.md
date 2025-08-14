@@ -37,6 +37,15 @@
 
 > Note: Android flow has been tested end-to-end. iOS configuration is updated and aligned, but real-device VoIP push testing is still pending.
 
+### ✅ Compatibility
+
+- **React Native**: 0.79+ (New Architecture by default)
+- **Expo**: SDK 53
+- **Android**: Projects using Kotlin `MainActivity.kt` are supported out of the box. If your project still uses Java for `MainActivity`, extend `CallxReactActivity` manually.
+- **iOS**: Works with Swift `AppDelegate` (default in modern templates). No custom `AppDelegate` code is required; the module initializes its own PushKit/CallKit handler.
+
+> Note: On iOS you still need to enable Background Modes (VoIP, Remote notifications) and Push Notifications capability in your app’s signing settings. The plugin injects Info.plist keys, but code signing capabilities are configured in your project/EAS.
+
 ### 📋 Platform Support
 
 | Feature | iOS | Android |

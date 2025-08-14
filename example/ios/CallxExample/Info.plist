@@ -124,5 +124,12 @@
 			<false/>
 		</dict>
 	</dict>
+	<key>CallxApp</key>
+	<dict>
+		<key>supportsVideo</key>
+		<true/>
+		<key>enabledLogPhoneCall</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
