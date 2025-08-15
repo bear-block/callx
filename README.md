@@ -2,7 +2,7 @@
 
 **Beautiful React Native incoming call UI with Firebase Cloud Messaging integration**
 
-[![npm version](https://img.shields.io/npm/v/@bear-block/callx/beta.svg)](https://www.npmjs.com/package/@bear-block/callx)  
+[![npm version](https://img.shields.io/npm/v/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
 [![license](https://img.shields.io/npm/l/@bear-block/callx.svg)](https://www.npmjs.com/package/@bear-block/callx)  
 [![GitHub stars](https://img.shields.io/github/stars/bear-block/callx.svg?style=social&label=Star)](https://github.com/bear-block/callx)  
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-red.svg)](https://github.com/sponsors/bear-block)
@@ -35,16 +35,16 @@
 - 🚀 **Expo plugin** for automatic configuration
 - 🔧 **TypeScript**: Full TypeScript support
 
-> Note: Android flow has been tested end-to-end. iOS configuration is updated and aligned, but real-device VoIP push testing is still pending.
-
 ### ✅ Compatibility
 
-- **React Native**: 0.79+ (New Architecture by default)
-- **Expo**: SDK 53
-- **Android**: Projects using Kotlin `MainActivity.kt` are supported out of the box. If your project still uses Java for `MainActivity`, extend `CallxReactActivity` manually.
+- **React Native**: 0.70+
+- **Expo**: SDK 52+
+- **Android**: 
+  - **Kotlin projects**: Extend `CallxReactActivity` in your `MainActivity.kt` (automatic with plugin)
+  - **Java projects**: Extend `CallxReactActivity` in your `MainActivity.java` (automatic with plugin)
 - **iOS**: Works with Swift `AppDelegate` (default in modern templates). No custom `AppDelegate` code is required; the module initializes its own PushKit/CallKit handler.
 
-> Note: On iOS you still need to enable Background Modes (VoIP, Remote notifications) and Push Notifications capability in your app’s signing settings. The plugin injects Info.plist keys, but code signing capabilities are configured in your project/EAS.
+> Note: On iOS you still need to enable Background Modes (VoIP, Remote notifications) and Push Notifications capability in your app's signing settings. The plugin injects Info.plist keys, but code signing capabilities are configured in your project/EAS.
 
 ### 📋 Platform Support
 
@@ -67,7 +67,7 @@ If this library helps you, please consider supporting its development:
 
 ---
 
-## 🔧 Configuration at a glance (Android, iOS, Expo plugin)
+## 🔧 Configuration at a glance
 
 Purpose: let native detect call events from your push payload, map fields for the UI, and enable platform features — even when JS is not running.
 
@@ -75,7 +75,7 @@ Purpose: let native detect call events from your push payload, map fields for th
   - Keys: `incoming`, `ended`, `missed`, `answered_elsewhere`
   - Value format: `<field>:<value>` (e.g., `type:call.started`)
   - The field supports nested paths (e.g., `data.type`)
-- **Fields mapping**: map fields from your push payload to Callx’s UI and logic.
+- **Fields mapping**: map fields from your push payload to Callx's UI and logic.
   - Keys: `callId`, `callerName`, `callerPhone`, `callerAvatar`, `hasVideo`
   - Value format (Android): `<path>[:<fallback>]` (e.g., `callerName:Unknown Caller`)
   - Value format (iOS): `{ field: <path>, fallback?: <value> }` in `Info.plist`
@@ -86,14 +86,163 @@ Purpose: let native detect call events from your push payload, map fields for th
   - `showOverLockscreen` (boolean, Android-only): when bringing the app to foreground from incoming UI, allow showing over lock screen
   - `requireUnlock` (boolean, Android-only): require device unlock before entering app from incoming UI
 
-Runtime flow
-
+**Runtime flow:**
 - Android: FCM → match Trigger → show UI on lock screen → buffer events → JS receives after `Callx.initialize(...)`.
 - iOS: VoIP push → CallKit UI via Triggers/Fields → buffer events → JS receives after `Callx.initialize(...)`.
 
-Examples
+---
 
-- Android `AndroidManifest.xml` (inside `<application>`):
+## ⚡ Quick Setup
+
+> **⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase with Messaging setup guide](https://rnfirebase.io/) first.
+
+### 📦 Install
+
+```bash
+npm install @bear-block/callx
+# or
+yarn add @bear-block/callx
+```
+
+### 📱 Expo Setup (Recommended)
+
+#### 1. Add Plugin to `app.json`
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "@bear-block/callx",
+        {
+          "package": "your.package.name",
+          "triggers": {
+            "incoming": { "field": "type", "value": "call.started" },
+            "ended": { "field": "type", "value": "call.ended" },
+            "missed": { "field": "type", "value": "call.missed" },
+            "answered_elsewhere": { "field": "type", "value": "call.answered_elsewhere" }
+          },
+          "fields": {
+            "callId": { "field": "callId" },
+            "callerName": { "field": "callerName", "fallback": "Unknown Caller" },
+            "callerPhone": { "field": "callerPhone", "fallback": "No Number" },
+            "callerAvatar": { "field": "callerAvatar" },
+            "hasVideo": { "field": "hasVideo", "fallback": "false" }
+          },
+          "app": {
+            "supportsVideo": true,
+            "enabledLogPhoneCall": true,
+            "showOverLockscreen": false,
+            "requireUnlock": true
+          }
+        }
+      ]
+    ]
+  }
+}
+```
+
+**The plugin automatically:**
+- ✅ Inject shorthand `<meta-data>` config into `AndroidManifest.xml`
+- ✅ Update `MainActivity` to extend `CallxReactActivity` (supports both Kotlin `.kt` and Java `.java` files!)
+- ✅ Inject `CallxTriggers`, `CallxFields`, and `CallxApp` into `Info.plist` (iOS)
+- ✅ Add required background modes and privacy strings (iOS)
+
+#### 2. Build with EAS
+
+```bash
+eas build --platform android
+eas build --platform ios
+```
+
+> **💡 Note:** Expo development builds are required for native modules like Callx. **Expo SDK 52+ is fully supported!**
+
+### 🔧 React Native CLI Setup
+
+#### 1. Android Setup
+
+**For Kotlin projects**, extend `CallxReactActivity` in your `MainActivity.kt`:
+
+```kotlin
+import com.callx.CallxReactActivity
+
+class MainActivity : CallxReactActivity() {
+  // ...
+}
+```
+
+**For Java projects**, extend `CallxReactActivity` in your `MainActivity.java`:
+
+```java
+import com.callx.CallxReactActivity;
+
+public class MainActivity extends CallxReactActivity {
+    // ...
+}
+```
+
+**💡 Note**: The Expo plugin automatically detects and modifies both Kotlin (`.kt`) and Java (`.java`) MainActivity files to extend `CallxReactActivity`!
+
+Permissions required for full-screen incoming UI and notifications are declared by the library; no manual manifest changes are needed.
+
+#### 2. iOS Setup
+
+If you use the Expo plugin, required background modes and privacy strings are injected automatically. For React Native CLI, ensure `UIBackgroundModes` includes `voip` and `remote-notification` in your `Info.plist`.
+
+#### 3. Configure Triggers & Fields
+
+Configuration now lives in native files. See examples in the Configuration section below for Android `AndroidManifest.xml`, iOS `Info.plist`, and Expo plugin options.
+
+**Notes:**
+- Put the Android `<meta-data>` entries inside your app `<application>` tag.
+- Field paths can be nested (e.g., `data.type`, `data.caller.name`).
+- Ensure your server payload matches your mapping (e.g., `type=call.started`).
+
+#### 4. Initialize in JS
+
+Initialize as early as possible (e.g., `index.js`). Native buffers events when the app is killed/backgrounded and flushes them on initialize:
+
+```ts
+// index.js - Initialize before app renders
+import Callx from '@bear-block/callx';
+
+// Initialize Callx before app starts
+Callx.initialize({
+  onIncomingCall: (data) => {
+    // Called when incoming call displayed
+  },
+  onCallAnswered: (data) => {
+    // Called when call is accepted by user
+  },
+  onCallDeclined: (data) => {
+    // Called when call is declined by user
+  },
+  onCallEnded: (data) => {
+    // Called when call ends
+    // Full original push payload is available as data.originalPayload (Android FCM / iOS VoIP)
+    console.log('Ended payload:', data.originalPayload);
+  },
+  onCallMissed: (data) => {
+    // Called when call is missed
+  },
+  onCallAnsweredElsewhere: (data) => {
+    // Called when call is answered on another device
+  },
+  onTokenUpdated: (tokenData) => {
+    // Called when VoIP | FCM token updates
+    console.log('VoIP token:', tokenData.token);
+  },
+});
+
+// Then register your app
+AppRegistry.registerComponent(appName, () => App);
+```
+
+---
+
+## 📋 Configuration Examples
+
+### Android `AndroidManifest.xml` (inside `<application>`)
 
 ```xml
 <!-- Triggers -->
@@ -116,13 +265,7 @@ Examples
 <meta-data android:name="requireUnlock" android:value="true" />
 ```
 
-Theming
-
-- Android incoming UI uses a DayNight theme with `values-night/` and `drawable-night/` overrides.
-- No setup needed: the screen follows system Dark/Light automatically.
-- You can override colors by redefining `call_background_*` and `call_text_*` in your app.
-
-- iOS `Info.plist`:
+### iOS `Info.plist`
 
 ```xml
 <key>CallxTriggers</key>
@@ -180,174 +323,19 @@ Theming
 <dict>
   <key>supportsVideo</key><true/>
   <key>enabledLogPhoneCall</key><true/>
-  <!-- Android-only flags are not used on iOS -->
 </dict>
 ```
 
- - Expo plugin: see the full `app.json` example in the Expo Setup section below.
-
-Payloads must match your mapping. See the Android/iOS payload examples in the FCM & iOS VoIP Integration section below.
-
-## ⚡ Quick Setup
-
-> **⚠️ IMPORTANT:** Ensure you have completed the [React Native Firebase with Messaging setup guide](https://rnfirebase.io/) first.
-
-### 📦 Install
-
-```bash
-npm install @bear-block/callx
-```
-
-```bash
-yarn add @bear-block/callx
-```
-
- 
-
-### React Native CLI Setup
-
-### 1. Android Setup
-
-#### Always required
-
-In `MainActivity.kt`, extend `CallxReactActivity`:
-
-```kotlin
-import com.callx.CallxReactActivity
-
-class MainActivity : CallxReactActivity() {
-  // ...
-}
-```
-
-Permissions required for full-screen incoming UI and notifications are declared by the library; no manual manifest changes are needed.
-
-### 2. iOS Setup
-
-If you use the Expo plugin, required background modes and privacy strings are injected automatically. For React Native CLI, ensure `UIBackgroundModes` includes `voip` and `remote-notification` in your `Info.plist`.
-
-
-### 3. Configure Triggers & Fields
-
-Configuration now lives in native files.
-
-See examples in the Configuration section above for Android `AndroidManifest.xml`, iOS `Info.plist`, and Expo plugin options.
-
-Notes:
-- Put the Android `<meta-data>` entries inside your app `<application>` tag.
-- Field paths can be nested (e.g., `data.type`, `data.caller.name`).
-- Ensure your server payload matches your mapping (e.g., `type=call.started`).
-
-### 4. Initialize in JS
-
-Initialize as early as possible (e.g., `index.js`). Native buffers events when the app is killed/backgrounded and flushes them on initialize:
-
-```ts
-// index.js - Initialize before app renders
-import Callx from '@bear-block/callx';
-
-// Initialize Callx before app starts
-Callx.initialize({
-  onIncomingCall: (data) => {
-    // Called when incoming call displayed
-  },
-  onCallAnswered: (data) => {
-    // Called when call is accepted by user
-  },
-  onCallDeclined: (data) => {
-    // Called when call is declined by user
-  },
-  onCallEnded: (data) => {
-    // Called when call ends
-    // Full original push payload is available as data.originalPayload (Android FCM / iOS VoIP)
-    console.log('Ended payload:', data.originalPayload);
-  },
-  onCallMissed: (data) => {
-    // Called when call is missed
-  },
-  onCallAnsweredElsewhere: (data) => {
-    // Called when call is answered on another device
-  },
-  onTokenUpdated: (tokenData) => {
-    // Called when VoIP | FCM token updates
-    console.log('VoIP token:', tokenData.token);
-  },
-});
-
-// Then register your app
-AppRegistry.registerComponent(appName, () => App);
-```
-
----
-
-## 📱 Expo Setup
-
-### 1. Add Plugin to `app.json`
-
-Add the plugin to your `app.json`:
-
-```json
-{
-  "expo": {
-    "plugins": [
-      [
-        "@bear-block/callx",
-        {
-          "package": "your.package.name",
-          "triggers": {
-            "incoming": { "field": "type", "value": "call.started" },
-            "ended": { "field": "type", "value": "call.ended" },
-            "missed": { "field": "type", "value": "call.missed" },
-            "answered_elsewhere": { "field": "type", "value": "call.answered_elsewhere" }
-          },
-          "fields": {
-            "callId": { "field": "callId" },
-            "callerName": { "field": "callerName", "fallback": "Unknown Caller" },
-            "callerPhone": { "field": "callerPhone", "fallback": "No Number" },
-            "callerAvatar": { "field": "callerAvatar" },
-            "hasVideo": { "field": "hasVideo", "fallback": "false" }
-          },
-          "app": {
-            "supportsVideo": true,
-            "enabledLogPhoneCall": true,
-            "showOverLockscreen": false,
-            "requireUnlock": true
-          }
-        }
-      ]
-    ]
-  }
-}
-```
-
-The plugin will automatically:
-- Inject shorthand `<meta-data>` config into `AndroidManifest.xml`
-- Update `MainActivity` to extend `CallxReactActivity` (Android)
-- Inject `CallxTriggers`, `CallxFields`, and `CallxApp` into `Info.plist` (iOS)
-- Add required background modes and privacy strings (iOS)
-
-### 2. Configure triggers/fields
-
-Configure via plugin options or edit native files as shown in Configuration at a glance.
-
-### 3. Initialize in JS
-
-Same initialization code as React Native CLI (in `index.js`).
-
-### 4. Build with EAS
-
-```bash
-eas build --platform android
-eas build --platform ios
-```
-
-> **💡 Note:** Expo development builds are required for native modules like Callx.
+**Theming:**
+- Android incoming UI uses a DayNight theme with `values-night/` and `drawable-night/` overrides.
+- No setup needed: the screen follows system Dark/Light automatically.
+- You can override colors by redefining `call_background_*` and `call_text_*` in your app.
 
 ---
 
 ## 🎥 Video Call Support
 
-Callx now supports both voice and video calls:
+Callx supports both voice and video calls:
 
 **Push Notification Payload:**
 ```json
@@ -380,7 +368,7 @@ interface CallData {
 
 ### Android (FCM)
 
-Callx automatically handles FCM messages for Android. Just send a data-only message (flat keys by default to match manifest/plist):
+Callx automatically handles FCM messages for Android. Just send a data-only message:
 
 ```json
 {
@@ -395,7 +383,6 @@ Callx automatically handles FCM messages for Android. Just send a data-only mess
 ```
 
 Other events:
-
 ```json
 {
   "data": { "type": "call.ended", "callId": "call-123" }
@@ -507,14 +494,11 @@ messaging().onMessage(async (remoteMessage) => {
 
 ---
 
----
-
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
 **FCM not working?**
-
 - ✅ Check `google-services.json` is in `android/app/`
 - ✅ Verify Firebase project settings
 - ✅ Test with real device (not simulator)
@@ -522,19 +506,16 @@ messaging().onMessage(async (remoteMessage) => {
 - ✅ Check Firebase dependencies are added to Gradle files
 
 **iOS VoIP not working?**
-
 - ✅ Test with real device (VoIP doesn't work in simulator)
 - ✅ Check Info.plist has voip background mode
 - ✅ Verify VoIP certificate in Apple Developer Console
 - ✅ Ensure VoIP push payload is correct
 
 **Native UI not showing?**
-
 - ✅ Check FCM configuration
 - ✅ Ensure MainActivity extends CallxReactActivity
 
 **Build errors?**
-
 - ✅ Clean and rebuild: `cd android && ./gradlew clean`
 - ✅ Check Android logs: `adb logcat | grep Callx`
 - ✅ Check iOS logs in Xcode console
@@ -685,4 +666,3 @@ const handleEndCall = async (callId) => {
     console.error('Error ending call:', error);
   }
 };
-```
