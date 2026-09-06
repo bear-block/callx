@@ -1,0 +1,16 @@
+{
+  "name": "@bear-block/callx",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OS-owned call lifecycle for React Native",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.7.2"
+  }
+}
