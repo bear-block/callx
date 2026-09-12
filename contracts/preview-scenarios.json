@@ -1,0 +1,79 @@
+[
+  {
+    "name": "incoming answer does not imply media ready",
+    "steps": [
+      {
+        "action": "incoming",
+        "state": "incoming",
+        "mediaReady": false
+      },
+      {
+        "action": "answer",
+        "state": "connecting",
+        "mediaReady": false
+      },
+      {
+        "action": "mediaConnected",
+        "state": "active",
+        "mediaReady": true
+      },
+      {
+        "action": "mute",
+        "state": "active",
+        "muted": true
+      },
+      {
+        "action": "hold",
+        "state": "held"
+      },
+      {
+        "action": "resume",
+        "state": "active"
+      },
+      {
+        "action": "end",
+        "state": "ended",
+        "mediaReady": false,
+        "endReason": "localHangup"
+      }
+    ]
+  },
+  {
+    "name": "local decline",
+    "steps": [
+      {
+        "action": "incoming",
+        "state": "incoming"
+      },
+      {
+        "action": "end",
+        "state": "ended",
+        "endReason": "declined"
+      }
+    ]
+  },
+  {
+    "name": "outgoing remote answer",
+    "steps": [
+      {
+        "action": "startCall",
+        "state": "outgoing"
+      },
+      {
+        "action": "remoteAnswered",
+        "state": "connecting",
+        "mediaReady": false
+      },
+      {
+        "action": "mediaConnected",
+        "state": "active",
+        "mediaReady": true
+      },
+      {
+        "action": "remoteEnded",
+        "state": "ended",
+        "endReason": "remoteEnded"
+      }
+    ]
+  }
+]

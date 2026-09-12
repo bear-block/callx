@@ -1,0 +1,35 @@
+{
+    "name": "Callx / Flutter Preview",
+    "short_name": "Callx Preview",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#f5f4ef",
+    "theme_color": "#172c2a",
+    "description": "SDK experience preview. Simulated calls only.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

@@ -1,0 +1,17 @@
+# Local tooling and generated output; keep the app's pubspec.lock.
+*.iml
+*.ipr
+*.iws
+*.log
+.idea/
+.dart_tool/
+.flutter-plugins-dependencies
+/build/
+/coverage/
+/ios/Flutter/.last_build_id
+/ios/.swiftpm/
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+app.*.symbols
+app.*.map.json
