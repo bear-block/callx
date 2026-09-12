@@ -4,6 +4,8 @@ const manifest = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures.json', import.meta.url), 'utf8'));
 const safeMax = Number.MAX_SAFE_INTEGER;
 const decimal = /^(0|[1-9][0-9]*)$/;
+const identifier = new RegExp(manifest.limits.identifierPattern);
+const utf8 = new TextEncoder();
 
 function object(value, path) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -16,8 +18,14 @@ function member(value, values, path) {
   if (!values.includes(value)) throw new Error(`${path} is not supported`);
 }
 
+function boundedString(value, maxBytes, path, {allowEmpty = false} = {}) {
+  if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) throw new Error(`${path} is required`);
+  if (utf8.encode(value).byteLength > maxBytes) throw new Error(`${path} exceeds ${maxBytes} UTF-8 bytes`);
+}
+
 function id(value, path) {
-  if (typeof value !== 'string' || value.trim() === '') throw new Error(`${path} is required`);
+  boundedString(value, manifest.limits.identifierMaxUtf8Bytes, path);
+  if (!identifier.test(value)) throw new Error(`${path} has invalid identifier syntax`);
 }
 
 function timestamp(value, path) {
@@ -42,11 +50,12 @@ function validateError(value, path = 'error') {
   if (typeof error.message !== 'string' || error.message.length === 0) {
     throw new Error(`${path}.message is required`);
   }
+  boundedString(error.message, manifest.limits.errorMessageMaxUtf8Bytes, `${path}.message`);
   if (typeof error.retryable !== 'boolean') throw new Error(`${path}.retryable must be boolean`);
   if (error.platform !== undefined) {
     const platform = object(error.platform, `${path}.platform`);
-    id(platform.domain, `${path}.platform.domain`);
-    id(platform.code, `${path}.platform.code`);
+    boundedString(platform.domain, manifest.limits.platformFieldMaxUtf8Bytes, `${path}.platform.domain`);
+    boundedString(platform.code, manifest.limits.platformFieldMaxUtf8Bytes, `${path}.platform.code`);
   }
 }
 
@@ -59,7 +68,7 @@ export function validateCommand(value) {
   if (command.type === 'startCall') {
     const input = object(command.input, 'command.input');
     id(input.callId, 'command.input.callId');
-    id(input.displayName, 'command.input.displayName');
+    boundedString(input.displayName, manifest.limits.displayNameMaxUtf8Bytes, 'command.input.displayName');
     if (command.callId !== undefined || command.value !== undefined) throw new Error('startCall has forbidden fields');
   } else {
     id(command.callId, 'command.callId');
@@ -128,12 +137,42 @@ export function validateEvent(value) {
   return true;
 }
 
+export function validateOperationLookup(value) {
+  const lookup = object(value, 'operationLookup');
+  version(lookup.contractVersion, 'operationLookup.contractVersion');
+  id(lookup.operationId, 'operationLookup.operationId');
+  id(lookup.accountGeneration, 'operationLookup.accountGeneration');
+  member(lookup.status, manifest.operationLookupStatuses, 'operationLookup.status');
+  if (lookup.status === 'available') {
+    validateResult(lookup.result);
+    if (lookup.result.operationId !== lookup.operationId) throw new Error('lookup operationId mismatch');
+  } else if (lookup.result !== undefined) {
+    throw new Error('unavailable lookup cannot contain result');
+  }
+  return true;
+}
+
+export function validateSession(value) {
+  const session = object(value, 'session');
+  version(session.contractVersion, 'session.contractVersion');
+  id(session.sessionId, 'session.sessionId');
+  id(session.accountGeneration, 'session.accountGeneration');
+  member(session.status, manifest.sessionOpenStatuses, 'session.status');
+  validateSnapshot(session.snapshot);
+  if (!Array.isArray(session.replay)) throw new Error('session.replay must be an array');
+  session.replay.forEach(validateEvent);
+  if (session.status === 'fresh' && session.replay.length !== 0) throw new Error('fresh session cannot replay');
+  return true;
+}
+
 export function validateFixture(value) {
   if (value.command !== undefined) validateCommand(value.command);
   if (value.result !== undefined) validateResult(value.result);
   if (value.snapshot !== undefined) validateSnapshot(value.snapshot);
   if (value.event !== undefined) validateEvent(value.event);
   if (value.call !== undefined) validateCall(value.call);
+  if (value.operationLookup !== undefined) validateOperationLookup(value.operationLookup);
+  if (value.session !== undefined) validateSession(value.session);
   return true;
 }
 

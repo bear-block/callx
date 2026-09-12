@@ -90,6 +90,36 @@
         "observedAtMs": 1790000002000,
         "callId": "call-4"
       }
+    },
+    {
+      "name": "durable operation lookup",
+      "operationLookup": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-answer-1",
+        "accountGeneration": "account-generation-7",
+        "status": "available",
+        "result": {
+          "contractVersion": "0.1.0",
+          "operationId": "op-answer-1",
+          "status": "applied",
+          "completedAtMs": 1790000000100
+        }
+      }
+    },
+    {
+      "name": "fresh observation session",
+      "session": {
+        "contractVersion": "0.1.0",
+        "sessionId": "session-1",
+        "accountGeneration": "account-generation-7",
+        "status": "fresh",
+        "snapshot": {
+          "contractVersion": "0.1.0",
+          "watermark": "12",
+          "calls": []
+        },
+        "replay": []
+      }
     }
   ],
   "invalid": [
@@ -102,6 +132,16 @@
       "name": "operation id missing",
       "path": "command.operationId",
       "value": ""
+    },
+    {
+      "name": "operation id rejects whitespace and Unicode ambiguity",
+      "path": "command.operationId",
+      "value": "op answer 1"
+    },
+    {
+      "name": "operation id rejects more than 128 bytes",
+      "path": "command.operationId",
+      "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     },
     {
       "name": "applied result with error",
