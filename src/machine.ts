@@ -1,10 +1,11 @@
 /**
  * Call state machine — a pure function.
  *
- * No I/O, no timers, no mention of the platform. It takes the current state
+ * No I/O, no running timers; the effects still contain iOS-leaning mappings. It takes the current state
  * plus an event, and returns the new state plus the list of work the native layer
  * must do. That way the whole lifecycle can be verified without a device, and
- * the Swift and Kotlin versions share one arbiter.
+ * the Swift/Kotlin versions have a starting point to compare against. Command confirmation/recovery
+ * is not complete: see docs/research/2026-09-12-technical-audit.md before the native port.
  *
  * INVARIANTS
  *  1. `ended` is terminal. The first writer wins — every end event arriving
@@ -294,15 +295,22 @@ export function reduce(reg: Registry, e: Event, now: number): Step {
       return { registry: put(reg, next), effects };
     }
 
-    case 'OS_MUTE': {
+    case 'OS_MUTE':
+    case 'LOCAL_MUTE': {
       const call = reg.calls[e.callId];
       if (call === undefined) return { registry: reg, effects: [ignored(e.callId, e, 'no call')] };
       if (!isLive(call)) return { registry: reg, effects: [ignored(e.callId, e, 'already ended')] };
       if (call.muted === e.muted) return { registry: reg, effects: [ignored(e.callId, e, 'unchanged')] };
       const next: Call = { ...call, muted: e.muted };
+      const effects: Effect[] = [];
+      // The OS applied OS_MUTE; a command from the app must sync the state back to the OS.
+      if (e.type === 'LOCAL_MUTE') {
+        effects.push({ type: 'OS_SET_MUTED', callId: call.id, muted: e.muted });
+      }
+      effects.push({ type: 'EMIT_MUTED_CHANGED', callId: call.id, muted: e.muted });
       return {
         registry: put(reg, next),
-        effects: [{ type: 'EMIT_MUTED_CHANGED', callId: call.id, muted: e.muted }],
+        effects,
       };
     }
 

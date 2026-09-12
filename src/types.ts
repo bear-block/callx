@@ -1,9 +1,10 @@
 /**
  * Call lifecycle — shared data types.
  *
- * This is the executable specification of the state machine. The Swift and Kotlin layers must
- * go through exactly these states and transitions. When the two disagree, this
- * file is the arbiter.
+ * This is an executable prototype, not a production contract yet. The native port
+ * must settle command confirmation, audio readiness and recovery per
+ * docs/adr/0002-command-observation.md before using it as a conformance oracle.
+ * Platform policy such as PushKit `mustReport` belongs to the native adapter.
  *
  * HOW STATES ARE CHOSEN
  * Something is a *state* only if it changes the set of valid actions.
@@ -27,8 +28,8 @@ export type CallDirection = 'incoming' | 'outgoing';
 export type HeldBy = 'local' | 'remote' | 'system';
 
 /**
- * Nine end reasons. The hardest thing to change later because they are written straight into the device's call
- * history — see `IOS_END_REASON` below.
+ * Nine domain reasons. Platform mapping may lose detail; domain history
+ * must be stored separately, not assumed to be written straight into OS Recents.
  */
 export type EndReason =
   | 'localHangup'
@@ -44,20 +45,17 @@ export type EndReason =
 /**
  * Mapping to CXCallEndedReason.
  *
- * `callerCancelled` and `unanswered` are two DIFFERENT reasons to the app, but
- * both map to CallKit's `unanswered` — the only way for iOS to show it
- * as a *missed call* in Recents. Using `remoteEnded` for a caller who
- * hangs up while it is ringing gives an ordinary ended call, and
- * the user loses track of the missed call.
- *
- * This is the example of the "one shape, mapped correctly per platform" thesis:
- * the app sees nine meaningful reasons, the platform sees exactly what it needs.
+ * A caller who cancels is remoteEnded in the sense of Apple's enum; unanswered
+ * is for a timeout before connecting started with no party ending the call. This mapping
+ * makes no promise about how Recents displays it. See docs/research/2026-09-12-technical-audit.md.
+ * null only says there is no matching CXCallEndedReason: a local command still needs
+ * CXEndCallAction; null must not be treated as a no-op before the action completes.
  */
 export const IOS_END_REASON = {
-  localHangup:       null,          // done by the user of this device → no report
-  declined:          null,          // CallKit already knows via CXEndCallAction
+  localHangup:       null,          // a local command must perform CXEndCallAction
+  declined:          null,          // the OS knows once CXEndCallAction is applied
   remoteEnded:       'remoteEnded',
-  callerCancelled:   'unanswered',  // ← deliberate, see above
+  callerCancelled:   'remoteEnded', // the remote side ended it; keep the domain reason separately
   unanswered:        'unanswered',
   busy:              'failed',
   failed:            'failed',
@@ -108,7 +106,8 @@ export interface Config {
   readonly ringTimeoutMs: number;
   /**
    * How long to remember that a callId was cancelled, to block an "incoming call" push arriving
-   * later. INVARIANT: must be greater than ringTimeoutMs — see `validateConfig`.
+   * later. This value must be based on the transport's late-push delivery window (and
+   * `apns-expiration`), not on `ringTimeoutMs`: the two durations are independent.
    */
   readonly tombstoneTtlMs: number;
   /**
@@ -138,22 +137,23 @@ export interface Registry {
 export type Event =
   /** An "incoming call" push, already through the native declarative mapper. JS takes no part. */
   | { type: 'PUSH_INCOMING'; callId: string; displayName?: string; handle?: string; hasVideo?: boolean }
-  /** A "cancel call" push, also from the mapper. Must work when the app has been killed. */
+  /** Transport-neutral cancel in the prototype; not permission for cancel-only PushKit pushes. */
   | { type: 'PUSH_CANCEL'; callId: string }
   /** An incoming call over an open socket — the app is alive by definition. */
   | { type: 'SIGNAL_INCOMING'; callId: string; displayName?: string; handle?: string; hasVideo?: boolean }
   | { type: 'START_CALL'; callId: string; displayName?: string; handle?: string; hasVideo?: boolean }
-  /** Operating system: the user pressed something in the OS UI. */
+  /** Simplified OS observation; native must handle action/fulfill/fail before porting. */
   | { type: 'OS_ANSWER'; callId: string }
   | { type: 'OS_END'; callId: string }
   | { type: 'OS_HOLD'; callId: string; held: boolean }
   | { type: 'OS_MUTE'; callId: string; muted: boolean }
-  /** CallKit provider reset — every call dies. No Telecom equivalent. */
+  /** Prototype for a CallKit provider reset; Android needs its own error/session lifecycle reconcile. */
   | { type: 'OS_PROVIDER_RESET' }
   /** Initiated by the app, from its in-app UI. */
   | { type: 'LOCAL_ANSWER'; callId: string }
   | { type: 'LOCAL_END'; callId: string; reason: EndReason }
   | { type: 'LOCAL_HOLD'; callId: string; held: boolean }
+  | { type: 'LOCAL_MUTE'; callId: string; muted: boolean }
   /** From the app's signaling channel — events of the OTHER END. */
   | { type: 'REMOTE_ANSWERED'; callId: string }
   | { type: 'REMOTE_RINGING'; callId: string }
@@ -176,7 +176,7 @@ export type Effect =
   | { type: 'OS_REPORT_OUTGOING'; callId: string; handle?: string; hasVideo: boolean }
   /** The other end answered — CallKit starts the call timer. */
   | { type: 'OS_REPORT_CONNECTED'; callId: string; at: number }
-  /** Tear down the call UI. A null `osReason` means the OS already knows. */
+  /** Legacy iOS-oriented effect; null needs local-action handling, it is not a no-op. */
   | { type: 'OS_REPORT_ENDED'; callId: string; osReason: string | null; at: number }
   | { type: 'OS_SET_HELD'; callId: string; held: boolean }
   | { type: 'OS_SET_MUTED'; callId: string; muted: boolean }
@@ -184,11 +184,10 @@ export type Effect =
    * Reject an incoming call before it even rings (busy, or already
    * tombstone).
    *
-   * PLATFORM WARNING: when `origin` is 'push', iOS **still requires**
-   * calling reportNewIncomingCall and then ending it at once — the PushKit rule applies to EVERY VoIP
-   * push, with no exception for rejected ones. So this path STILL
-   * flickers on iOS. A tombstone prevents endless ringing, not
-   * the flicker. Android has no such constraint, so it can be dropped silently.
+   * A domain rejection does not fulfil the PushKit obligation. Native must check the OS
+   * metadata (iOS 26.4+) or the legacy reporting policy for every delivery, including duplicates.
+   * mustReport=false does not turn VoIP pushes into a general cancel channel. The
+   * required-report policy for stale/busy/duplicate needs device evidence before release.
    */
   | { type: 'REJECT_INCOMING'; callId: string; reason: EndReason; origin: CallOrigin }
   | { type: 'START_RING_TIMER'; callId: string; ms: number }
@@ -196,7 +195,8 @@ export type Effect =
   /**
    * Emitted to JS. Queued natively if JS is not ready.
    * Carries the whole Call object rather than a few fields: the same shape as getCalls(),
-   * and property changes (remoteRinging, muted) need no separate event.
+   * so a `remoteRinging` change needs no separate event. `muted` still has its own
+   * event because a mute action needs an immediate feedback path to the media adapter.
    */
   | { type: 'EMIT_STATE_CHANGED'; call: Call }
   | { type: 'EMIT_MUTED_CHANGED'; callId: string; muted: boolean }
@@ -211,14 +211,8 @@ export interface Step {
 export class ConfigError extends Error {}
 
 export function validateConfig(c: Config): void {
-  if (c.tombstoneTtlMs <= c.ringTimeoutMs) {
-    throw new ConfigError(
-      `tombstoneTtlMs (${c.tombstoneTtlMs}) must be greater than ringTimeoutMs (${c.ringTimeoutMs}): ` +
-        `otherwise a cancel arriving after the ring timeout loses its tombstone, and a late ` +
-        `"incoming call" push rings the device for a call that was already cancelled.`,
-    );
-  }
   if (c.ringTimeoutMs <= 0) throw new ConfigError('ringTimeoutMs must be positive');
+  if (c.tombstoneTtlMs <= 0) throw new ConfigError('tombstoneTtlMs must be positive');
   if (c.endedRetentionMs < 0) throw new ConfigError('endedRetentionMs must not be negative');
 }
 

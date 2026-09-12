@@ -80,7 +80,7 @@ describe('Core matrix — scenarios', () => {
     assert.equal(call(b.registry, 'c1').state, 'ended');
     assert.equal(call(b.registry, 'c1').endReason, 'callerCancelled');
     // Must be written back to the OS, or the UI hangs on the lock screen
-    assert.equal(find(b.effects, 'OS_REPORT_ENDED').osReason, 'unanswered');
+    assert.equal(find(b.effects, 'OS_REPORT_ENDED').osReason, 'remoteEnded');
     // A tombstone is recorded to block late pushes
     assert.ok(b.registry.tombstones['c1']! > T0 + 4000);
   });
@@ -145,6 +145,17 @@ describe('Core matrix — scenarios', () => {
     assert.equal(has(c.effects, 'EMIT_STATE_CHANGED'), false);
   });
 
+  test('S-09b · mute from the app must sync back to the OS', () => {
+    const a = ringing();
+    const b = reduce(a.registry, { type: 'OS_ANSWER', callId: 'c1' }, T0 + 1000);
+    const c = reduce(b.registry, { type: 'LOCAL_MUTE', callId: 'c1', muted: true }, T0 + 2000);
+
+    assert.equal(call(c.registry, 'c1').muted, true);
+    assert.equal(call(c.registry, 'c1').state, 'active');
+    assert.equal(find(c.effects, 'OS_SET_MUTED').muted, true);
+    assert.equal(find(c.effects, 'EMIT_MUTED_CHANGED').muted, true);
+  });
+
   test('S-10 · an interrupting GSM call — the OS forces hold', () => {
     const a = ringing();
     const b = reduce(a.registry, { type: 'OS_ANSWER', callId: 'c1' }, T0 + 1000);
@@ -168,7 +179,7 @@ describe('Core matrix — scenarios', () => {
 
     const reject = find(late.effects, 'REJECT_INCOMING');
     assert.equal(reject.reason, 'callerCancelled');
-    assert.equal(reject.origin, 'push', 'the origin decides whether iOS forces a flicker');
+    assert.equal(reject.origin, 'push', 'the origin does not replace native metadata/report policy');
   });
 
   test('S-11b · once the tombstone expires, a new push rings normally again', () => {
@@ -228,9 +239,10 @@ describe('Invariants', () => {
     assert.equal(find(second.effects, 'REJECT_INCOMING').reason, 'busy');
   });
 
-  test('callerCancelled maps to unanswered so it shows as a missed call', () => {
-    assert.equal(IOS_END_REASON.callerCancelled, 'unanswered');
-    assert.notEqual(IOS_END_REASON.callerCancelled, 'remoteEnded');
+  test('remote cancel and timeout keep the meaning of the CallKit enum', () => {
+    assert.equal(IOS_END_REASON.callerCancelled, 'remoteEnded');
+    assert.equal(IOS_END_REASON.unanswered, 'unanswered');
+    assert.notEqual(IOS_END_REASON.callerCancelled, IOS_END_REASON.unanswered);
   });
 
   test('a CallKit provider reset kills every call without reporting back', () => {
@@ -286,15 +298,25 @@ describe('Invariants', () => {
 });
 
 describe('Configuration', () => {
-  test('the tombstone must outlive the ring time', () => {
+  test('the durations must be valid independently', () => {
     assert.throws(
-      () => validateConfig({ ringTimeoutMs: 60_000, tombstoneTtlMs: 30_000, endedRetentionMs: 1000 }),
+      () => validateConfig({ ringTimeoutMs: 0, tombstoneTtlMs: 60_000, endedRetentionMs: 1000 }),
       ConfigError,
     );
-    assert.doesNotThrow(() => validateConfig(DEFAULT_CONFIG));
+    assert.throws(
+      () => validateConfig({ ringTimeoutMs: 60_000, tombstoneTtlMs: 0, endedRetentionMs: 1000 }),
+      ConfigError,
+    );
+    assert.throws(
+      () => validateConfig({ ringTimeoutMs: 60_000, tombstoneTtlMs: 30_000, endedRetentionMs: -1 }),
+      ConfigError,
+    );
+    assert.doesNotThrow(
+      () => validateConfig({ ringTimeoutMs: 60_000, tombstoneTtlMs: 30_000, endedRetentionMs: 1000 }),
+    );
   });
 
-  test('the defaults satisfy the invariants', () => {
-    assert.ok(DEFAULT_CONFIG.tombstoneTtlMs > DEFAULT_CONFIG.ringTimeoutMs);
+  test('the defaults are valid', () => {
+    assert.doesNotThrow(() => validateConfig(DEFAULT_CONFIG));
   });
 });
