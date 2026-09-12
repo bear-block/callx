@@ -26,7 +26,6 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   final _events = StreamController<CallSnapshot>.broadcast(sync: true);
   CallSnapshot _snapshot = const CallSnapshot(sequence: '0');
   BigInt _sequence = BigInt.zero;
-  int _operation = 0;
   bool _ready = false;
   bool _disposed = false;
 
@@ -46,7 +45,15 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       throw const CallxException('invalidArgument', 'appName is required.');
     }
     _ready = true;
-    return const CallxCapabilities();
+    return const CallxCapabilities(
+      coreVersion: 'preview',
+      execution: ExecutionMode.preview,
+      nativeCalling: false,
+      durableReplay: false,
+      providerManagedSignaling: false,
+      hold: true,
+      mute: true,
+    );
   }
 
   void _commit(Call? call) {
@@ -86,6 +93,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
         state: direction == CallDirection.incoming
             ? CallState.incoming
             : CallState.outgoing,
+        createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
@@ -111,12 +119,18 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
               'Only incoming calls can be answered.',
             );
           }
-          _commit(call.copyWith(state: CallState.connecting));
+          _commit(
+            call.copyWith(
+              state: CallState.connecting,
+              acceptedAtMs: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
         case CommandType.end:
           _commit(
             call.copyWith(
               state: CallState.ended,
               mediaReady: false,
+              endedAtMs: DateTime.now().millisecondsSinceEpoch,
               endReason: call.state == CallState.incoming
                   ? EndReason.declined
                   : EndReason.localHangup,
@@ -147,7 +161,12 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
           );
       }
     }
-    return CommandResult('preview-op-${++_operation}');
+    return CommandResult(
+      operationId: command.operationId,
+      status: CommandStatus.applied,
+      execution: ExecutionMode.preview,
+      completedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   @override
@@ -183,7 +202,12 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
         'Only outgoing calls can be remotely answered.',
       );
     }
-    _commit(call.copyWith(state: CallState.connecting));
+    _commit(
+      call.copyWith(
+        state: CallState.connecting,
+        acceptedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   @override
@@ -195,7 +219,13 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
         'Answer before connecting media.',
       );
     }
-    _commit(call.copyWith(state: CallState.active, mediaReady: true));
+    _commit(
+      call.copyWith(
+        state: CallState.active,
+        mediaReady: true,
+        mediaConnectedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   @override
@@ -205,6 +235,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       call.copyWith(
         state: CallState.ended,
         mediaReady: false,
+        endedAtMs: DateTime.now().millisecondsSinceEpoch,
         endReason: EndReason.remoteEnded,
       ),
     );

@@ -1,6 +1,17 @@
-/** Public API preview. Native bridge deliberately not implemented. */
-export type CallState = 'incoming' | 'outgoing' | 'connecting' | 'active' | 'held' | 'ended';
-export type EndReason = 'localHangup' | 'declined' | 'remoteEnded';
+/** Contract v0 candidate. Native bridge deliberately not implemented. */
+export const CONTRACT_VERSION = '0.1.0' as const;
+export const CALL_STATES = ['incoming', 'outgoing', 'connecting', 'active', 'held', 'ended'] as const;
+export const END_REASONS = ['localHangup', 'declined', 'remoteEnded', 'callerCancelled',
+  'unanswered', 'busy', 'failed', 'answeredElsewhere', 'declinedElsewhere'] as const;
+export const COMMAND_STATUSES = ['applied', 'rejected', 'timedOut', 'unknown'] as const;
+export const ERROR_CODES = ['invalidArgument', 'notConfigured', 'callNotFound', 'busy',
+  'invalidState', 'unsupported', 'permissionDenied', 'platformRejected', 'mediaNotReady',
+  'deadlineExceeded', 'conflict', 'journalGap', 'nativeUnavailable', 'internal'] as const;
+export type CallState = typeof CALL_STATES[number];
+export type EndReason = typeof END_REASONS[number];
+export type CommandStatus = typeof COMMAND_STATUSES[number];
+export type ErrorCode = typeof ERROR_CODES[number];
+export type ExecutionMode = 'native' | 'preview';
 export interface Call {
   readonly callId: string;
   readonly displayName: string;
@@ -9,27 +20,48 @@ export interface Call {
   readonly muted: boolean;
   readonly mediaReady: boolean;
   readonly endReason?: EndReason;
+  readonly createdAtMs?: number;
+  readonly acceptedAtMs?: number;
+  readonly mediaConnectedAtMs?: number;
+  readonly endedAtMs?: number;
 }
 export interface Snapshot {
+  /** Preview alias. Production observation sessions use watermark and calls. */
   readonly sequence: string;
   readonly call: Call | null;
 }
+export interface PlatformError { readonly domain: string; readonly code: string }
+export interface OperationError {
+  readonly code: ErrorCode;
+  readonly message: string;
+  readonly retryable: boolean;
+  readonly platform?: PlatformError;
+}
 export interface CommandResult {
+  readonly contractVersion: typeof CONTRACT_VERSION;
   readonly operationId: string;
-  readonly status: 'applied';
-  readonly execution: 'preview';
+  readonly status: CommandStatus;
+  readonly execution: ExecutionMode;
+  readonly completedAtMs: number;
+  readonly error?: OperationError;
 }
 export interface CallInput { callId: string; displayName: string }
 export interface CallxConfig { appName: string }
 export interface Capabilities {
-  readonly execution: 'preview';
-  readonly nativeCalling: false;
-  readonly durableReplay: false;
+  readonly contractVersion: typeof CONTRACT_VERSION;
+  readonly coreVersion: string;
+  readonly execution: ExecutionMode;
+  readonly nativeCalling: boolean;
+  readonly durableReplay: boolean;
+  readonly providerManagedSignaling: boolean;
+  readonly hold: boolean;
+  readonly mute: boolean;
 }
+export interface CommandOptions { readonly operationId?: string; readonly deadlineAtMs?: number }
 export type Command =
-  | { type: 'startCall'; input: CallInput }
-  | { type: 'answer' | 'end'; callId: string }
-  | { type: 'setMuted' | 'setHeld'; callId: string; value: boolean };
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'startCall'; input: CallInput }
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'answer' | 'end'; callId: string }
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'setMuted' | 'setHeld'; callId: string; value: boolean };
 export class CallxError extends Error {
   constructor(public readonly code: string, message: string) {
     super(message);
@@ -45,6 +77,7 @@ export interface CallxBackend {
   dispose(): void;
 }
 export class Callx {
+  private operationCounter = 0;
   constructor(private readonly transport?: CallxBackend) {}
   private get backend(): CallxBackend {
     if (!this.transport) throw new CallxError('nativeNotImplemented',
@@ -52,20 +85,25 @@ export class Callx {
     return this.transport;
   }
   async setup(config: CallxConfig): Promise<Capabilities> { return this.backend.setup(config); }
-  async startCall(input: CallInput): Promise<CommandResult> {
-    return this.backend.execute({type: 'startCall', input});
+  private operation(options?: CommandOptions): {operationId: string; deadlineAtMs?: number} {
+    const operationId = options?.operationId ?? `callx-op-${Date.now()}-${++this.operationCounter}`;
+    if (!operationId.trim()) throw new CallxError('invalidArgument', 'operationId is required.');
+    return options?.deadlineAtMs === undefined ? {operationId} : {operationId, deadlineAtMs: options.deadlineAtMs};
   }
-  async answer(callId: string): Promise<CommandResult> {
-    return this.backend.execute({type: 'answer', callId});
+  async startCall(input: CallInput, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'startCall', input});
   }
-  async end(callId: string): Promise<CommandResult> {
-    return this.backend.execute({type: 'end', callId});
+  async answer(callId: string, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'answer', callId});
   }
-  async setMuted(callId: string, value: boolean): Promise<CommandResult> {
-    return this.backend.execute({type: 'setMuted', callId, value});
+  async end(callId: string, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'end', callId});
   }
-  async setHeld(callId: string, value: boolean): Promise<CommandResult> {
-    return this.backend.execute({type: 'setHeld', callId, value});
+  async setMuted(callId: string, value: boolean, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setMuted', callId, value});
+  }
+  async setHeld(callId: string, value: boolean, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setHeld', callId, value});
   }
   async getSnapshot(): Promise<Snapshot> { return this.backend.getSnapshot(); }
   /** Preview contract: initial snapshot is delivered immediately; unsubscribe does not end a call. */

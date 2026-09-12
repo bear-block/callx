@@ -50,7 +50,7 @@ Future<void> demo() async {
     const CallInput(callId: 'demo-1', displayName: 'hao.dev7'),
   );
   final result = await callx.answer('demo-1');
-  print(result.execution); // preview
+  print(result.execution.name); // preview
   // State is connecting, not active/audio-ready.
   await preview.simulator.mediaConnected(); // No microphone or audio is started.
   await callx.setMuted('demo-1', true);

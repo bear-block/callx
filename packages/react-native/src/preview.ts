@@ -1,4 +1,4 @@
-import {Callx, CallxError} from './index.js';
+import {Callx, CallxError, CONTRACT_VERSION} from './index.js';
 import type {Call, CallInput, CallxBackend, CallxConfig, Capabilities, Command, CommandResult, Snapshot} from './index.js';
 
 /** Memory-only UX simulator. No OS UI, microphone, push, timers, network, or replay. */
@@ -6,7 +6,6 @@ class PreviewBackend implements CallxBackend {
   private snapshot: Snapshot = Object.freeze({sequence: '0', call: null});
   private listeners = new Set<(snapshot: Snapshot) => void>();
   private sequence = 0n;
-  private operation = 0;
   private ready = false;
   private disposed = false;
   private notifying = false;
@@ -19,7 +18,9 @@ class PreviewBackend implements CallxBackend {
     this.guard(false);
     if (!config.appName.trim()) throw new CallxError('invalidArgument', 'appName is required.');
     this.ready = true;
-    return {execution: 'preview', nativeCalling: false, durableReplay: false};
+    return {contractVersion: CONTRACT_VERSION, coreVersion: 'preview', execution: 'preview',
+      nativeCalling: false, durableReplay: false, providerManagedSignaling: false,
+      hold: true, mute: true};
   }
   private commit(call: Call | null): void {
     this.snapshot = Object.freeze({sequence: String(++this.sequence), call: call ? Object.freeze({...call}) : null});
@@ -47,7 +48,8 @@ class PreviewBackend implements CallxBackend {
     this.guard();
     if (!input.callId.trim() || !input.displayName.trim()) throw new CallxError('invalidArgument', 'callId and displayName are required.');
     if (this.snapshot.call && this.snapshot.call.state !== 'ended') throw new CallxError('busy', 'One live call is supported.');
-    this.commit({...input, direction, state: direction, muted: false, mediaReady: false});
+    this.commit({...input, direction, state: direction, muted: false, mediaReady: false,
+      createdAtMs: Date.now()});
   }
   async execute(command: Command): Promise<CommandResult> {
     this.guard();
@@ -57,10 +59,10 @@ class PreviewBackend implements CallxBackend {
       switch (command.type) {
         case 'answer':
           if (call.state !== 'incoming') throw new CallxError('invalidState', 'Only incoming calls can be answered.');
-          this.commit({...call, state: 'connecting'});
+          this.commit({...call, state: 'connecting', acceptedAtMs: Date.now()});
           break;
         case 'end':
-          this.commit({...call, state: 'ended', mediaReady: false,
+          this.commit({...call, state: 'ended', mediaReady: false, endedAtMs: Date.now(),
             endReason: call.state === 'incoming' ? 'declined' : 'localHangup'});
           break;
         case 'setMuted':
@@ -71,7 +73,8 @@ class PreviewBackend implements CallxBackend {
           break;
       }
     }
-    return {operationId: 'preview-op-' + ++this.operation, status: 'applied', execution: 'preview'};
+    return {contractVersion: CONTRACT_VERSION, operationId: command.operationId,
+      status: 'applied', execution: 'preview', completedAtMs: Date.now()};
   }
   async getSnapshot(): Promise<Snapshot> { this.guard(false); return this.snapshot; }
   observe(listener: (snapshot: Snapshot) => void): () => void {
@@ -84,16 +87,16 @@ class PreviewBackend implements CallxBackend {
   async remoteAnswered(): Promise<void> {
     const call = this.requireCall();
     if (call.state !== 'outgoing') throw new CallxError('invalidState', 'Only outgoing calls can be remotely answered.');
-    this.commit({...call, state: 'connecting'});
+    this.commit({...call, state: 'connecting', acceptedAtMs: Date.now()});
   }
   async mediaConnected(): Promise<void> {
     const call = this.requireCall();
     if (call.state !== 'connecting') throw new CallxError('invalidState', 'Answer before connecting media.');
-    this.commit({...call, state: 'active', mediaReady: true});
+    this.commit({...call, state: 'active', mediaReady: true, mediaConnectedAtMs: Date.now()});
   }
   async remoteEnded(): Promise<void> {
     const call = this.requireCall();
-    this.commit({...call, state: 'ended', mediaReady: false, endReason: 'remoteEnded'});
+    this.commit({...call, state: 'ended', mediaReady: false, endedAtMs: Date.now(), endReason: 'remoteEnded'});
   }
   async reset(): Promise<void> { this.guard(); this.commit(null); }
   dispose(): void { this.disposed = true; this.listeners.clear(); }

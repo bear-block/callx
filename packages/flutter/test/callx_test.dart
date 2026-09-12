@@ -5,6 +5,23 @@ import 'package:callx/callx_preview.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('public vocabulary matches the canonical v0 manifest', () {
+    final manifest =
+        jsonDecode(File('../../contracts/v0/manifest.json').readAsStringSync())
+            as Map<String, dynamic>;
+    expect(contractVersion, manifest['contractVersion']);
+    expect(CallState.values.map((value) => value.name), manifest['callStates']);
+    expect(EndReason.values.map((value) => value.name), manifest['endReasons']);
+    expect(
+      CommandStatus.values.map((value) => value.name),
+      manifest['commandStatuses'],
+    );
+    expect(
+      CallxErrorCode.values.map((value) => value.name),
+      manifest['errorCodes'],
+    );
+  });
+
   final scenarios =
       jsonDecode(
             File('../../contracts/preview-scenarios.json').readAsStringSync(),
@@ -59,6 +76,39 @@ void main() {
         ),
       ),
     );
+  });
+  test('caller operationId survives wrapper and result', () async {
+    final preview = CallxPreview();
+    await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+    await preview.simulator.incoming(
+      const CallInput(callId: 'a', displayName: 'A'),
+    );
+    final result = await preview.callx.answer(
+      'a',
+      options: const CommandOptions(operationId: 'retry-safe-answer-1'),
+    );
+    expect(result.operationId, 'retry-safe-answer-1');
+    expect(result.contract, contractVersion);
+    expect(result.status, CommandStatus.applied);
+    expect(result.completedAtMs, isPositive);
+  });
+  test('empty operationId fails before transport execution', () async {
+    final preview = CallxPreview();
+    await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+    await expectLater(
+      preview.callx.startCall(
+        const CallInput(callId: 'a', displayName: 'A'),
+        options: const CommandOptions(operationId: ' '),
+      ),
+      throwsA(
+        isA<CallxException>().having(
+          (error) => error.code,
+          'code',
+          'invalidArgument',
+        ),
+      ),
+    );
+    expect((await preview.callx.getSnapshot()).call, isNull);
   });
   test('setup, busy, wrong ID and disposal errors', () async {
     final preview = CallxPreview();

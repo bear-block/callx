@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Callx} from '../lib/index.js';
+import {CALL_STATES, COMMAND_STATUSES, CONTRACT_VERSION, END_REASONS, ERROR_CODES} from '../lib/index.js';
 import {createCallxPreview} from '../lib/preview.js';
 const scenarios = JSON.parse(readFileSync(new URL('../../../contracts/preview-scenarios.json', import.meta.url), 'utf8'));
 for (const scenario of scenarios) test(scenario.name, async () => {
@@ -29,6 +30,31 @@ for (const scenario of scenarios) test(scenario.name, async () => {
 });
 test('native mode never silently mocks', async () => {
   await assert.rejects(new Callx().setup({appName:'Acme'}), {code:'nativeNotImplemented'});
+});
+test('public vocabulary matches the canonical v0 manifest', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../../../contracts/v0/manifest.json', import.meta.url), 'utf8'));
+  assert.equal(CONTRACT_VERSION, manifest.contractVersion);
+  assert.deepEqual(CALL_STATES, manifest.callStates);
+  assert.deepEqual(END_REASONS, manifest.endReasons);
+  assert.deepEqual(COMMAND_STATUSES, manifest.commandStatuses);
+  assert.deepEqual(ERROR_CODES, manifest.errorCodes);
+});
+test('caller operationId survives the wrapper and result', async () => {
+  const {callx,simulator}=createCallxPreview();
+  await callx.setup({appName:'Acme'});
+  await simulator.incoming({callId:'a',displayName:'A'});
+  const result=await callx.answer('a',{operationId:'retry-safe-answer-1'});
+  assert.equal(result.operationId,'retry-safe-answer-1');
+  assert.equal(result.contractVersion,CONTRACT_VERSION);
+  assert.equal(result.status,'applied');
+  assert.ok(Number.isSafeInteger(result.completedAtMs));
+});
+test('empty operationId fails before transport execution', async () => {
+  const {callx}=createCallxPreview();
+  await callx.setup({appName:'Acme'});
+  await assert.rejects(callx.startCall({callId:'a',displayName:'A'},{operationId:' '}),
+    {code:'invalidArgument'});
+  assert.equal((await callx.getSnapshot()).call,null);
 });
 test('reentrant observer commands preserve snapshot order for other observers', async () => {
   const {callx,simulator}=createCallxPreview();

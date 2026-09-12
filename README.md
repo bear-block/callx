@@ -30,6 +30,8 @@ real audio/push/system UI. Both projects block publishing.
 Before development: read the [two-SDK design](docs/architecture/02-dual-sdk.md) and
 [architecture readiness](docs/plan/05-architecture-readiness.md). The architecture direction has a basis;
 there is not yet enough native/build/device evidence to confirm implementation-ready.
+[Contract v0.1.0](docs/contract/v0.md) is currently a review candidate with a manifest/validator/fixtures,
+not a stable API or native evidence.
 
 ## Important boundaries
 

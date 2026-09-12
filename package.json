@@ -6,6 +6,7 @@
   "description": "OS-owned call lifecycle for React Native",
   "license": "MIT",
   "scripts": {
+    "contract:test": "node contracts/v0/validate.mjs",
     "test": "node --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

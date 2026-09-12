@@ -1,0 +1,133 @@
+{
+  "valid": [
+    {
+      "name": "applied answer",
+      "command": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-answer-1",
+        "type": "answer",
+        "callId": "call-1",
+        "deadlineAtMs": 1790000005000
+      },
+      "result": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-answer-1",
+        "status": "applied",
+        "completedAtMs": 1790000000100
+      }
+    },
+    {
+      "name": "platform rejection is a result",
+      "command": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-answer-2",
+        "type": "answer",
+        "callId": "call-2",
+        "deadlineAtMs": 1790000005000
+      },
+      "result": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-answer-2",
+        "status": "rejected",
+        "completedAtMs": 1790000000200,
+        "error": {
+          "code": "platformRejected",
+          "message": "The platform rejected the answer action.",
+          "retryable": false,
+          "platform": {
+            "domain": "CXErrorDomainRequestTransaction",
+            "code": "4"
+          }
+        }
+      }
+    },
+    {
+      "name": "lost response remains queryable",
+      "command": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-mute-1",
+        "type": "setMuted",
+        "callId": "call-3",
+        "value": true,
+        "deadlineAtMs": 1790000005000
+      },
+      "result": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-mute-1",
+        "status": "unknown",
+        "completedAtMs": 1790000005000,
+        "error": {
+          "code": "deadlineExceeded",
+          "message": "Outcome must be reconciled by operationId.",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "name": "snapshot and event cursor",
+      "snapshot": {
+        "contractVersion": "0.1.0",
+        "watermark": "9007199254740993",
+        "calls": [
+          {
+            "callId": "call-4",
+            "direction": "incoming",
+            "state": "connecting",
+            "displayName": "hao.dev7",
+            "muted": false,
+            "mediaReady": false,
+            "createdAtMs": 1790000000000,
+            "acceptedAtMs": 1790000001000
+          }
+        ]
+      },
+      "event": {
+        "contractVersion": "0.1.0",
+        "eventId": "event-4",
+        "sequence": "9007199254740994",
+        "kind": "callChanged",
+        "source": "media",
+        "observedAtMs": 1790000002000,
+        "callId": "call-4"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "numeric sequence loses JS precision",
+      "path": "event.sequence",
+      "value": 9007199254740992
+    },
+    {
+      "name": "operation id missing",
+      "path": "command.operationId",
+      "value": ""
+    },
+    {
+      "name": "applied result with error",
+      "path": "result",
+      "value": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-invalid-result",
+        "status": "applied",
+        "completedAtMs": 1790000000000,
+        "error": {
+          "code": "internal",
+          "message": "An applied result cannot also be an error.",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "active without media readiness is not allowed by v0",
+      "path": "call",
+      "value": {
+        "callId": "call-invalid-active",
+        "direction": "incoming",
+        "state": "active",
+        "muted": false,
+        "mediaReady": false
+      }
+    }
+  ]
+}

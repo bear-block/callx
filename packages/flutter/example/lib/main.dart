@@ -79,8 +79,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
       final result = await action();
       if (result is CommandResult && mounted) {
         setState(
-          () =>
-              journal.insert(0, '${result.operationId}  · applied in preview'),
+          () => journal.insert(
+            0,
+            '${result.operationId}  · ${result.status.name} in ${result.execution.name}',
+          ),
         );
         if (journal.length > 8) journal.removeLast();
       }

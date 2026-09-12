@@ -1,0 +1,80 @@
+{
+  "contractVersion": "0.1.0",
+  "wireEncoding": {
+    "counter": "unsigned decimal string",
+    "timestamp": "integer milliseconds since Unix epoch within 0..9007199254740991",
+    "optional": "field omitted; null only where schema explicitly permits",
+    "enum": "closed for commands; receivers preserve unknown event/error values for diagnostics"
+  },
+  "callStates": [
+    "incoming",
+    "outgoing",
+    "connecting",
+    "active",
+    "held",
+    "ended"
+  ],
+  "callDirections": [
+    "incoming",
+    "outgoing"
+  ],
+  "endReasons": [
+    "localHangup",
+    "declined",
+    "remoteEnded",
+    "callerCancelled",
+    "unanswered",
+    "busy",
+    "failed",
+    "answeredElsewhere",
+    "declinedElsewhere"
+  ],
+  "commandTypes": [
+    "startCall",
+    "answer",
+    "end",
+    "setMuted",
+    "setHeld"
+  ],
+  "commandStatuses": [
+    "applied",
+    "rejected",
+    "timedOut",
+    "unknown"
+  ],
+  "errorCodes": [
+    "invalidArgument",
+    "notConfigured",
+    "callNotFound",
+    "busy",
+    "invalidState",
+    "unsupported",
+    "permissionDenied",
+    "platformRejected",
+    "mediaNotReady",
+    "deadlineExceeded",
+    "conflict",
+    "journalGap",
+    "nativeUnavailable",
+    "internal"
+  ],
+  "eventKinds": [
+    "callChanged",
+    "operationCompleted",
+    "resyncRequired"
+  ],
+  "eventSources": [
+    "local",
+    "platform",
+    "signaling",
+    "media",
+    "recovery"
+  ],
+  "capabilities": [
+    "nativeCalling",
+    "durableReplay",
+    "providerManagedSignaling",
+    "hold",
+    "mute"
+  ]
+}
