@@ -11,6 +11,8 @@ export type CallState = typeof CALL_STATES[number];
 export type EndReason = typeof END_REASONS[number];
 export type CommandStatus = typeof COMMAND_STATUSES[number];
 export type OperationLookupStatus = 'available' | 'unavailable' | 'generationMismatch';
+export type SessionOpenStatus = 'fresh' | 'resumed' | 'resynced';
+export type EventKind = 'callChanged' | 'operationCompleted' | 'resyncRequired';
 export type ErrorCode = typeof ERROR_CODES[number];
 export type ExecutionMode = 'native' | 'preview';
 export interface Call {
@@ -53,6 +55,29 @@ export interface OperationLookup {
   readonly status: OperationLookupStatus;
   readonly result?: CommandResult;
 }
+export interface CallEvent {
+  readonly contractVersion: typeof CONTRACT_VERSION;
+  readonly eventId: string;
+  readonly sequence: string;
+  readonly kind: EventKind;
+  readonly source: 'local' | 'platform' | 'signaling' | 'media' | 'recovery';
+  readonly observedAtMs: number;
+  readonly callId?: string;
+  readonly operationId?: string;
+}
+export interface ObservationSnapshot {
+  readonly contractVersion: typeof CONTRACT_VERSION;
+  readonly watermark: string;
+  readonly calls: readonly Call[];
+}
+export interface ObservationSession {
+  readonly contractVersion: typeof CONTRACT_VERSION;
+  readonly sessionId: string;
+  readonly accountGeneration: string;
+  readonly status: SessionOpenStatus;
+  readonly snapshot: ObservationSnapshot;
+  readonly replay: readonly CallEvent[];
+}
 export interface CallInput { callId: string; displayName: string }
 export interface CallxConfig { appName: string }
 export interface Capabilities {
@@ -82,6 +107,10 @@ export interface CallxBackend {
   setup(config: CallxConfig): Promise<Capabilities>;
   execute(command: Command): Promise<CommandResult>;
   queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup>;
+  openSession(afterSequence?: string): Promise<ObservationSession>;
+  observeEvents(sessionId: string, listener: (event: CallEvent) => void): () => void;
+  acknowledge(sessionId: string, throughSequence: string): Promise<void>;
+  closeSession(sessionId: string): Promise<void>;
   getSnapshot(): Promise<Snapshot>;
   observe(listener: (snapshot: Snapshot) => void): () => void;
   dispose(): void;
@@ -118,6 +147,16 @@ export class Callx {
   async queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup> {
     return this.backend.queryOperation(operationId, accountGeneration);
   }
+  async openSession(afterSequence?: string): Promise<ObservationSession> {
+    return this.backend.openSession(afterSequence);
+  }
+  observeEvents(sessionId: string, listener: (event: CallEvent) => void): () => void {
+    return this.backend.observeEvents(sessionId, listener);
+  }
+  async acknowledge(sessionId: string, throughSequence: string): Promise<void> {
+    return this.backend.acknowledge(sessionId, throughSequence);
+  }
+  async closeSession(sessionId: string): Promise<void> { return this.backend.closeSession(sessionId); }
   async getSnapshot(): Promise<Snapshot> { return this.backend.getSnapshot(); }
   /** Preview contract: initial snapshot is delivered immediately; unsubscribe does not end a call. */
   observe(listener: (snapshot: Snapshot) => void): () => void { return this.backend.observe(listener); }

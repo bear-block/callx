@@ -145,6 +145,45 @@ void main() {
       expect(result.error?.code, CallxErrorCode.conflict);
     },
   );
+  test(
+    'observation session snapshots, replays and acknowledges events',
+    () async {
+      final preview = CallxPreview();
+      await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+      final fresh = await preview.callx.openSession();
+      expect(fresh.status, SessionOpenStatus.fresh);
+      expect(fresh.replay, isEmpty);
+      final live = <CallEvent>[];
+      // Event between open and listener attach must be buffered by the session.
+      await preview.simulator.incoming(
+        const CallInput(callId: 'a', displayName: 'A'),
+      );
+      final subscription = preview.callx
+          .eventsFor(fresh.sessionId)
+          .listen(live.add);
+      await preview.callx.answer(
+        'a',
+        options: const CommandOptions(operationId: 'observed-answer'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(live.map((event) => event.kind), [
+        CallEventKind.callChanged,
+        CallEventKind.callChanged,
+        CallEventKind.operationCompleted,
+      ]);
+      await preview.callx.acknowledge(fresh.sessionId, live.last.sequence);
+      await subscription.cancel();
+      await preview.callx.closeSession(fresh.sessionId);
+      final resumed = await preview.callx.openSession('0');
+      expect(resumed.status, SessionOpenStatus.resumed);
+      expect(resumed.replay.map((event) => event.sequence), ['1', '2', '3']);
+      expect(resumed.snapshot.watermark, '3');
+      expect(resumed.snapshot.calls.single.state, CallState.connecting);
+      final resynced = await preview.callx.openSession('999');
+      expect(resynced.status, SessionOpenStatus.resynced);
+      expect(resynced.replay, isEmpty);
+    },
+  );
   test('empty operationId fails before transport execution', () async {
     final preview = CallxPreview();
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));

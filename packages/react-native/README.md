@@ -91,6 +91,9 @@ provider/media wiring will remain separate steps. TurboModule autolinking does n
   `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
   `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
   command never ran.
+- Durable-observation shape is available through `openSession(afterSequence?)`,
+  `observeEvents(sessionId, listener)`, `acknowledge(...)`, and `closeSession(...)`. Preview
+  replay is memory-only and deliberately reports `durableReplay: false`.
 - Immutable snapshots include decimal-string sequence. observe gives current state immediately.
 - Unsubscribe is independent from ending a call.
 - No native UI, push, background runtime, real audio, network, timeout simulation or durable replay.

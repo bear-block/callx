@@ -23,6 +23,12 @@ enum CommandStatus { applied, rejected, timedOut, unknown }
 
 enum OperationLookupStatus { available, unavailable, generationMismatch }
 
+enum SessionOpenStatus { fresh, resumed, resynced }
+
+enum CallEventKind { callChanged, operationCompleted, resyncRequired }
+
+enum CallEventSource { local, platform, signaling, media, recovery }
+
 enum CallxErrorCode {
   invalidArgument,
   notConfigured,
@@ -138,6 +144,49 @@ final class OperationLookup {
   final CommandResult? result;
 }
 
+final class CallEvent {
+  const CallEvent({
+    required this.eventId,
+    required this.sequence,
+    required this.kind,
+    required this.source,
+    required this.observedAtMs,
+    this.callId,
+    this.operationId,
+  });
+  String get contract => contractVersion;
+  final String eventId;
+  final String sequence;
+  final CallEventKind kind;
+  final CallEventSource source;
+  final int observedAtMs;
+  final String? callId;
+  final String? operationId;
+}
+
+final class ObservationSnapshot {
+  const ObservationSnapshot({required this.watermark, required this.calls});
+  String get contract => contractVersion;
+  final String watermark;
+  final List<Call> calls;
+}
+
+final class ObservationSession {
+  const ObservationSession({
+    required this.sessionId,
+    required this.accountGeneration,
+    required this.status,
+    required this.snapshot,
+    required this.replay,
+  });
+  String get contract => contractVersion;
+  final String sessionId;
+  final String accountGeneration;
+  final SessionOpenStatus status;
+  final ObservationSnapshot snapshot;
+  final List<CallEvent> replay;
+}
+
 final class CallxCapabilities {
   const CallxCapabilities({
     required this.coreVersion,
@@ -221,6 +270,10 @@ abstract interface class CallxBackend {
     String operationId,
     String accountGeneration,
   );
+  Future<ObservationSession> openSession([String? afterSequence]);
+  Stream<CallEvent> eventsFor(String sessionId);
+  Future<void> acknowledge(String sessionId, String throughSequence);
+  Future<void> closeSession(String sessionId);
   Future<CallSnapshot> getSnapshot();
   Stream<CallSnapshot> get snapshots;
   Future<void> dispose();
@@ -319,6 +372,15 @@ final class Callx {
     String operationId,
     String accountGeneration,
   ) async => _backend.queryOperation(operationId, accountGeneration);
+
+  Future<ObservationSession> openSession([String? afterSequence]) async =>
+      _backend.openSession(afterSequence);
+  Stream<CallEvent> eventsFor(String sessionId) =>
+      _backend.eventsFor(sessionId);
+  Future<void> acknowledge(String sessionId, String throughSequence) async =>
+      _backend.acknowledge(sessionId, throughSequence);
+  Future<void> closeSession(String sessionId) async =>
+      _backend.closeSession(sessionId);
 
   /// Each listener gets the current snapshot, followed by changes.
   Stream<CallSnapshot> get snapshots => _backend.snapshots;

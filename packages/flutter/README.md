@@ -88,6 +88,9 @@ cannot establish those capabilities.
   `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
   `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
   command never ran.
+- Durable-observation shape is available through `openSession([afterSequence])`,
+  `eventsFor(sessionId)`, `acknowledge(...)`, and `closeSession(...)`. Preview replay is
+  memory-only and deliberately reports `durableReplay: false`.
 - Snapshots are immutable, include a decimal-string sequence and current call.
 - Each stream subscriber receives current snapshot plus changes. No durable replay/ack.
 - No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.

@@ -72,6 +72,29 @@ test('reusing operationId with different arguments returns conflict', async () =
   assert.equal(result.status,'rejected');
   assert.equal(result.error.code,'conflict');
 });
+test('observation session snapshots, replays and acknowledges ordered events', async () => {
+  const {callx,simulator}=createCallxPreview();
+  await callx.setup({appName:'Acme'});
+  const fresh=await callx.openSession();
+  assert.equal(fresh.status,'fresh');
+  assert.deepEqual(fresh.replay,[]);
+  const live=[];
+  // Event between open and listener attach must be buffered by the session.
+  await simulator.incoming({callId:'a',displayName:'A'});
+  const off=callx.observeEvents(fresh.sessionId,event=>live.push(event));
+  await callx.answer('a',{operationId:'observed-answer'});
+  assert.deepEqual(live.map(event=>event.kind),['callChanged','callChanged','operationCompleted']);
+  await callx.acknowledge(fresh.sessionId,live.at(-1).sequence);
+  off(); await callx.closeSession(fresh.sessionId);
+  const resumed=await callx.openSession('0');
+  assert.equal(resumed.status,'resumed');
+  assert.deepEqual(resumed.replay.map(event=>event.sequence),['1','2','3']);
+  assert.equal(resumed.snapshot.watermark,'3');
+  assert.equal(resumed.snapshot.calls[0].state,'connecting');
+  const resynced=await callx.openSession('999');
+  assert.equal(resynced.status,'resynced');
+  assert.deepEqual(resynced.replay,[]);
+});
 test('empty operationId fails before transport execution', async () => {
   const {callx}=createCallxPreview();
   await callx.setup({appName:'Acme'});

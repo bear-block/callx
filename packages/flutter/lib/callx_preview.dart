@@ -27,6 +27,12 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   final Map<String, ({String fingerprint, CommandResult result})> _operations =
       {};
   final _events = StreamController<CallSnapshot>.broadcast(sync: true);
+  final _callEvents = StreamController<CallEvent>.broadcast(sync: true);
+  final List<CallEvent> _journal = [];
+  final List<CallEvent> _pendingSessionEvents = [];
+  String? _activeSessionId;
+  BigInt _acknowledged = BigInt.zero;
+  int _sessionCounter = 0;
   CallSnapshot _snapshot = const CallSnapshot(sequence: '0');
   BigInt _sequence = BigInt.zero;
   bool _ready = false;
@@ -63,7 +69,26 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   void _commit(Call? call) {
     _sequence += BigInt.one;
     _snapshot = CallSnapshot(sequence: _sequence.toString(), call: call);
+    _appendEvent(CallEventKind.callChanged, callId: call?.callId);
     _events.add(_snapshot);
+  }
+
+  void _appendEvent(CallEventKind kind, {String? callId, String? operationId}) {
+    final event = CallEvent(
+      eventId: 'preview-event-$_sequence',
+      sequence: _sequence.toString(),
+      kind: kind,
+      source: CallEventSource.local,
+      observedAtMs: DateTime.now().millisecondsSinceEpoch,
+      callId: callId,
+      operationId: operationId,
+    );
+    _journal.add(event);
+    if (_journal.length > 2048) _journal.removeAt(0);
+    if (_activeSessionId != null && !_callEvents.hasListener) {
+      _pendingSessionEvents.add(event);
+    }
+    _callEvents.add(event);
   }
 
   Call _requireCall([String? id]) {
@@ -193,6 +218,15 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       fingerprint: fingerprint,
       result: result,
     );
+    _sequence += BigInt.one;
+    _snapshot = CallSnapshot(
+      sequence: _sequence.toString(),
+      call: _snapshot.call,
+    );
+    _appendEvent(
+      CallEventKind.operationCompleted,
+      operationId: command.operationId,
+    );
     return result;
   }
 
@@ -218,6 +252,96 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
           : OperationLookupStatus.available,
       result: result,
     );
+  }
+
+  @override
+  Future<ObservationSession> openSession([String? afterSequence]) async {
+    _guard();
+    var status = afterSequence == null
+        ? SessionOpenStatus.fresh
+        : SessionOpenStatus.resumed;
+    var replay = <CallEvent>[];
+    if (afterSequence != null) {
+      final after = BigInt.tryParse(afterSequence);
+      if (after == null ||
+          after.isNegative ||
+          after.toString() != afterSequence) {
+        throw const CallxException('invalidArgument', 'Invalid sequence.');
+      }
+      final earliest = _journal.isEmpty
+          ? _sequence + BigInt.one
+          : BigInt.parse(_journal.first.sequence);
+      if (after > _sequence || after + BigInt.one < earliest) {
+        status = SessionOpenStatus.resynced;
+      } else {
+        replay = _journal
+            .where((event) => BigInt.parse(event.sequence) > after)
+            .toList(growable: false);
+      }
+    }
+    _activeSessionId = 'preview-session-${++_sessionCounter}';
+    _pendingSessionEvents.clear();
+    _acknowledged = BigInt.zero;
+    return ObservationSession(
+      sessionId: _activeSessionId!,
+      accountGeneration: _accountGeneration,
+      status: status,
+      snapshot: ObservationSnapshot(
+        watermark: _sequence.toString(),
+        calls: _snapshot.call == null ? const [] : [_snapshot.call!],
+      ),
+      replay: replay,
+    );
+  }
+
+  @override
+  Stream<CallEvent> eventsFor(String sessionId) {
+    _guard();
+    if (_activeSessionId != sessionId) {
+      throw const CallxException(
+        'invalidArgument',
+        'Observation session is not active.',
+      );
+    }
+    return Stream<CallEvent>.multi((controller) {
+      for (final event in _pendingSessionEvents) {
+        controller.add(event);
+      }
+      _pendingSessionEvents.clear();
+      final subscription = _callEvents.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = subscription.cancel;
+    }, isBroadcast: true);
+  }
+
+  @override
+  Future<void> acknowledge(String sessionId, String throughSequence) async {
+    _guard();
+    final value = BigInt.tryParse(throughSequence);
+    if (_activeSessionId != sessionId ||
+        value == null ||
+        value.isNegative ||
+        value.toString() != throughSequence ||
+        value < _acknowledged ||
+        value > _sequence) {
+      throw const CallxException(
+        'invalidArgument',
+        'Invalid session acknowledgement.',
+      );
+    }
+    _acknowledged = value;
+  }
+
+  @override
+  Future<void> closeSession(String sessionId) async {
+    _guard();
+    if (_activeSessionId == sessionId) {
+      _activeSessionId = null;
+      _pendingSessionEvents.clear();
+    }
   }
 
   @override
@@ -303,5 +427,6 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
     if (_disposed) return;
     _disposed = true;
     await _events.close();
+    await _callEvents.close();
   }
 }
