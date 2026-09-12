@@ -10,6 +10,7 @@ export const ERROR_CODES = ['invalidArgument', 'notConfigured', 'callNotFound', 
 export type CallState = typeof CALL_STATES[number];
 export type EndReason = typeof END_REASONS[number];
 export type CommandStatus = typeof COMMAND_STATUSES[number];
+export type OperationLookupStatus = 'available' | 'unavailable' | 'generationMismatch';
 export type ErrorCode = typeof ERROR_CODES[number];
 export type ExecutionMode = 'native' | 'preview';
 export interface Call {
@@ -45,12 +46,20 @@ export interface CommandResult {
   readonly completedAtMs: number;
   readonly error?: OperationError;
 }
+export interface OperationLookup {
+  readonly contractVersion: typeof CONTRACT_VERSION;
+  readonly operationId: string;
+  readonly accountGeneration: string;
+  readonly status: OperationLookupStatus;
+  readonly result?: CommandResult;
+}
 export interface CallInput { callId: string; displayName: string }
 export interface CallxConfig { appName: string }
 export interface Capabilities {
   readonly contractVersion: typeof CONTRACT_VERSION;
   readonly coreVersion: string;
   readonly execution: ExecutionMode;
+  readonly accountGeneration: string;
   readonly nativeCalling: boolean;
   readonly durableReplay: boolean;
   readonly providerManagedSignaling: boolean;
@@ -72,6 +81,7 @@ export class CallxError extends Error {
 export interface CallxBackend {
   setup(config: CallxConfig): Promise<Capabilities>;
   execute(command: Command): Promise<CommandResult>;
+  queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup>;
   getSnapshot(): Promise<Snapshot>;
   observe(listener: (snapshot: Snapshot) => void): () => void;
   dispose(): void;
@@ -104,6 +114,9 @@ export class Callx {
   }
   async setHeld(callId: string, value: boolean, options?: CommandOptions): Promise<CommandResult> {
     return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setHeld', callId, value});
+  }
+  async queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup> {
+    return this.backend.queryOperation(operationId, accountGeneration);
   }
   async getSnapshot(): Promise<Snapshot> { return this.backend.getSnapshot(); }
   /** Preview contract: initial snapshot is delivered immediately; unsubscribe does not end a call. */

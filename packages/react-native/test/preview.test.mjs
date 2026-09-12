@@ -49,6 +49,29 @@ test('caller operationId survives the wrapper and result', async () => {
   assert.equal(result.status,'applied');
   assert.ok(Number.isSafeInteger(result.completedAtMs));
 });
+test('same operation is idempotent and its terminal result is queryable', async () => {
+  const {callx,simulator}=createCallxPreview();
+  const capabilities=await callx.setup({appName:'Acme'});
+  await simulator.incoming({callId:'a',displayName:'A'});
+  const options={operationId:'answer-once'};
+  const first=await callx.answer('a',options);
+  const second=await callx.answer('a',options);
+  assert.strictEqual(second,first);
+  const lookup=await callx.queryOperation('answer-once',capabilities.accountGeneration);
+  assert.equal(lookup.status,'available');
+  assert.strictEqual(lookup.result,first);
+  assert.equal((await callx.queryOperation('missing',capabilities.accountGeneration)).status,'unavailable');
+  assert.equal((await callx.queryOperation('answer-once','old-generation')).status,'generationMismatch');
+});
+test('reusing operationId with different arguments returns conflict', async () => {
+  const {callx,simulator}=createCallxPreview();
+  await callx.setup({appName:'Acme'});
+  await simulator.incoming({callId:'a',displayName:'A'});
+  await callx.answer('a',{operationId:'reused'});
+  const result=await callx.end('a',{operationId:'reused'});
+  assert.equal(result.status,'rejected');
+  assert.equal(result.error.code,'conflict');
+});
 test('empty operationId fails before transport execution', async () => {
   const {callx}=createCallxPreview();
   await callx.setup({appName:'Acme'});

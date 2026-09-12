@@ -92,6 +92,59 @@ void main() {
     expect(result.status, CommandStatus.applied);
     expect(result.completedAtMs, isPositive);
   });
+  test('same operation is idempotent and its result is queryable', () async {
+    final preview = CallxPreview();
+    final capabilities = await preview.callx.setup(
+      const CallxConfig(appName: 'Acme'),
+    );
+    await preview.simulator.incoming(
+      const CallInput(callId: 'a', displayName: 'A'),
+    );
+    const options = CommandOptions(operationId: 'answer-once');
+    final first = await preview.callx.answer('a', options: options);
+    final second = await preview.callx.answer('a', options: options);
+    expect(identical(second, first), isTrue);
+    final lookup = await preview.callx.queryOperation(
+      'answer-once',
+      capabilities.accountGeneration,
+    );
+    expect(lookup.status, OperationLookupStatus.available);
+    expect(identical(lookup.result, first), isTrue);
+    expect(
+      (await preview.callx.queryOperation(
+        'missing',
+        capabilities.accountGeneration,
+      )).status,
+      OperationLookupStatus.unavailable,
+    );
+    expect(
+      (await preview.callx.queryOperation(
+        'answer-once',
+        'old-generation',
+      )).status,
+      OperationLookupStatus.generationMismatch,
+    );
+  });
+  test(
+    'reusing operationId with different arguments returns conflict',
+    () async {
+      final preview = CallxPreview();
+      await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+      await preview.simulator.incoming(
+        const CallInput(callId: 'a', displayName: 'A'),
+      );
+      await preview.callx.answer(
+        'a',
+        options: const CommandOptions(operationId: 'reused'),
+      );
+      final result = await preview.callx.end(
+        'a',
+        options: const CommandOptions(operationId: 'reused'),
+      );
+      expect(result.status, CommandStatus.rejected);
+      expect(result.error?.code, CallxErrorCode.conflict);
+    },
+  );
   test('empty operationId fails before transport execution', () async {
     final preview = CallxPreview();
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));

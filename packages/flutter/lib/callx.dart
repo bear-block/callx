@@ -21,6 +21,8 @@ enum EndReason {
 
 enum CommandStatus { applied, rejected, timedOut, unknown }
 
+enum OperationLookupStatus { available, unavailable, generationMismatch }
+
 enum CallxErrorCode {
   invalidArgument,
   notConfigured,
@@ -122,10 +124,25 @@ final class CommandResult {
   final OperationError? error;
 }
 
+final class OperationLookup {
+  const OperationLookup({
+    required this.operationId,
+    required this.accountGeneration,
+    required this.status,
+    this.result,
+  });
+  String get contract => contractVersion;
+  final String operationId;
+  final String accountGeneration;
+  final OperationLookupStatus status;
+  final CommandResult? result;
+}
+
 final class CallxCapabilities {
   const CallxCapabilities({
     required this.coreVersion,
     required this.execution,
+    required this.accountGeneration,
     required this.nativeCalling,
     required this.durableReplay,
     required this.providerManagedSignaling,
@@ -135,6 +152,7 @@ final class CallxCapabilities {
   String get contract => contractVersion;
   final String coreVersion;
   final ExecutionMode execution;
+  final String accountGeneration;
   final bool nativeCalling;
   final bool durableReplay;
   final bool providerManagedSignaling;
@@ -199,6 +217,10 @@ final class CallCommand {
 abstract interface class CallxBackend {
   Future<CallxCapabilities> setup(CallxConfig config);
   Future<CommandResult> execute(CallCommand command);
+  Future<OperationLookup> queryOperation(
+    String operationId,
+    String accountGeneration,
+  );
   Future<CallSnapshot> getSnapshot();
   Stream<CallSnapshot> get snapshots;
   Future<void> dispose();
@@ -292,6 +314,11 @@ final class Callx {
   }
 
   Future<CallSnapshot> getSnapshot() async => _backend.getSnapshot();
+
+  Future<OperationLookup> queryOperation(
+    String operationId,
+    String accountGeneration,
+  ) async => _backend.queryOperation(operationId, accountGeneration);
 
   /// Each listener gets the current snapshot, followed by changes.
   Stream<CallSnapshot> get snapshots => _backend.snapshots;

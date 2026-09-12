@@ -87,6 +87,10 @@ provider/media wiring will remain separate steps. TurboModule autolinking does n
 
 - One live call; incoming/outgoing → connecting → active/held → ended.
 - Typed commands return operationId/status/execution; invalid operations throw CallxError.
+- Save `capabilities.accountGeneration`, then use
+  `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
+  `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
+  command never ran.
 - Immutable snapshots include decimal-string sequence. observe gives current state immediately.
 - Unsubscribe is independent from ending a call.
 - No native UI, push, background runtime, real audio, network, timeout simulation or durable replay.

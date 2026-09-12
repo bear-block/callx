@@ -23,6 +23,9 @@ final class CallxPreview {
 }
 
 final class _PreviewBackend implements CallxBackend, CallxSimulator {
+  static const _accountGeneration = 'preview-generation-1';
+  final Map<String, ({String fingerprint, CommandResult result})> _operations =
+      {};
   final _events = StreamController<CallSnapshot>.broadcast(sync: true);
   CallSnapshot _snapshot = const CallSnapshot(sequence: '0');
   BigInt _sequence = BigInt.zero;
@@ -48,6 +51,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
     return const CallxCapabilities(
       coreVersion: 'preview',
       execution: ExecutionMode.preview,
+      accountGeneration: _accountGeneration,
       nativeCalling: false,
       durableReplay: false,
       providerManagedSignaling: false,
@@ -101,6 +105,24 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   @override
   Future<CommandResult> execute(CallCommand command) async {
     _guard();
+    final fingerprint =
+        '${command.type.name}|${command.callId ?? command.input?.callId}|'
+        '${command.input?.displayName}|${command.value}';
+    final previous = _operations[command.operationId];
+    if (previous != null) {
+      if (previous.fingerprint == fingerprint) return previous.result;
+      return CommandResult(
+        operationId: command.operationId,
+        status: CommandStatus.rejected,
+        execution: ExecutionMode.preview,
+        completedAtMs: DateTime.now().millisecondsSinceEpoch,
+        error: const OperationError(
+          code: CallxErrorCode.conflict,
+          message: 'operationId was already used with different arguments.',
+          retryable: false,
+        ),
+      );
+    }
     if (command.type == CommandType.startCall) {
       if (command.input == null) {
         throw const CallxException('invalidArgument', 'input is required.');
@@ -161,11 +183,40 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
           );
       }
     }
-    return CommandResult(
+    final result = CommandResult(
       operationId: command.operationId,
       status: CommandStatus.applied,
       execution: ExecutionMode.preview,
       completedAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    _operations[command.operationId] = (
+      fingerprint: fingerprint,
+      result: result,
+    );
+    return result;
+  }
+
+  @override
+  Future<OperationLookup> queryOperation(
+    String operationId,
+    String accountGeneration,
+  ) async {
+    _guard();
+    if (accountGeneration != _accountGeneration) {
+      return OperationLookup(
+        operationId: operationId,
+        accountGeneration: accountGeneration,
+        status: OperationLookupStatus.generationMismatch,
+      );
+    }
+    final result = _operations[operationId]?.result;
+    return OperationLookup(
+      operationId: operationId,
+      accountGeneration: accountGeneration,
+      status: result == null
+          ? OperationLookupStatus.unavailable
+          : OperationLookupStatus.available,
+      result: result,
     );
   }
 

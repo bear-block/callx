@@ -84,6 +84,10 @@ cannot establish those capabilities.
 - One live call. States: incoming, outgoing, connecting, active, held, ended.
 - answer is separate from mediaConnected. All effects are in memory.
 - Commands return operationId/status/execution; invalid operations throw CallxException.
+- Save `capabilities.accountGeneration`, then use
+  `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
+  `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
+  command never ran.
 - Snapshots are immutable, include a decimal-string sequence and current call.
 - Each stream subscriber receives current snapshot plus changes. No durable replay/ack.
 - No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.
