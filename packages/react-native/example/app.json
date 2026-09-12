@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Callx · RN Preview",
+    "slug": "callx-rn-preview",
+    "version": "0.0.1",
+    "scheme": "callx-preview",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "dev.callx.preview.rn"
+    },
+    "android": {
+      "package": "dev.callx.preview.rn"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

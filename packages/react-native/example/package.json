@@ -1,0 +1,26 @@
+{
+  "name": "callx-react-native-example",
+  "version": "0.0.0-preview.1",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "web": "expo start --web",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit",
+    "build:web": "expo export --platform web"
+  },
+  "dependencies": {
+    "@bear-block/callx": "file:..",
+    "expo": "~57.0.22",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-dom": "19.2.3",
+    "react-native-web": "~0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~5.9.3"
+  }
+}
