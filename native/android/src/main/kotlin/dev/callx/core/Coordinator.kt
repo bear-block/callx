@@ -1,0 +1,80 @@
+package dev.callx.core
+
+enum class CallState { incoming, outgoing, connecting, active, held, ended }
+enum class CommandType { startCall, answer, end, setMuted, setHeld }
+enum class OperationStatus { pending, applied, rejected, timedOut, unknown }
+data class CallRecord(val callId: String, val state: CallState, val muted: Boolean = false,
+    val mediaReady: Boolean = false, val endReason: String? = null)
+data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
+    val value: Boolean? = null, val deadlineAtMs: Long)
+data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null)
+sealed interface Preparation {
+    data object Execute : Preparation
+    data class Existing(val operation: NativeOperation) : Preparation
+    data class Conflict(val operation: NativeOperation) : Preparation
+}
+
+/** Serialized by synchronization until the Android adapter supplies its application coroutine. */
+class CallCoordinator {
+    private var call: CallRecord? = null
+    private val pending = mutableMapOf<String, NativeCommand>()
+    private val completed = mutableMapOf<String, Pair<NativeCommand, NativeOperation>>()
+    @Synchronized fun snapshot() = call
+    @Synchronized fun operation(id: String) = completed[id]?.second
+        ?: pending[id]?.let { NativeOperation(id, OperationStatus.pending) }
+    @Synchronized fun reportIncoming(callId: String) {
+        if (call == null || call?.state == CallState.ended) call = CallRecord(callId, CallState.incoming)
+    }
+    @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded") {
+        val current = call ?: return; if (current.callId != callId || current.state == CallState.ended) return
+        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason)
+        pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
+            completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState"); pending.remove(id)
+        }
+    }
+    @Synchronized fun prepare(command: NativeCommand, nowMs: Long): Preparation {
+        completed[command.operationId]?.let { return if (it.first == command) Preparation.Existing(it.second) else conflict(command.operationId) }
+        pending[command.operationId]?.let { return if (it == command) Preparation.Existing(NativeOperation(command.operationId, OperationStatus.pending)) else conflict(command.operationId) }
+        if (command.deadlineAtMs <= nowMs) return finish(command, OperationStatus.timedOut, "deadlineExceeded")
+        preconditionError(command)?.let { return finish(command, OperationStatus.rejected, it) }
+        pending[command.operationId] = command; return Preparation.Execute
+    }
+    @Synchronized fun expire(nowMs: Long) {
+        pending.filterValues { it.deadlineAtMs <= nowMs }.toMap().forEach { (id, command) ->
+            completed[id] = command to NativeOperation(id, OperationStatus.timedOut, "deadlineExceeded"); pending.remove(id)
+        }
+    }
+    @Synchronized fun completeApplied(operationId: String, nowMs: Long): NativeOperation? {
+        val command = pending.remove(operationId) ?: return completed[operationId]?.second
+        if (command.deadlineAtMs <= nowMs) return finishResult(command, OperationStatus.timedOut, "deadlineExceeded")
+        apply(command); return finishResult(command, OperationStatus.applied, null)
+    }
+    private fun preconditionError(command: NativeCommand): String? {
+        val current = call ?: return "callNotFound"; if (current.callId != command.callId) return "callNotFound"
+        if (current.state == CallState.ended) return "invalidState"
+        return when (command.type) {
+            CommandType.answer -> if (current.state == CallState.incoming) null else "invalidState"
+            CommandType.end -> null
+            CommandType.setMuted, CommandType.setHeld -> if (command.value == null) "invalidArgument"
+                else if (current.state in setOf(CallState.active, CallState.held)) null else "invalidState"
+            CommandType.startCall -> "unsupported"
+        }
+    }
+    private fun apply(command: NativeCommand) {
+        val current = call ?: return
+        call = when (command.type) {
+            CommandType.answer -> current.copy(state = CallState.connecting)
+            CommandType.end -> current.copy(state = CallState.ended, mediaReady = false,
+                endReason = if (current.state == CallState.incoming) "declined" else "localHangup")
+            CommandType.setMuted -> current.copy(muted = command.value!!)
+            CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
+            CommandType.startCall -> current
+        }
+    }
+    private fun finish(command: NativeCommand, status: OperationStatus, error: String): Preparation.Existing =
+        Preparation.Existing(finishResult(command, status, error))
+    private fun finishResult(command: NativeCommand, status: OperationStatus, error: String?): NativeOperation {
+        val result = NativeOperation(command.operationId, status, error); completed[command.operationId] = command to result; return result
+    }
+    private fun conflict(id: String) = Preparation.Conflict(NativeOperation(id, OperationStatus.rejected, "conflict"))
+}
