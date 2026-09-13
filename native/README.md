@@ -18,5 +18,9 @@ conflicts are rejected; a deadline/remote terminal beats a late callback. Storag
 The Swift and Kotlin cores have a versioned `CoordinatorCheckpoint` with atomic file replacement,
 tested to restore live state and pending/completed operations. Swift applies iOS data protection;
 the Android adapter must later put the file in app-private credential-protected storage.
-The coordinator does not yet transaction-wrap every mutation with the store, and the checkpoint has no event journal yet,
-so this is not yet called a complete durable journal.
+The coordinator does not yet transaction-wrap every mutation with the store; the Kotlin checkpoint has no event
+journal yet, so this is not yet called a complete durable journal.
+
+The Swift checkpoint now contains an event journal with sequence, acknowledgement, replay-gap detection
+and pruning at 24 hours/2,048 events/2 MiB. Kotlin journal parity and the crash-boundary transaction
+are not complete yet, so Gate B3 remains unmet.

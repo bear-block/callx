@@ -11,8 +11,11 @@ public struct CoordinatorCheckpoint: Codable, Equatable, Sendable {
     public let call: CallRecord?
     public let pending: [NativeCommand]
     public let completed: [CompletedOperation]
-    public init(schemaVersion: Int = 1, call: CallRecord?, pending: [NativeCommand], completed: [CompletedOperation]) {
+    public let journal: JournalCheckpoint?
+    public init(schemaVersion: Int = 1, call: CallRecord?, pending: [NativeCommand], completed: [CompletedOperation],
+        journal: JournalCheckpoint? = nil) {
         self.schemaVersion = schemaVersion; self.call = call; self.pending = pending; self.completed = completed
+        self.journal = journal
     }
 }
 
