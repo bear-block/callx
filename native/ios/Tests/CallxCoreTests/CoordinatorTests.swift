@@ -33,6 +33,17 @@ import Foundation
     #expect(await recovered.operation("pending")?.status == .timedOut)
 }
 
+@Test func unsupportedCheckpointSchemaFailsClosed() throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let url = directory.appending(path: "coordinator.json")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("{\"schemaVersion\":2,\"pending\":[],\"completed\":[]}".utf8).write(to: url)
+    #expect(throws: CoordinatorFileStore.StoreError.unsupportedSchema(2)) {
+        try CoordinatorFileStore(url: url).load()
+    }
+}
+
 @Test func duplicateAndConflictAreDeterministic() async {
     let core = CallCoordinator(); await core.reportIncoming(callID: "call-1")
     let command = NativeCommand(operationID: "same", type: .answer, callID: "call-1", deadlineAtMs: 5_000)

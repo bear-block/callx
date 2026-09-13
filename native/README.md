@@ -15,7 +15,8 @@ round trip, persistence across process death or OS behaviour.
 optimistically mutate state; only an applied callback commits; duplicate operations are deduped; argument
 conflicts are rejected; a deadline/remote terminal beats a late callback. Storage is still memory-only.
 
-The Swift core has a versioned `CoordinatorCheckpoint` and atomic file replacement with iOS data
-protection, tested to restore live state together with pending/completed operations. The coordinator does not yet
-transaction-wrap every mutation with the store; the Kotlin store and the crash-boundary transaction are the next
-step, so this is not yet called a complete durable journal.
+The Swift and Kotlin cores have a versioned `CoordinatorCheckpoint` with atomic file replacement,
+tested to restore live state and pending/completed operations. Swift applies iOS data protection;
+the Android adapter must later put the file in app-private credential-protected storage.
+The coordinator does not yet transaction-wrap every mutation with the store, and the checkpoint has no event journal yet,
+so this is not yet called a complete durable journal.
