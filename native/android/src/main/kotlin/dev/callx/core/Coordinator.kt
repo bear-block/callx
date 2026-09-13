@@ -15,14 +15,17 @@ sealed interface Preparation {
 }
 
 /** Serialized by synchronization until the Android adapter supplies its application coroutine. */
-class CallCoordinator {
+class CallCoordinator private constructor(private val store: CoordinatorStore?, @Suppress("UNUSED_PARAMETER") marker: Unit) {
     private var call: CallRecord? = null
     private val pending = mutableMapOf<String, NativeCommand>()
     private val completed = mutableMapOf<String, Pair<NativeCommand, NativeOperation>>()
     private var journal = EventJournal()
-    constructor()
-    constructor(checkpoint: CoordinatorCheckpoint) {
+    constructor() : this(null, Unit)
+    constructor(checkpoint: CoordinatorCheckpoint) : this(null, Unit) { restore(checkpoint) }
+    constructor(store: CoordinatorStore) : this(store, Unit) { store.load()?.let(::restore) }
+    private fun restore(checkpoint: CoordinatorCheckpoint) {
         call = checkpoint.call
+        pending.clear(); completed.clear()
         checkpoint.pending.associateByTo(pending) { it.operationId }
         checkpoint.completed.associateTo(completed) { it.command.operationId to (it.command to it.result) }
         journal = EventJournal(checkpoint.journal ?: JournalCheckpoint())
@@ -102,4 +105,25 @@ class CallCoordinator {
         val result = NativeOperation(command.operationId, status, error); completed[command.operationId] = command to result; return result
     }
     private fun conflict(id: String) = Preparation.Conflict(NativeOperation(id, OperationStatus.rejected, "conflict"))
+    private fun persistOrRestore(before: CoordinatorCheckpoint) {
+        try { store?.save(checkpoint()) } catch (error: Throwable) { restore(before); throw error }
+    }
+    @Synchronized fun durablePrepare(command: NativeCommand, nowMs: Long): Preparation {
+        val before = checkpoint(); val result = prepare(command, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableReportIncoming(callId: String, nowMs: Long) {
+        val before = checkpoint(); reportIncoming(callId, nowMs); persistOrRestore(before)
+    }
+    @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long) {
+        val before = checkpoint(); remoteEnded(callId, reason, nowMs); persistOrRestore(before)
+    }
+    @Synchronized fun durableCompleteApplied(operationId: String, nowMs: Long): NativeOperation? {
+        val before = checkpoint(); val result = completeApplied(operationId, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableExpire(nowMs: Long) {
+        val before = checkpoint(); expire(nowMs); persistOrRestore(before)
+    }
+    @Synchronized fun durableAcknowledgeEvents(through: Long) {
+        val before = checkpoint(); acknowledgeEvents(through); persistOrRestore(before)
+    }
 }

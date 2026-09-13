@@ -10,14 +10,16 @@ data class CompletedOperation(val command: NativeCommand, val result: NativeOper
 data class CoordinatorCheckpoint(val schemaVersion: Int = 1, val call: CallRecord?,
     val pending: List<NativeCommand>, val completed: List<CompletedOperation>, val journal: JournalCheckpoint? = null)
 
-class CoordinatorFileStore(private val path: Path) {
-    fun save(checkpoint: CoordinatorCheckpoint) {
+interface CoordinatorStore { fun save(checkpoint: CoordinatorCheckpoint); fun load(): CoordinatorCheckpoint? }
+
+class CoordinatorFileStore(private val path: Path) : CoordinatorStore {
+    override fun save(checkpoint: CoordinatorCheckpoint) {
         Files.createDirectories(path.parent)
         val temporary = path.resolveSibling("${path.fileName}.tmp")
         Files.writeString(temporary, CoordinatorCheckpointCodec.encode(checkpoint).toString())
         Files.move(temporary, path, ATOMIC_MOVE, REPLACE_EXISTING)
     }
-    fun load(): CoordinatorCheckpoint? {
+    override fun load(): CoordinatorCheckpoint? {
         if (!Files.exists(path)) return null
         return CoordinatorCheckpointCodec.decode(Json.parseToJsonElement(Files.readString(path)).jsonObject)
     }

@@ -24,3 +24,9 @@ journal yet, so this is not yet called a complete durable journal.
 The Swift and Kotlin checkpoints now contain an event journal with sequence, acknowledgement,
 replay-gap detection and pruning at 24 hours/2,048 events/2 MiB. The crash-boundary transaction is still
 not complete, so Gate B3 remains unmet.
+
+Both cores have durable mutation entry points using snapshot-before-mutation: success is returned only after
+the store commits; a write failure restores the old memory checkpoint and rethrows. Platform adapters must
+call the `durable*` group, never the memory-only mutations. Fault-store tests prove a pending
+operation does not leak into memory or disk when persisting prepare fails. A real process kill between
+filesystem syscalls cannot be fault-injected yet, so Gate B3 still has not passed.
