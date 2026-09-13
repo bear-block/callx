@@ -19,7 +19,12 @@ public struct CoordinatorCheckpoint: Codable, Equatable, Sendable {
     }
 }
 
-public struct CoordinatorFileStore: Sendable {
+public protocol CoordinatorStore: Sendable {
+    func save(_ checkpoint: CoordinatorCheckpoint) throws
+    func load() throws -> CoordinatorCheckpoint?
+}
+
+public struct CoordinatorFileStore: CoordinatorStore, Sendable {
     private let url: URL
     public init(url: URL) { self.url = url }
 

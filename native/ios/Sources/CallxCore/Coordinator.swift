@@ -48,10 +48,28 @@ public actor CallCoordinator {
     private var pending: [String: Pending] = [:]
     private var completed: [String: (NativeCommand, NativeOperation)] = [:]
     private var journal = EventJournal()
+    private let store: (any CoordinatorStore)?
 
-    public init() {}
+    public init() { store = nil }
     public init(checkpoint: CoordinatorCheckpoint) {
+        store = nil
         call = checkpoint.call
+        pending = Dictionary(uniqueKeysWithValues: checkpoint.pending.map { ($0.operationID, Pending(command: $0)) })
+        completed = Dictionary(uniqueKeysWithValues: checkpoint.completed.map { ($0.command.operationID, ($0.command, $0.result)) })
+        journal = EventJournal(checkpoint: checkpoint.journal ?? JournalCheckpoint())
+    }
+    public init(store: any CoordinatorStore) throws {
+        self.store = store
+        if let checkpoint = try store.load() {
+            call = checkpoint.call
+            pending = Dictionary(uniqueKeysWithValues: checkpoint.pending.map { ($0.operationID, Pending(command: $0)) })
+            completed = Dictionary(uniqueKeysWithValues: checkpoint.completed.map { ($0.command.operationID, ($0.command, $0.result)) })
+            journal = EventJournal(checkpoint: checkpoint.journal ?? JournalCheckpoint())
+        }
+    }
+    private func restore(_ checkpoint: CoordinatorCheckpoint) {
+        call = checkpoint.call
+        pending.removeAll(); completed.removeAll()
         pending = Dictionary(uniqueKeysWithValues: checkpoint.pending.map { ($0.operationID, Pending(command: $0)) })
         completed = Dictionary(uniqueKeysWithValues: checkpoint.completed.map { ($0.command.operationID, ($0.command, $0.result)) })
         journal = EventJournal(checkpoint: checkpoint.journal ?? JournalCheckpoint())
@@ -164,5 +182,31 @@ public actor CallCoordinator {
 
     private func conflict(_ id: String) -> NativeOperation {
         NativeOperation(operationID: id, status: .rejected, errorCode: "conflict")
+    }
+    private func persist(orRestore before: CoordinatorCheckpoint) throws {
+        guard let store else { return }
+        do { try store.save(checkpoint()) }
+        catch { restore(before); throw error }
+    }
+
+    public func durablePrepare(_ command: NativeCommand, nowMs: Int64) throws -> Preparation {
+        let before = checkpoint(); let result = prepare(command, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    public func durableReportIncoming(callID: String, nowMs: Int64) throws {
+        let before = checkpoint(); reportIncoming(callID: callID, nowMs: nowMs); try persist(orRestore: before)
+    }
+    public func durableRemoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64) throws {
+        let before = checkpoint(); remoteEnded(callID: callID, reason: reason, nowMs: nowMs); try persist(orRestore: before)
+    }
+    @discardableResult public func durableCompleteApplied(operationID: String, nowMs: Int64) throws -> NativeOperation? {
+        let before = checkpoint(); let result = completeApplied(operationID: operationID, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    public func durableExpire(nowMs: Int64) throws {
+        let before = checkpoint(); expire(nowMs: nowMs); try persist(orRestore: before)
+    }
+    public func durableAcknowledgeEvents(through sequence: UInt64) throws {
+        let before = checkpoint(); try acknowledgeEvents(through: sequence); try persist(orRestore: before)
     }
 }
