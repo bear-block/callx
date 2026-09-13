@@ -7,6 +7,8 @@
   "license": "MIT",
   "scripts": {
     "contract:test": "node contracts/v0/validate.mjs",
+    "native:ios:test": "cd native/ios && swift test",
+    "native:android:test": "packages/flutter/example/android/gradlew -p native/android test",
     "test": "node --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
