@@ -21,6 +21,6 @@ the Android adapter must later put the file in app-private credential-protected 
 The coordinator does not yet transaction-wrap every mutation with the store; the Kotlin checkpoint has no event
 journal yet, so this is not yet called a complete durable journal.
 
-The Swift checkpoint now contains an event journal with sequence, acknowledgement, replay-gap detection
-and pruning at 24 hours/2,048 events/2 MiB. Kotlin journal parity and the crash-boundary transaction
-are not complete yet, so Gate B3 remains unmet.
+The Swift and Kotlin checkpoints now contain an event journal with sequence, acknowledgement,
+replay-gap detection and pruning at 24 hours/2,048 events/2 MiB. The crash-boundary transaction is still
+not complete, so Gate B3 remains unmet.

@@ -8,7 +8,7 @@ import kotlinx.serialization.json.*
 
 data class CompletedOperation(val command: NativeCommand, val result: NativeOperation)
 data class CoordinatorCheckpoint(val schemaVersion: Int = 1, val call: CallRecord?,
-    val pending: List<NativeCommand>, val completed: List<CompletedOperation>)
+    val pending: List<NativeCommand>, val completed: List<CompletedOperation>, val journal: JournalCheckpoint? = null)
 
 class CoordinatorFileStore(private val path: Path) {
     fun save(checkpoint: CoordinatorCheckpoint) {
@@ -31,6 +31,7 @@ object CoordinatorCheckpointCodec {
         putJsonArray("completed") { value.completed.forEach { item -> add(buildJsonObject {
             put("command", encodeCommand(item.command)); put("result", encodeResult(item.result))
         }) } }
+        value.journal?.let { put("journal", JournalCodec.encode(it)) }
     }
     fun decode(value: JsonObject): CoordinatorCheckpoint {
         val schema = value.getValue("schemaVersion").jsonPrimitive.int
@@ -40,7 +41,7 @@ object CoordinatorCheckpointCodec {
             value.getValue("pending").jsonArray.map { decodeCommand(it.jsonObject) },
             value.getValue("completed").jsonArray.map { item -> item.jsonObject.let {
                 CompletedOperation(decodeCommand(it.getValue("command").jsonObject), decodeResult(it.getValue("result").jsonObject))
-            } })
+            } }, value["journal"]?.jsonObject?.let(JournalCodec::decode))
     }
     private fun encodeCall(value: CallRecord) = buildJsonObject {
         put("callId", value.callId); put("state", value.state.name); put("muted", value.muted); put("mediaReady", value.mediaReady)
