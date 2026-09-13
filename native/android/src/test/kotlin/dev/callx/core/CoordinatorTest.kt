@@ -1,8 +1,33 @@
 package dev.callx.core
 
 import kotlin.test.*
+import kotlin.io.path.createTempDirectory
+import kotlinx.serialization.json.put
 
 class CoordinatorTest {
+    @Test fun checkpointRecoversPendingAndCompletedOperations() {
+        val directory = createTempDirectory("callx-core-")
+        try {
+            val store = CoordinatorFileStore(directory.resolve("coordinator.json"))
+            val core = CallCoordinator(); core.reportIncoming("call-1")
+            val applied = NativeCommand("applied", CommandType.answer, "call-1", deadlineAtMs = 5_000)
+            assertEquals(Preparation.Execute, core.prepare(applied, 1_000)); core.completeApplied("applied", 1_100)
+            val pending = NativeCommand("pending", CommandType.end, "call-1", deadlineAtMs = 5_000)
+            assertEquals(Preparation.Execute, core.prepare(pending, 1_200)); store.save(core.checkpoint())
+            val recovered = CallCoordinator(requireNotNull(store.load()))
+            assertEquals(CallState.connecting, recovered.snapshot()?.state)
+            assertEquals(OperationStatus.applied, recovered.operation("applied")?.status)
+            assertEquals(OperationStatus.pending, recovered.operation("pending")?.status)
+            recovered.expire(5_000); assertEquals(OperationStatus.timedOut, recovered.operation("pending")?.status)
+        } finally { directory.toFile().deleteRecursively() }
+    }
+    @Test fun unsupportedCheckpointSchemaFailsClosed() {
+        assertFailsWith<StoreViolation> {
+            CoordinatorCheckpointCodec.decode(
+                kotlinx.serialization.json.buildJsonObject { put("schemaVersion", 2) },
+            )
+        }
+    }
     @Test fun stateCommitsOnlyAfterApplied() {
         val core = CallCoordinator(); core.reportIncoming("call-1")
         val command = NativeCommand("answer-1", CommandType.answer, "call-1", deadlineAtMs = 5_000)

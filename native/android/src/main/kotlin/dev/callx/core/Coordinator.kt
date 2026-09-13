@@ -19,9 +19,17 @@ class CallCoordinator {
     private var call: CallRecord? = null
     private val pending = mutableMapOf<String, NativeCommand>()
     private val completed = mutableMapOf<String, Pair<NativeCommand, NativeOperation>>()
+    constructor()
+    constructor(checkpoint: CoordinatorCheckpoint) {
+        call = checkpoint.call
+        checkpoint.pending.associateByTo(pending) { it.operationId }
+        checkpoint.completed.associateTo(completed) { it.command.operationId to (it.command to it.result) }
+    }
     @Synchronized fun snapshot() = call
     @Synchronized fun operation(id: String) = completed[id]?.second
         ?: pending[id]?.let { NativeOperation(id, OperationStatus.pending) }
+    @Synchronized fun checkpoint() = CoordinatorCheckpoint(call = call, pending = pending.values.toList(),
+        completed = completed.values.map { CompletedOperation(it.first, it.second) })
     @Synchronized fun reportIncoming(callId: String) {
         if (call == null || call?.state == CallState.ended) call = CallRecord(callId, CallState.incoming)
     }
