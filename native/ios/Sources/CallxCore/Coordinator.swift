@@ -1,10 +1,10 @@
 import Foundation
 
-public enum CallState: String, Sendable { case incoming, outgoing, connecting, active, held, ended }
-public enum CommandType: String, Sendable { case startCall, answer, end, setMuted, setHeld }
-public enum OperationStatus: String, Sendable { case pending, applied, rejected, timedOut, unknown }
+public enum CallState: String, Codable, Sendable { case incoming, outgoing, connecting, active, held, ended }
+public enum CommandType: String, Codable, Sendable { case startCall, answer, end, setMuted, setHeld }
+public enum OperationStatus: String, Codable, Sendable { case pending, applied, rejected, timedOut, unknown }
 
-public struct CallRecord: Equatable, Sendable {
+public struct CallRecord: Codable, Equatable, Sendable {
     public let callID: String
     public var state: CallState
     public var muted: Bool
@@ -16,7 +16,7 @@ public struct CallRecord: Equatable, Sendable {
     }
 }
 
-public struct NativeCommand: Equatable, Sendable {
+public struct NativeCommand: Codable, Equatable, Sendable {
     public let operationID: String
     public let type: CommandType
     public let callID: String
@@ -28,7 +28,7 @@ public struct NativeCommand: Equatable, Sendable {
     }
 }
 
-public struct NativeOperation: Equatable, Sendable {
+public struct NativeOperation: Codable, Equatable, Sendable {
     public let operationID: String
     public let status: OperationStatus
     public let errorCode: String?
@@ -49,9 +49,18 @@ public actor CallCoordinator {
     private var completed: [String: (NativeCommand, NativeOperation)] = [:]
 
     public init() {}
+    public init(checkpoint: CoordinatorCheckpoint) {
+        call = checkpoint.call
+        pending = Dictionary(uniqueKeysWithValues: checkpoint.pending.map { ($0.operationID, Pending(command: $0)) })
+        completed = Dictionary(uniqueKeysWithValues: checkpoint.completed.map { ($0.command.operationID, ($0.command, $0.result)) })
+    }
     public func snapshot() -> CallRecord? { call }
     public func operation(_ id: String) -> NativeOperation? {
         completed[id]?.1 ?? (pending[id].map { _ in NativeOperation(operationID: id, status: .pending, errorCode: nil) })
+    }
+    public func checkpoint() -> CoordinatorCheckpoint {
+        CoordinatorCheckpoint(call: call, pending: pending.values.map(\.command),
+            completed: completed.values.map { CompletedOperation(command: $0.0, result: $0.1) })
     }
 
     public func reportIncoming(callID: String) {

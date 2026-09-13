@@ -14,3 +14,8 @@ round trip, persistence across process death or OS behaviour.
 `CallCoordinator` in both cores now proves two-phase command semantics: prepare does not
 optimistically mutate state; only an applied callback commits; duplicate operations are deduped; argument
 conflicts are rejected; a deadline/remote terminal beats a late callback. Storage is still memory-only.
+
+The Swift core has a versioned `CoordinatorCheckpoint` and atomic file replacement with iOS data
+protection, tested to restore live state together with pending/completed operations. The coordinator does not yet
+transaction-wrap every mutation with the store; the Kotlin store and the crash-boundary transaction are the next
+step, so this is not yet called a complete durable journal.
