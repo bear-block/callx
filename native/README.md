@@ -10,3 +10,7 @@ They do not contain CallKit, Telecom, push or media adapters yet.
 Both test suites read the manifest and fixtures in `contracts/v0` directly; there is no native copy that
 can drift from the schema. Host tests prove decode/validation parity, not the bridge
 round trip, persistence across process death or OS behaviour.
+
+`CallCoordinator` in both cores now proves two-phase command semantics: prepare does not
+optimistically mutate state; only an applied callback commits; duplicate operations are deduped; argument
+conflicts are rejected; a deadline/remote terminal beats a late callback. Storage is still memory-only.
