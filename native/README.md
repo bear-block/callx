@@ -36,3 +36,8 @@ tested for applied/rejected/deadline and duplicates before/after completion. Cal
 share one Swift `Task` or Kotlin `CompletionStage`; the executor runs only once. Pending operations
 restored after a process restart deliberately require platform reconciliation instead of waiting for a callback that
 was lost. The executor is still a simulated seam, not evidence of CallKit/Telecom.
+
+`RecoveredOperationReconciler` handles pending checkpoints before the bridge attaches: an expired deadline
+beats every probe; platform-confirmed applied/rejected are durably finalised; unavailable becomes
+`unknown/nativeUnavailable` without mutating the call or retrying blindly. The probe is currently an abstraction;
+real adapters must query/reconcile CallKit/Telecom and the signaling backend per capability.

@@ -33,6 +33,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     @Synchronized fun snapshot() = call
     @Synchronized fun operation(id: String) = completed[id]?.second
         ?: pending[id]?.let { NativeOperation(id, OperationStatus.pending) }
+    @Synchronized fun pendingCommands() = pending.values.toList()
     @Synchronized fun checkpoint() = CoordinatorCheckpoint(call = call, pending = pending.values.toList(),
         completed = completed.values.map { CompletedOperation(it.first, it.second) }, journal = journal.state)
     @Synchronized fun replayEvents(after: Long) = journal.replay(after)
@@ -77,6 +78,11 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     @Synchronized fun completeRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
         val result = finishResult(command, OperationStatus.rejected, errorCode)
+        journal.append("operationCompleted", nowMs, operationId = operationId); return result
+    }
+    @Synchronized fun completeUnknown(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
+        val command = pending.remove(operationId) ?: return completed[operationId]?.second
+        val result = finishResult(command, OperationStatus.unknown, errorCode)
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
     private fun preconditionError(command: NativeCommand): String? {
@@ -127,6 +133,10 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableCompleteRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
         val before = checkpoint(); val result = completeRejected(operationId, errorCode, nowMs)
+        persistOrRestore(before); return result
+    }
+    @Synchronized fun durableCompleteUnknown(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
+        val before = checkpoint(); val result = completeUnknown(operationId, errorCode, nowMs)
         persistOrRestore(before); return result
     }
     @Synchronized fun durableExpire(nowMs: Long) {
