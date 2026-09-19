@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:callx/callx.dart';
 import 'package:callx/callx_preview.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   test('public vocabulary matches the canonical v0 manifest', () {
     final manifest =
         jsonDecode(File('../../contracts/v0/manifest.json').readAsStringSync())
@@ -33,7 +35,11 @@ void main() {
       final callx = preview.callx;
       final simulator = preview.simulator;
       await callx.setup(const CallxConfig(appName: 'Acme'));
-      const input = CallInput(callId: 'call-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid');
+      const input = CallInput(
+        callId: 'call-1',
+        displayName: 'hao.dev7',
+        handle: 'sip:hao.dev7@example.invalid',
+      );
       final actions = <String, Future<Object?> Function()>{
         'incoming': () => simulator.incoming(input),
         'startCall': () => callx.startCall(input),
@@ -72,16 +78,65 @@ void main() {
         isA<CallxException>().having(
           (e) => e.code,
           'code',
-          'nativeNotImplemented',
+          'nativeUnavailable',
         ),
       ),
     );
+  });
+
+  test('native method channel preserves outgoing command fields', () async {
+    const channel = MethodChannel('dev.callx/methods');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    Map<Object?, Object?>? captured;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'setup') {
+        return <String, Object?>{
+          'coreVersion': '0.1.0',
+          'execution': 'native',
+          'accountGeneration': 'generation-1',
+          'nativeCalling': true,
+          'durableReplay': true,
+          'providerManagedSignaling': false,
+          'hold': true,
+          'mute': true,
+        };
+      }
+      captured = (call.arguments as Map).cast<Object?, Object?>();
+      return <String, Object?>{
+        'operationId': captured!['operationId'],
+        'status': 'applied',
+        'execution': 'native',
+        'completedAtMs': 1000,
+      };
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final callx = Callx();
+    expect(
+      (await callx.setup(const CallxConfig(appName: 'Acme'))).execution,
+      ExecutionMode.native,
+    );
+    await callx.startCall(
+      const CallInput(
+        callId: 'call-1',
+        displayName: 'hao.dev7',
+        handle: 'sip:hao.dev7@example.invalid',
+      ),
+      options: const CommandOptions(operationId: 'op-1'),
+    );
+    expect(captured!['contractVersion'], contractVersion);
+    expect(captured!['type'], 'startCall');
+    expect((captured!['input'] as Map)['handle'], 'sip:hao.dev7@example.invalid');
   });
   test('caller operationId survives wrapper and result', () async {
     final preview = CallxPreview();
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));
     await preview.simulator.incoming(
-      const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+      const CallInput(
+        callId: 'a',
+        displayName: 'A',
+        handle: 'sip:a@example.invalid',
+      ),
     );
     final result = await preview.callx.answer(
       'a',
@@ -98,7 +153,11 @@ void main() {
       const CallxConfig(appName: 'Acme'),
     );
     await preview.simulator.incoming(
-      const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+      const CallInput(
+        callId: 'a',
+        displayName: 'A',
+        handle: 'sip:a@example.invalid',
+      ),
     );
     const options = CommandOptions(operationId: 'answer-once');
     final first = await preview.callx.answer('a', options: options);
@@ -131,7 +190,11 @@ void main() {
       final preview = CallxPreview();
       await preview.callx.setup(const CallxConfig(appName: 'Acme'));
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+        const CallInput(
+          callId: 'a',
+          displayName: 'A',
+          handle: 'sip:a@example.invalid',
+        ),
       );
       await preview.callx.answer(
         'a',
@@ -156,7 +219,11 @@ void main() {
       final live = <CallEvent>[];
       // Event between open and listener attach must be buffered by the session.
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+        const CallInput(
+          callId: 'a',
+          displayName: 'A',
+          handle: 'sip:a@example.invalid',
+        ),
       );
       final subscription = preview.callx
           .eventsFor(fresh.sessionId)
@@ -189,7 +256,11 @@ void main() {
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));
     await expectLater(
       preview.callx.startCall(
-        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+        const CallInput(
+          callId: 'a',
+          displayName: 'A',
+          handle: 'sip:a@example.invalid',
+        ),
         options: const CommandOptions(operationId: ' '),
       ),
       throwsA(
@@ -206,7 +277,11 @@ void main() {
     final preview = CallxPreview();
     Matcher error(String code) =>
         throwsA(isA<CallxException>().having((e) => e.code, 'code', code));
-    const input = CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid');
+    const input = CallInput(
+      callId: 'a',
+      displayName: 'A',
+      handle: 'sip:a@example.invalid',
+    );
     await expectLater(
       preview.simulator.incoming(input),
       error('notConfigured'),
@@ -224,7 +299,11 @@ void main() {
       final preview = CallxPreview();
       await preview.callx.setup(const CallxConfig(appName: 'Acme'));
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
+        const CallInput(
+          callId: 'a',
+          displayName: 'A',
+          handle: 'sip:a@example.invalid',
+        ),
       );
       expect(
         (await preview.callx.snapshots.first).call!.state,

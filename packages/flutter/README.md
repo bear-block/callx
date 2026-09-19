@@ -1,8 +1,9 @@
-# callx — Flutter SDK experience preview
+# callx — Flutter native plugin preview
 
-Version `0.0.0-preview.1`. **Local preview, not published. No native calling yet.**
-This is currently a Dart API package, not a completed native Flutter plugin.
-Publishing is disabled with `publish_to: none`.
+Version `0.0.0-preview.1`. The package now contains a typed MethodChannel/EventChannel backend
+and Android/iOS plugin entry points. Platform entry points currently advertise
+`nativeCalling: false` and reject commands with `notConfigured` until the canonical native
+coordinator is embedded in the package; they never fall back silently to the simulator.
 
 ## Run the customized example now
 
@@ -15,7 +16,7 @@ flutter run -d chrome
 ```
 
 The example also has generated iOS/Android host projects. Use `flutter run -d <device-id>`
-to run the same **simulated** UI there. These hosts do not contain CallKit/Telecom integration.
+to run the same simulated UI there while native host wiring is under development.
 Web support is for this preview only, not a production calling support promise.
 
 ## Add to another local Flutter app
@@ -63,17 +64,15 @@ Future<void> demo() async {
 }
 ```
 
-## Installation after a future release — hypothetical
-
-Once the real plugin is published under an available/owned name:
+## Installation after publication
 
 ```sh
 flutter pub add callx
 ```
 
-Then the intended construction is `final callx = Callx();`, followed by native integration
-and `setup`. **Today, `Callx().setup(...)` throws `nativeNotImplemented`.**
-The command above is not a way to install this unpublished preview.
+The intended construction is `final callx = Callx();`, followed by `setup`. A missing plugin
+throws `nativeUnavailable`; an attached but unwired platform returns capabilities with
+`nativeCalling: false` and commands return `notConfigured`.
 
 Native app bootstrap, PushKit/APNs, FCM/Telecom presentation, permissions and a native
 provider/media adapter will still be required. A package install or Dart setup call alone
@@ -96,8 +95,7 @@ cannot establish those capabilities.
 - No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.
 - Reset clears the simulator; it is not a production SDK command.
 - SDK/toolchain baseline here: Flutter 3.41.6 / Dart 3.11.4. Production baseline is not frozen.
-- Pigeon/native core will be added behind CallxBackend; the simulator must not become a
-  production lifecycle implementation.
+- The native core is being connected behind `CallxBackend`; the simulator remains explicit.
 
 ## Check
 

@@ -1,5 +1,6 @@
-/// Contract v0 candidate. Native bridge deliberately not implemented.
 library;
+
+import 'src/native_backend.dart';
 
 const contractVersion = '0.1.0';
 
@@ -49,7 +50,11 @@ enum CallxErrorCode {
 enum ExecutionMode { native, preview }
 
 final class CallInput {
-  const CallInput({required this.callId, required this.displayName, required this.handle});
+  const CallInput({
+    required this.callId,
+    required this.displayName,
+    required this.handle,
+  });
   final String callId;
   final String displayName;
   final String handle;
@@ -281,15 +286,10 @@ abstract interface class CallxBackend {
 }
 
 final class Callx {
-  Callx({CallxBackend? backend}) : _transport = backend;
-  final CallxBackend? _transport;
+  Callx({CallxBackend? backend}) : _transport = backend ?? NativeCallxBackend();
+  final CallxBackend _transport;
   int _operationCounter = 0;
-  CallxBackend get _backend =>
-      _transport ??
-      (throw const CallxException(
-        'nativeNotImplemented',
-        'Native calling is not implemented. Import callx_preview.dart explicitly.',
-      ));
+  CallxBackend get _backend => _transport;
   Future<CallxCapabilities> setup(CallxConfig config) async =>
       _backend.setup(config);
   ({String operationId, int? deadlineAtMs}) _operation(
@@ -385,5 +385,5 @@ final class Callx {
 
   /// Each listener gets the current snapshot, followed by changes.
   Stream<CallSnapshot> get snapshots => _backend.snapshots;
-  Future<void> dispose() async => _transport?.dispose();
+  Future<void> dispose() async => _transport.dispose();
 }

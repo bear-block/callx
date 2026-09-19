@@ -1,0 +1,22 @@
+PODS:
+  - callx (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - callx (from `.symlinks/plugins/callx/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  callx:
+    :path: ".symlinks/plugins/callx/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  callx: 31769ce5489ab75caa2e247ef0647ffd3576f8c4
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+
+PODFILE CHECKSUM: 12d8c31f66ead02d02a1fb27ae23075a548643aa
+
+COCOAPODS: 1.16.2
