@@ -78,6 +78,7 @@ public actor CallCoordinator {
     public func operation(_ id: String) -> NativeOperation? {
         completed[id]?.1 ?? (pending[id].map { _ in NativeOperation(operationID: id, status: .pending, errorCode: nil) })
     }
+    public func pendingCommands() -> [NativeCommand] { pending.values.map(\.command) }
     public func checkpoint() -> CoordinatorCheckpoint {
         CoordinatorCheckpoint(call: call, pending: pending.values.map(\.command),
             completed: completed.values.map { CompletedOperation(command: $0.0, result: $0.1) }, journal: journal.state)
@@ -159,6 +160,14 @@ public actor CallCoordinator {
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
+    @discardableResult public func completeUnknown(operationID: String, errorCode: String,
+        nowMs: Int64) -> NativeOperation? {
+        guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
+        let result = NativeOperation(operationID: operationID, status: .unknown, errorCode: errorCode)
+        completed[operationID] = (item.command, result)
+        journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
+        return result
+    }
 
     private func preconditionError(_ command: NativeCommand) -> String? {
         guard let current = call, current.callID == command.callID else { return "callNotFound" }
@@ -215,6 +224,12 @@ public actor CallCoordinator {
         nowMs: Int64) throws -> NativeOperation? {
         let before = checkpoint()
         let result = completeRejected(operationID: operationID, errorCode: errorCode, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    @discardableResult public func durableCompleteUnknown(operationID: String, errorCode: String,
+        nowMs: Int64) throws -> NativeOperation? {
+        let before = checkpoint()
+        let result = completeUnknown(operationID: operationID, errorCode: errorCode, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
     public func durableExpire(nowMs: Int64) throws {
