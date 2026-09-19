@@ -10,23 +10,37 @@ public protocol PlatformCommandExecutor: Sendable {
 public actor CommandDispatcher {
     private let coordinator: CallCoordinator
     private let executor: any PlatformCommandExecutor
+    private var inFlight: [String: (NativeCommand, Task<NativeOperation, any Error>)] = [:]
     public init(coordinator: CallCoordinator, executor: any PlatformCommandExecutor) {
         self.coordinator = coordinator; self.executor = executor
     }
     public func execute(_ command: NativeCommand, nowMs: Int64) async throws -> NativeOperation {
-        switch try await coordinator.durablePrepare(command, nowMs: nowMs) {
-        case .existing(let result), .conflict(let result): return result
-        case .execute: break
+        if let current = inFlight[command.operationID] {
+            guard current.0 == command else {
+                return NativeOperation(operationID: command.operationID, status: .rejected, errorCode: "conflict")
+            }
+            return try await current.1.value
         }
-        switch await executor.perform(command) {
-        case .applied(let completedAtMs):
-            return try await coordinator.durableCompleteApplied(operationID: command.operationID,
+        let task = Task { [coordinator, executor] in
+            switch try await coordinator.durablePrepare(command, nowMs: nowMs) {
+            case .existing(let result), .conflict(let result): return result
+            case .execute: break
+            }
+            let result: NativeOperation
+            switch await executor.perform(command) {
+            case .applied(let completedAtMs):
+                result = try await coordinator.durableCompleteApplied(operationID: command.operationID,
                 nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID, status: .unknown,
                     errorCode: "internal")
-        case .rejected(let code, let completedAtMs):
-            return try await coordinator.durableCompleteRejected(operationID: command.operationID,
+            case .rejected(let code, let completedAtMs):
+                result = try await coordinator.durableCompleteRejected(operationID: command.operationID,
                 errorCode: code, nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
                     status: .unknown, errorCode: "internal")
+            }
+            return result
         }
+        inFlight[command.operationID] = (command, task)
+        defer { inFlight.removeValue(forKey: command.operationID) }
+        return try await task.value
     }
 }
