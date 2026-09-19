@@ -97,6 +97,8 @@ public struct ContractValidator: Sendable {
             try id(input["callId"], "command.input.callId")
             guard let name = input["displayName"] as? String, !name.isEmpty, name.utf8.count <= 256
             else { throw ContractViolation("command.input.displayName invalid") }
+            guard let handle = input["handle"] as? String, !handle.isEmpty, handle.utf8.count <= 256
+            else { throw ContractViolation("command.input.handle invalid") }
             guard value["callId"] == nil, value["value"] == nil else { throw ContractViolation("startCall forbidden fields") }
         } else {
             try id(value["callId"], "command.callId")

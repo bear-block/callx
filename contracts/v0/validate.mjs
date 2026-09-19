@@ -69,6 +69,8 @@ export function validateCommand(value) {
     const input = object(command.input, 'command.input');
     id(input.callId, 'command.input.callId');
     boundedString(input.displayName, manifest.limits.displayNameMaxUtf8Bytes, 'command.input.displayName');
+    boundedString(input.handle, manifest.limits.handleMaxUtf8Bytes, 'command.input.handle');
+    if (input.handle.length === 0) throw new Error('command.input.handle is required');
     if (command.callId !== undefined || command.value !== undefined) throw new Error('startCall has forbidden fields');
   } else {
     id(command.callId, 'command.callId');

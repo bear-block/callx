@@ -105,10 +105,10 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
 
   void _create(CallInput input, CallDirection direction) {
     _guard();
-    if (input.callId.trim().isEmpty || input.displayName.trim().isEmpty) {
+    if (input.callId.trim().isEmpty || input.displayName.trim().isEmpty || input.handle.trim().isEmpty) {
       throw const CallxException(
         'invalidArgument',
-        'callId and displayName are required.',
+        'callId, displayName and handle are required.',
       );
     }
     if (_snapshot.call != null && _snapshot.call!.state != CallState.ended) {

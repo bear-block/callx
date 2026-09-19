@@ -49,9 +49,10 @@ enum CallxErrorCode {
 enum ExecutionMode { native, preview }
 
 final class CallInput {
-  const CallInput({required this.callId, required this.displayName});
+  const CallInput({required this.callId, required this.displayName, required this.handle});
   final String callId;
   final String displayName;
+  final String handle;
 }
 
 final class CallxConfig {

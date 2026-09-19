@@ -46,6 +46,7 @@ class ContractValidator(private val manifest: JsonObject) {
         if (type == "startCall") {
             val input = value.objectValue("input"); id(input["callId"], "command.input.callId")
             val name = input.string("displayName"); require(name.isNotEmpty() && name.toByteArray().size <= 256, "displayName invalid")
+            val handle = input.string("handle"); require(handle.isNotEmpty() && handle.toByteArray().size <= 256, "handle invalid")
             require(value["callId"] == null && value["value"] == null, "startCall forbidden fields")
         } else {
             id(value["callId"], "command.callId")

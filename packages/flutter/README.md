@@ -47,7 +47,7 @@ Future<void> demo() async {
 
   // Test harness only — production invitation arrives through native ingress.
   await preview.simulator.incoming(
-    const CallInput(callId: 'demo-1', displayName: 'hao.dev7'),
+    const CallInput(callId: 'demo-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid'),
   );
   final result = await callx.answer('demo-1');
   print(result.execution.name); // preview

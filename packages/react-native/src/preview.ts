@@ -64,7 +64,7 @@ class PreviewBackend implements CallxBackend {
   }
   private create(input: CallInput, direction: 'incoming' | 'outgoing'): void {
     this.guard();
-    if (!input.callId.trim() || !input.displayName.trim()) throw new CallxError('invalidArgument', 'callId and displayName are required.');
+    if (!input.callId.trim() || !input.displayName.trim() || !input.handle.trim()) throw new CallxError('invalidArgument', 'callId, displayName and handle are required.');
     if (this.snapshot.call && this.snapshot.call.state !== 'ended') throw new CallxError('busy', 'One live call is supported.');
     this.commit({...input, direction, state: direction, muted: false, mediaReady: false,
       createdAtMs: Date.now()});

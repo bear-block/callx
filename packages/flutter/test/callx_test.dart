@@ -33,7 +33,7 @@ void main() {
       final callx = preview.callx;
       final simulator = preview.simulator;
       await callx.setup(const CallxConfig(appName: 'Acme'));
-      const input = CallInput(callId: 'call-1', displayName: 'hao.dev7');
+      const input = CallInput(callId: 'call-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid');
       final actions = <String, Future<Object?> Function()>{
         'incoming': () => simulator.incoming(input),
         'startCall': () => callx.startCall(input),
@@ -81,7 +81,7 @@ void main() {
     final preview = CallxPreview();
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));
     await preview.simulator.incoming(
-      const CallInput(callId: 'a', displayName: 'A'),
+      const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
     );
     final result = await preview.callx.answer(
       'a',
@@ -98,7 +98,7 @@ void main() {
       const CallxConfig(appName: 'Acme'),
     );
     await preview.simulator.incoming(
-      const CallInput(callId: 'a', displayName: 'A'),
+      const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
     );
     const options = CommandOptions(operationId: 'answer-once');
     final first = await preview.callx.answer('a', options: options);
@@ -131,7 +131,7 @@ void main() {
       final preview = CallxPreview();
       await preview.callx.setup(const CallxConfig(appName: 'Acme'));
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A'),
+        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
       );
       await preview.callx.answer(
         'a',
@@ -156,7 +156,7 @@ void main() {
       final live = <CallEvent>[];
       // Event between open and listener attach must be buffered by the session.
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A'),
+        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
       );
       final subscription = preview.callx
           .eventsFor(fresh.sessionId)
@@ -189,7 +189,7 @@ void main() {
     await preview.callx.setup(const CallxConfig(appName: 'Acme'));
     await expectLater(
       preview.callx.startCall(
-        const CallInput(callId: 'a', displayName: 'A'),
+        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
         options: const CommandOptions(operationId: ' '),
       ),
       throwsA(
@@ -206,7 +206,7 @@ void main() {
     final preview = CallxPreview();
     Matcher error(String code) =>
         throwsA(isA<CallxException>().having((e) => e.code, 'code', code));
-    const input = CallInput(callId: 'a', displayName: 'A');
+    const input = CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid');
     await expectLater(
       preview.simulator.incoming(input),
       error('notConfigured'),
@@ -224,7 +224,7 @@ void main() {
       final preview = CallxPreview();
       await preview.callx.setup(const CallxConfig(appName: 'Acme'));
       await preview.simulator.incoming(
-        const CallInput(callId: 'a', displayName: 'A'),
+        const CallInput(callId: 'a', displayName: 'A', handle: 'sip:a@example.invalid'),
       );
       expect(
         (await preview.callx.snapshots.first).call!.state,

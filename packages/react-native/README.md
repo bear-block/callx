@@ -48,7 +48,7 @@ async function demo() {
   await callx.setup({appName: 'Acme Support'});
 
   // Test harness only — production invitation arrives through native ingress.
-  await simulator.incoming({callId: 'demo-1', displayName: 'hao.dev7'});
+  await simulator.incoming({callId: 'demo-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid'});
   const result = await callx.answer('demo-1');
   console.log(result.execution); // preview
   // Answer gives connecting, not real media readiness.

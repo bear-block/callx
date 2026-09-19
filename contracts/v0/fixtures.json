@@ -1,6 +1,20 @@
 {
   "valid": [
     {
+      "name": "outgoing input carries a platform handle",
+      "command": {
+        "contractVersion": "0.1.0",
+        "operationId": "op-start-1",
+        "type": "startCall",
+        "input": {
+          "callId": "call-outgoing-1",
+          "displayName": "hao.dev7",
+          "handle": "sip:hao.dev7@example.invalid"
+        },
+        "deadlineAtMs": 1790000010000
+      }
+    },
+    {
       "name": "applied answer",
       "command": {
         "contractVersion": "0.1.0",

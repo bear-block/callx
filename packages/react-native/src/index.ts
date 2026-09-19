@@ -78,7 +78,7 @@ export interface ObservationSession {
   readonly snapshot: ObservationSnapshot;
   readonly replay: readonly CallEvent[];
 }
-export interface CallInput { callId: string; displayName: string }
+export interface CallInput { callId: string; displayName: string; handle: string }
 export interface CallxConfig { appName: string }
 export interface Capabilities {
   readonly contractVersion: typeof CONTRACT_VERSION;

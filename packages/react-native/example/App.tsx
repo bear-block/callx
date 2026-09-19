@@ -49,7 +49,7 @@ export default function App() {
   const call=snapshot.call;
   const live=!!call && call.state!=='ended';
   const media=call?.state==='active'||call?.state==='held';
-  const input=()=>({callId:'demo-'+ ++counter.current,displayName:'hao.dev7'});
+  const input=()=>({callId:'demo-'+ ++counter.current,displayName:'hao.dev7',handle:'sip:hao.dev7@example.invalid'});
   function button(label:string, action:(p:Preview)=>Promise<unknown>, enabled=true, variant='light') {
     const disabled=!enabled||!ready||busy;
     return <Pressable key={label} accessibilityRole="button" accessibilityLabel={label}

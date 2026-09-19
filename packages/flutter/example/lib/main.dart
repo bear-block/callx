@@ -94,7 +94,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
   }
 
   CallInput nextInput() =>
-      CallInput(callId: 'demo-${++counter}', displayName: 'hao.dev7');
+      CallInput(callId: 'demo-${++counter}', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid');
 
   @override
   void dispose() {
