@@ -1,4 +1,8 @@
-plugins { kotlin("jvm") version "2.2.20" }
+plugins {
+    kotlin("jvm") version "2.2.20"
+    id("com.android.library") version "8.11.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+}
 
 kotlin { jvmToolchain(17) }
 

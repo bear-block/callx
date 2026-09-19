@@ -1,11 +1,12 @@
 # Canonical native cores
 
-These two modules are the contract/coordinator seam shared per OS by Flutter and React Native.
-They do not contain CallKit, Telecom, push or media adapters yet.
+These two modules are the contract/coordinator seam shared per OS by Flutter and React Native,
+with compiled CallKit and Core-Telecom adapters. Push, notification presentation and a concrete
+media backend still belong to the next integration slices.
 
 - `ios`: Swift Package, baseline Swift tools 6.0; run `swift test` in `native/ios`.
 - `android`: Kotlin/JVM 2.2.20, JDK 17; from the root run
-  `packages/flutter/example/android/gradlew -p native/android test`.
+  `packages/flutter/example/android/gradlew -p native/android test :telecom:assembleDebug`.
 
 Both test suites read the manifest and fixtures in `contracts/v0` directly; there is no native copy that
 can drift from the schema. Host tests prove decode/validation parity, not the bridge
@@ -54,3 +55,10 @@ iOS has `CallKitTransactionSubmitter` and `CallKitProviderDelegateAdapter`, whic
 iOS 15 device target. Correlation uses the unique `CXAction.uuid`; an action is fulfilled only after the host's
 media/signaling performer succeeds. `startCall` currently returns unsupported because the native command has no
 validated handle yet; callId is never used as an implicit handle.
+
+Android has a `:telecom` module with compileSdk 36/minSdk 29 using Core-Telecom 1.0.1. The adapter keeps the
+`CallControlScope` after `CallsManager.addCall` through `TelecomCallResolver`, calls the right suspend APIs
+`answer`/`disconnect`/`setActive`/`setInactive`, respects deadlines and normalises native errors into
+contract errors. Stable Core-Telecom has no mute setter: `MediaMuteController` owns mute,
+without faking a symmetric Telecom API. The host must own the application coroutine/session lifetime;
+an Activity or the Flutter/RN engine must not own this scope.
