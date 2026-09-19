@@ -32,6 +32,7 @@ operation does not leak into memory or disk when persisting prepare fails. A rea
 filesystem syscalls cannot be fault-injected yet, so Gate B3 still has not passed.
 
 `CommandDispatcher` in both cores connects the two-phase coordinator to `PlatformCommandExecutor` and is
-tested for applied/rejected/deadline/duplicate-after-completion. The executor is currently a simulated seam, not
-evidence of CallKit/Telecom. Duplicates while a callback is still in flight need waiter fan-out
-before the bridge may expose this API publicly.
+tested for applied/rejected/deadline and duplicates before/after completion. Callers of the same operation
+share one Swift `Task` or Kotlin `CompletionStage`; the executor runs only once. Pending operations
+restored after a process restart deliberately require platform reconciliation instead of waiting for a callback that
+was lost. The executor is still a simulated seam, not evidence of CallKit/Telecom.
