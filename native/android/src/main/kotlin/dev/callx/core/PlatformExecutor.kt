@@ -6,6 +6,8 @@ import java.util.concurrent.CompletionStage
 sealed interface PlatformOutcome {
     data class Applied(val completedAtMs: Long) : PlatformOutcome
     data class Rejected(val errorCode: String, val completedAtMs: Long) : PlatformOutcome
+    data class TimedOut(val completedAtMs: Long) : PlatformOutcome
+    data class Unknown(val errorCode: String, val completedAtMs: Long) : PlatformOutcome
 }
 fun interface PlatformCommandExecutor { fun perform(command: NativeCommand): CompletionStage<PlatformOutcome> }
 
@@ -29,6 +31,8 @@ class CommandDispatcher(private val coordinator: CallCoordinator, private val ex
                     else shared.complete(when (outcome!!) {
                         is PlatformOutcome.Applied -> coordinator.durableCompleteApplied(command.operationId, outcome.completedAtMs)
                         is PlatformOutcome.Rejected -> coordinator.durableCompleteRejected(command.operationId, outcome.errorCode, outcome.completedAtMs)
+                        is PlatformOutcome.TimedOut -> coordinator.durableCompleteTimedOut(command.operationId, outcome.completedAtMs)
+                        is PlatformOutcome.Unknown -> coordinator.durableCompleteUnknown(command.operationId, outcome.errorCode, outcome.completedAtMs)
                     } ?: NativeOperation(command.operationId, OperationStatus.unknown, "internal"))
                 } catch (error: Throwable) { shared.completeExceptionally(error) }
                 finally { synchronized(this) { inFlight.remove(command.operationId) } }

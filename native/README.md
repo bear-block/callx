@@ -43,5 +43,9 @@ beats every probe; platform-confirmed applied/rejected are durably finalised; un
 real adapters must query/reconcile CallKit/Telecom and the signaling backend per capability.
 
 `PlatformActionRegistry` in both cores buffers callbacks that arrive before the waiter, applies first-terminal-wins,
-fans out timeouts/provider resets and drops late duplicates. The registry does not yet treat transaction
-submission as applied; the next adapter step must submit the transaction and then wait for the registry outcome.
+fans out timeouts/provider resets and drops late duplicates. The registry does not treat transaction
+submission as applied; the executor must submit the transaction and then wait for the registry outcome.
+
+`RegistryBackedPlatformExecutor` now implements that pipeline: a submission rejection ends immediately;
+a submission acceptance only moves on to waiting for the action registry. An action timeout produces `timedOut`, while
+a provider reset produces `unknown/nativeUnavailable`; neither case is forced into rejected.
