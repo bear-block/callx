@@ -38,7 +38,11 @@ public final class CallKitTransactionSubmitter: PlatformTransactionSubmitter, @u
         case .setHeld:
             guard let value = command.value else { return .rejected(errorCode: "invalidArgument", completedAtMs: nowMs()) }
             action = CXSetHeldCallAction(call: callUUID, onHold: value)
-        case .startCall: return .rejected(errorCode: "unsupported", completedAtMs: nowMs())
+        case .startCall:
+            guard let handle = command.handle, !handle.isEmpty else {
+                return .rejected(errorCode: "invalidArgument", completedAtMs: nowMs())
+            }
+            action = CXStartCallAction(call: callUUID, handle: CXHandle(type: .generic, value: handle))
         }
         let actionUUID = action.uuid
         index.register(actionUUID: actionUUID, operationID: command.operationID)
@@ -78,7 +82,7 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
     public func providerReset() { Task { await registry.providerReset(atMs: nowMs()) } }
 }
 
-public enum CallKitActionKind: Sendable { case answer, end, setMuted(Bool), setHeld(Bool) }
+public enum CallKitActionKind: Sendable { case start(handle: String), answer, end, setMuted(Bool), setHeld(Bool) }
 public protocol CallKitActionPerforming: Sendable {
     func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool
     func providerDidReset() async
@@ -98,6 +102,9 @@ public final class CallKitProviderDelegateAdapter: NSObject, CXProviderDelegate,
     }
     public func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         perform(.answer, action: action)
+    }
+    public func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+        perform(.start(handle: action.handle.value), action: action)
     }
     public func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
         perform(.end, action: action)

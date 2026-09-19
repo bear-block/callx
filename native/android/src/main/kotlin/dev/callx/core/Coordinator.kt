@@ -6,7 +6,7 @@ enum class OperationStatus { pending, applied, rejected, timedOut, unknown }
 data class CallRecord(val callId: String, val state: CallState, val muted: Boolean = false,
     val mediaReady: Boolean = false, val endReason: String? = null)
 data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
-    val value: Boolean? = null, val deadlineAtMs: Long)
+    val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long)
 data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null)
 sealed interface Preparation {
     data object Execute : Preparation
@@ -91,6 +91,10 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
     private fun preconditionError(command: NativeCommand): String? {
+        if (command.type == CommandType.startCall) {
+            if (command.displayName.isNullOrEmpty() || command.handle.isNullOrEmpty()) return "invalidArgument"
+            return if (call == null || call?.state == CallState.ended) null else "busy"
+        }
         val current = call ?: return "callNotFound"; if (current.callId != command.callId) return "callNotFound"
         if (current.state == CallState.ended) return "invalidState"
         return when (command.type) {
@@ -98,10 +102,14 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             CommandType.end -> null
             CommandType.setMuted, CommandType.setHeld -> if (command.value == null) "invalidArgument"
                 else if (current.state in setOf(CallState.active, CallState.held)) null else "invalidState"
-            CommandType.startCall -> "unsupported"
+            CommandType.startCall -> null
         }
     }
     private fun apply(command: NativeCommand) {
+        if (command.type == CommandType.startCall) {
+            call = CallRecord(command.callId, CallState.outgoing)
+            return
+        }
         val current = call ?: return
         call = when (command.type) {
             CommandType.answer -> current.copy(state = CallState.connecting)

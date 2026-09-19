@@ -21,10 +21,13 @@ public struct NativeCommand: Codable, Equatable, Sendable {
     public let type: CommandType
     public let callID: String
     public let value: Bool?
+    public let displayName: String?
+    public let handle: String?
     public let deadlineAtMs: Int64
-    public init(operationID: String, type: CommandType, callID: String, value: Bool? = nil, deadlineAtMs: Int64) {
+    public init(operationID: String, type: CommandType, callID: String, value: Bool? = nil,
+        displayName: String? = nil, handle: String? = nil, deadlineAtMs: Int64) {
         self.operationID = operationID; self.type = type; self.callID = callID
-        self.value = value; self.deadlineAtMs = deadlineAtMs
+        self.value = value; self.displayName = displayName; self.handle = handle; self.deadlineAtMs = deadlineAtMs
     }
 }
 
@@ -177,6 +180,10 @@ public actor CallCoordinator {
     }
 
     private func preconditionError(_ command: NativeCommand) -> String? {
+        if command.type == .startCall {
+            guard command.displayName?.isEmpty == false, command.handle?.isEmpty == false else { return "invalidArgument" }
+            return call == nil || call?.state == .ended ? nil : "busy"
+        }
         guard let current = call, current.callID == command.callID else { return "callNotFound" }
         if current.state == .ended { return "invalidState" }
         switch command.type {
@@ -185,11 +192,15 @@ public actor CallCoordinator {
         case .setMuted, .setHeld:
             if command.value == nil { return "invalidArgument" }
             return current.state == .active || current.state == .held ? nil : "invalidState"
-        case .startCall: return "unsupported"
+        case .startCall: return nil
         }
     }
 
     private func apply(_ command: NativeCommand) {
+        if command.type == .startCall {
+            call = CallRecord(callID: command.callID, state: .outgoing)
+            return
+        }
         guard var current = call, current.callID == command.callID, current.state != .ended else { return }
         switch command.type {
         case .answer: current.state = .connecting

@@ -2,6 +2,19 @@ import Testing
 import Foundation
 @testable import CallxCore
 
+@Test func outgoingRequiresMetadataAndCommitsOnlyAfterPlatformApplied() async {
+    let core = CallCoordinator()
+    let invalid = NativeCommand(operationID: "bad-start", type: .startCall, callID: "call-out", deadlineAtMs: 5_000)
+    #expect(await core.prepare(invalid, nowMs: 1_000) == .existing(
+        NativeOperation(operationID: "bad-start", status: .rejected, errorCode: "invalidArgument")))
+    let start = NativeCommand(operationID: "start", type: .startCall, callID: "call-out",
+        displayName: "hao.dev7", handle: "sip:hao.dev7@example.invalid", deadlineAtMs: 5_000)
+    #expect(await core.prepare(start, nowMs: 1_001) == .execute)
+    #expect(await core.snapshot() == nil)
+    #expect(await core.completeApplied(operationID: "start", nowMs: 1_100)?.status == .applied)
+    #expect(await core.snapshot()?.state == .outgoing)
+}
+
 @Test func stateCommitsOnlyAfterPlatformApplied() async {
     let core = CallCoordinator(); await core.reportIncoming(callID: "call-1")
     let command = NativeCommand(operationID: "answer-1", type: .answer, callID: "call-1", deadlineAtMs: 5_000)

@@ -5,6 +5,16 @@ import kotlin.io.path.createTempDirectory
 import kotlinx.serialization.json.put
 
 class CoordinatorTest {
+    @Test fun outgoingRequiresMetadataAndCommitsOnlyAfterPlatformApplied() {
+        val core = CallCoordinator()
+        val invalid = NativeCommand("bad-start", CommandType.startCall, "call-out", deadlineAtMs = 5_000)
+        assertEquals(OperationStatus.rejected, (core.prepare(invalid, 1_000) as Preparation.Existing).operation.status)
+        val start = NativeCommand("start", CommandType.startCall, "call-out",
+            displayName = "hao.dev7", handle = "sip:hao.dev7@example.invalid", deadlineAtMs = 5_000)
+        assertEquals(Preparation.Execute, core.prepare(start, 1_001)); assertNull(core.snapshot())
+        assertEquals(OperationStatus.applied, core.completeApplied("start", 1_100)?.status)
+        assertEquals(CallState.outgoing, core.snapshot()?.state)
+    }
     @Test fun checkpointRecoversPendingAndCompletedOperations() {
         val directory = createTempDirectory("callx-core-")
         try {

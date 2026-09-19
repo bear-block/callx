@@ -53,8 +53,8 @@ a provider reset produces `unknown/nativeUnavailable`; neither case is forced in
 
 iOS has `CallKitTransactionSubmitter` and `CallKitProviderDelegateAdapter`, which compile for the generic
 iOS 15 device target. Correlation uses the unique `CXAction.uuid`; an action is fulfilled only after the host's
-media/signaling performer succeeds. `startCall` currently returns unsupported because the native command has no
-validated handle yet; callId is never used as an implicit handle.
+media/signaling performer succeeds. `startCall` creates a `CXStartCallAction` from a validated handle;
+callId is never used as an implicit handle. The coordinator commits the outgoing state only after the action is applied.
 
 Android has a `:telecom` module with compileSdk 36/minSdk 29 using Core-Telecom 1.0.1. The adapter keeps the
 `CallControlScope` after `CallsManager.addCall` through `TelecomCallResolver`, calls the right suspend APIs

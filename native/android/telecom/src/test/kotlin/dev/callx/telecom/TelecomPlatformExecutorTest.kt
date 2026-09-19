@@ -66,5 +66,5 @@ class TelecomPlatformExecutorTest {
     }
 
     private fun command(type: CommandType, value: Boolean? = null, deadline: Long = 5_000) =
-        NativeCommand("op", type, "call", value, deadline)
+        NativeCommand("op", type, "call", value = value, deadlineAtMs = deadline)
 }
