@@ -1,6 +1,8 @@
 public enum PlatformOutcome: Equatable, Sendable {
     case applied(completedAtMs: Int64)
     case rejected(errorCode: String, completedAtMs: Int64)
+    case timedOut(completedAtMs: Int64)
+    case unknown(errorCode: String, completedAtMs: Int64)
 }
 
 public protocol PlatformCommandExecutor: Sendable {
@@ -36,6 +38,14 @@ public actor CommandDispatcher {
                 result = try await coordinator.durableCompleteRejected(operationID: command.operationID,
                 errorCode: code, nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
                     status: .unknown, errorCode: "internal")
+            case .timedOut(let completedAtMs):
+                result = try await coordinator.durableCompleteTimedOut(operationID: command.operationID,
+                    nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
+                        status: .unknown, errorCode: "internal")
+            case .unknown(let code, let completedAtMs):
+                result = try await coordinator.durableCompleteUnknown(operationID: command.operationID,
+                    errorCode: code, nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
+                        status: .unknown, errorCode: "internal")
             }
             return result
         }
