@@ -41,3 +41,7 @@ was lost. The executor is still a simulated seam, not evidence of CallKit/Teleco
 beats every probe; platform-confirmed applied/rejected are durably finalised; unavailable becomes
 `unknown/nativeUnavailable` without mutating the call or retrying blindly. The probe is currently an abstraction;
 real adapters must query/reconcile CallKit/Telecom and the signaling backend per capability.
+
+`PlatformActionRegistry` in both cores buffers callbacks that arrive before the waiter, applies first-terminal-wins,
+fans out timeouts/provider resets and drops late duplicates. The registry does not yet treat transaction
+submission as applied; the next adapter step must submit the transaction and then wait for the registry outcome.
