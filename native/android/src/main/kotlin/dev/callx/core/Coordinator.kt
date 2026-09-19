@@ -74,6 +74,11 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         journal.append("callChanged", nowMs, command.callId); journal.append("operationCompleted", nowMs, operationId = operationId)
         return result
     }
+    @Synchronized fun completeRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
+        val command = pending.remove(operationId) ?: return completed[operationId]?.second
+        val result = finishResult(command, OperationStatus.rejected, errorCode)
+        journal.append("operationCompleted", nowMs, operationId = operationId); return result
+    }
     private fun preconditionError(command: NativeCommand): String? {
         val current = call ?: return "callNotFound"; if (current.callId != command.callId) return "callNotFound"
         if (current.state == CallState.ended) return "invalidState"
@@ -119,6 +124,10 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableCompleteApplied(operationId: String, nowMs: Long): NativeOperation? {
         val before = checkpoint(); val result = completeApplied(operationId, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableCompleteRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
+        val before = checkpoint(); val result = completeRejected(operationId, errorCode, nowMs)
+        persistOrRestore(before); return result
     }
     @Synchronized fun durableExpire(nowMs: Long) {
         val before = checkpoint(); expire(nowMs); persistOrRestore(before)

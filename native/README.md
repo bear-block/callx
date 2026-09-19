@@ -30,3 +30,8 @@ the store commits; a write failure restores the old memory checkpoint and rethro
 call the `durable*` group, never the memory-only mutations. Fault-store tests prove a pending
 operation does not leak into memory or disk when persisting prepare fails. A real process kill between
 filesystem syscalls cannot be fault-injected yet, so Gate B3 still has not passed.
+
+`CommandDispatcher` in both cores connects the two-phase coordinator to `PlatformCommandExecutor` and is
+tested for applied/rejected/deadline/duplicate-after-completion. The executor is currently a simulated seam, not
+evidence of CallKit/Telecom. Duplicates while a callback is still in flight need waiter fan-out
+before the bridge may expose this API publicly.
