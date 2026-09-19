@@ -62,3 +62,6 @@ Android has a `:telecom` module with compileSdk 36/minSdk 29 using Core-Telecom 
 contract errors. Stable Core-Telecom has no mute setter: `MediaMuteController` owns mute,
 without faking a symmetric Telecom API. The host must own the application coroutine/session lifetime;
 an Activity or the Flutter/RN engine must not own this scope.
+`CoreTelecomSessionManager` calls `CallsManager.addCall` for incoming/outgoing, prevents duplicate registration,
+reports start applied only after receiving a live `CallControlScope`, and routes system actions through the host's
+`TelecomSystemActionHandler`.

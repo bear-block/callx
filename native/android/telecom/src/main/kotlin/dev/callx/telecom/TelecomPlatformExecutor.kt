@@ -36,6 +36,10 @@ fun interface MediaMuteController {
     suspend fun setMuted(callId: String, muted: Boolean): Boolean
 }
 
+fun interface OutgoingCallStarter {
+    suspend fun start(callId: String, displayName: String, handle: String): TelecomActionResult
+}
+
 class CoreTelecomCallHandle(
     private val control: CallControlScope,
     private val isIncomingRinging: () -> Boolean,
@@ -68,6 +72,7 @@ class TelecomPlatformExecutor(
     private val calls: TelecomCallResolver,
     private val media: MediaMuteController,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    private val outgoing: OutgoingCallStarter? = null,
 ) : PlatformCommandExecutor {
     override fun perform(command: NativeCommand): CompletionStage<PlatformOutcome> {
         val future = CompletableFuture<PlatformOutcome>()
@@ -104,7 +109,14 @@ class TelecomPlatformExecutor(
                     PlatformOutcome.Rejected("mediaNotReady", nowMs())
                 }
             }
-            CommandType.startCall -> return PlatformOutcome.Rejected("unsupported", nowMs())
+            CommandType.startCall -> {
+                val displayName = command.displayName
+                    ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
+                val handle = command.handle
+                    ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
+                outgoing?.start(command.callId, displayName, handle)
+                    ?: return PlatformOutcome.Rejected("unsupported", nowMs())
+            }
             CommandType.answer -> calls.resolve(command.callId)?.answer()
             CommandType.end -> calls.resolve(command.callId)?.end()
             CommandType.setHeld -> {

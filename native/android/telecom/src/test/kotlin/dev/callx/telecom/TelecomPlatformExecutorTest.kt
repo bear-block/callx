@@ -50,7 +50,8 @@ class TelecomPlatformExecutorTest {
         )
         assertEquals(
             PlatformOutcome.Rejected("unsupported", 2_000),
-            executor.perform(command(CommandType.startCall)).toCompletableFuture().get(),
+            executor.perform(NativeCommand("op", CommandType.startCall, "call", displayName = "A",
+                handle = "sip:a@example.invalid", deadlineAtMs = 5_000)).toCompletableFuture().get(),
         )
         assertEquals(false, resolved)
     }
@@ -63,6 +64,19 @@ class TelecomPlatformExecutorTest {
             PlatformOutcome.Unknown("nativeUnavailable", 2_000),
             executor.perform(command(CommandType.answer)).toCompletableFuture().get(),
         )
+    }
+
+    @Test fun outgoingUsesValidatedMetadata() {
+        var captured = ""
+        val executor = TelecomPlatformExecutor(scope, { null }, { _, _ -> true }, { 1_000 },
+            outgoing = OutgoingCallStarter { callId, name, handle ->
+                captured = "$callId|$name|$handle"; TelecomActionResult.Applied
+            })
+        val command = NativeCommand("start", CommandType.startCall, "call-out", displayName = "hao.dev7",
+            handle = "sip:hao.dev7@example.invalid", deadlineAtMs = 5_000)
+
+        assertEquals(PlatformOutcome.Applied(1_000), executor.perform(command).toCompletableFuture().get())
+        assertEquals("call-out|hao.dev7|sip:hao.dev7@example.invalid", captured)
     }
 
     private fun command(type: CommandType, value: Boolean? = null, deadline: Long = 5_000) =
