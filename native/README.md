@@ -49,3 +49,8 @@ submission as applied; the executor must submit the transaction and then wait fo
 `RegistryBackedPlatformExecutor` now implements that pipeline: a submission rejection ends immediately;
 a submission acceptance only moves on to waiting for the action registry. An action timeout produces `timedOut`, while
 a provider reset produces `unknown/nativeUnavailable`; neither case is forced into rejected.
+
+iOS has `CallKitTransactionSubmitter` and `CallKitProviderDelegateAdapter`, which compile for the generic
+iOS 15 device target. Correlation uses the unique `CXAction.uuid`; an action is fulfilled only after the host's
+media/signaling performer succeeds. `startCall` currently returns unsupported because the native command has no
+validated handle yet; callId is never used as an implicit handle.
