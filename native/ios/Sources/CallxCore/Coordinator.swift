@@ -151,6 +151,14 @@ public actor CallCoordinator {
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
+    @discardableResult public func completeRejected(operationID: String, errorCode: String,
+        nowMs: Int64) -> NativeOperation? {
+        guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
+        let result = NativeOperation(operationID: operationID, status: .rejected, errorCode: errorCode)
+        completed[operationID] = (item.command, result)
+        journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
+        return result
+    }
 
     private func preconditionError(_ command: NativeCommand) -> String? {
         guard let current = call, current.callID == command.callID else { return "callNotFound" }
@@ -201,6 +209,12 @@ public actor CallCoordinator {
     }
     @discardableResult public func durableCompleteApplied(operationID: String, nowMs: Int64) throws -> NativeOperation? {
         let before = checkpoint(); let result = completeApplied(operationID: operationID, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    @discardableResult public func durableCompleteRejected(operationID: String, errorCode: String,
+        nowMs: Int64) throws -> NativeOperation? {
+        let before = checkpoint()
+        let result = completeRejected(operationID: operationID, errorCode: errorCode, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
     public func durableExpire(nowMs: Int64) throws {
