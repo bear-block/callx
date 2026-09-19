@@ -29,7 +29,7 @@ for (const scenario of scenarios) test(scenario.name, async () => {
   callx.dispose();
 });
 test('native mode never silently mocks', async () => {
-  await assert.rejects(new Callx().setup({appName:'Acme'}), {code:'nativeNotImplemented'});
+  await assert.rejects(new Callx().setup({appName:'Acme'}), {code:'nativeUnavailable'});
 });
 test('public vocabulary matches the canonical v0 manifest', () => {
   const manifest = JSON.parse(readFileSync(new URL('../../../contracts/v0/manifest.json', import.meta.url), 'utf8'));

@@ -1,8 +1,8 @@
-# @bear-block/callx — React Native SDK experience preview
+# @bear-block/callx — React Native native-module preview
 
-Version `0.0.0-preview.1`. **Local preview, not published. No native calling yet.**
-Publishing is disabled with `private: true`. The package is a typed API shell plus an
-explicit simulator, not a completed TurboModule.
+Version `0.0.0-preview.1`. The package includes a lazy `NativeModules.Callx` transport,
+event emitter, Android/iOS autolinking entry points and an explicit simulator. Native entry
+points advertise `nativeCalling: false` until the canonical coordinator is wired.
 
 ## Run the customized example now
 
@@ -21,8 +21,8 @@ blank TypeScript template for this preview. Use `npm run ios` or `npm run androi
 compatible simulator/device and Expo client to explore the same simulated flow.
 Web is a preview target, not a production calling support promise.
 
-Expo is the demo host, not a required dependency of the SDK. A future custom native module
-will require a development/native build; Expo Go is not the real-call integration path.
+Expo is the demo host, not a required dependency of the SDK. The native module requires a
+development/native build; Expo Go is not the real-call integration path.
 
 ## Add to another local React Native app
 
@@ -63,9 +63,7 @@ async function demo() {
 }
 ```
 
-## Installation after a future release — hypothetical
-
-Once the real package is published under an available/owned name:
+## Installation after publication
 
 ```sh
 npm install @bear-block/callx
@@ -79,9 +77,10 @@ const callx = new Callx();
 await callx.setup({appName: 'Acme Support'});
 ```
 
-**Today this setup rejects with `nativeNotImplemented`.** The registry install command does
-not install this unpublished preview. Native app bootstrap, push/permissions/presentation and
-provider/media wiring will remain separate steps. TurboModule autolinking does not replace them.
+If autolinking is missing it rejects with `nativeUnavailable`. The current native scaffold
+returns `nativeCalling: false` and rejects commands with `notConfigured` until coordinator
+wiring is complete. Native bootstrap, push/permissions/presentation and provider/media wiring
+remain separate steps; autolinking does not replace them.
 
 ## Preview contract and limits
 
@@ -97,7 +96,7 @@ provider/media wiring will remain separate steps. TurboModule autolinking does n
 - Immutable snapshots include decimal-string sequence. observe gives current state immediately.
 - Unsubscribe is independent from ending a call.
 - No native UI, push, background runtime, real audio, network, timeout simulation or durable replay.
-- Production will use a native-backed CallxBackend. The simulator is not a production reducer.
+- `Callx` uses the native backend by default. The simulator is never an automatic fallback.
 - The `/preview` export is separate: normal imports never silently enable a fake call.
 
 ## Check

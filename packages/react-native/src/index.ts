@@ -1,4 +1,6 @@
-/** Contract v0 candidate. Native bridge deliberately not implemented. */
+import {NativeCallxBackend} from './native.js';
+
+/** Contract v0 candidate. */
 export const CONTRACT_VERSION = '0.1.0' as const;
 export const CALL_STATES = ['incoming', 'outgoing', 'connecting', 'active', 'held', 'ended'] as const;
 export const END_REASONS = ['localHangup', 'declined', 'remoteEnded', 'callerCancelled',
@@ -117,10 +119,9 @@ export interface CallxBackend {
 }
 export class Callx {
   private operationCounter = 0;
-  constructor(private readonly transport?: CallxBackend) {}
+  private readonly transport: CallxBackend;
+  constructor(transport?: CallxBackend) { this.transport = transport ?? new NativeCallxBackend(); }
   private get backend(): CallxBackend {
-    if (!this.transport) throw new CallxError('nativeNotImplemented',
-      'Native calling is not implemented. Explicitly import the /preview simulator for this demo.');
     return this.transport;
   }
   async setup(config: CallxConfig): Promise<Capabilities> { return this.backend.setup(config); }
@@ -160,5 +161,5 @@ export class Callx {
   async getSnapshot(): Promise<Snapshot> { return this.backend.getSnapshot(); }
   /** Preview contract: initial snapshot is delivered immediately; unsubscribe does not end a call. */
   observe(listener: (snapshot: Snapshot) => void): () => void { return this.backend.observe(listener); }
-  dispose(): void { this.transport?.dispose(); }
+  dispose(): void { this.transport.dispose(); }
 }
