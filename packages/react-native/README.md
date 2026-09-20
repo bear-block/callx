@@ -1,8 +1,9 @@
 # @bear-block/callx — React Native native-module preview
 
 Version `0.0.0-preview.1`. The package includes a lazy `NativeModules.Callx` transport,
-event emitter, Android/iOS autolinking entry points and an explicit simulator. Native entry
-points advertise `nativeCalling: false` until the canonical coordinator is wired.
+event emitter, Android/iOS autolinking entry points, canonical Kotlin/Swift coordinator and an
+explicit simulator. Native entry points advertise `nativeCalling: false` until the app host
+installs a runtime with a real platform executor.
 
 ## Run the customized example now
 
@@ -79,10 +80,33 @@ const callx = new Callx();
 await callx.setup({appName: 'Acme Support'});
 ```
 
-If autolinking is missing it rejects with `nativeUnavailable`. The current native scaffold
-returns `nativeCalling: false` and rejects commands with `notConfigured` until coordinator
-wiring is complete. Native bootstrap, push/permissions/presentation and provider/media wiring
+If autolinking is missing it rejects with `nativeUnavailable`. An unwired native host returns
+`nativeCalling: false` and rejects commands with `notConfigured`. Native bootstrap,
+push/permissions/presentation and provider/media wiring
 remain separate steps; autolinking does not replace them.
+
+## Native host wiring
+
+Create one durable coordinator and a platform executor backed by native signaling/media, then
+install the runtime before JavaScript calls `setup`:
+
+```kotlin
+val runtime = BridgeRuntime(coordinator, telecomExecutor,
+  BridgeCapabilities(accountGeneration, true, false, hold = true, mute = true))
+CallxModule.configure(runtime)
+```
+
+```swift
+let runtime = BridgeRuntime(coordinator: coordinator, executor: callKitExecutor,
+  capabilities: .init(accountGeneration: accountGeneration, durableReplay: true,
+    providerManagedSignaling: false, hold: true, mute: true),
+  nowMs: { Int64(Date().timeIntervalSince1970 * 1000) })
+CallxReactNativeHost.configure(runtime)
+```
+
+Push/signaling calls `reportIncoming`, `remoteAnswered` and `remoteEnded` on the runtime; media
+calls `mediaConnected` only when media is actually usable. The JS thread is never the CallKit or
+Core-Telecom action performer.
 
 ## Preview contract and limits
 

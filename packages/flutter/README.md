@@ -1,9 +1,8 @@
 # callx — Flutter native plugin preview
 
-Version `0.0.0-preview.1`. The package now contains a typed MethodChannel/EventChannel backend
-and Android/iOS plugin entry points. Platform entry points currently advertise
-`nativeCalling: false` and reject commands with `notConfigured` until the canonical native
-coordinator is embedded in the package; they never fall back silently to the simulator.
+Version `0.0.0-preview.1`. The package contains a typed MethodChannel/EventChannel backend,
+Android/iOS entry points and the canonical Kotlin/Swift coordinator. It never falls back
+silently to the simulator.
 
 ## Run the customized example now
 
@@ -73,12 +72,37 @@ flutter pub add callx
 ```
 
 The intended construction is `final callx = Callx();`, followed by `setup`. A missing plugin
-throws `nativeUnavailable`; an attached but unwired platform returns capabilities with
-`nativeCalling: false` and commands return `notConfigured`.
+throws `nativeUnavailable`; an attached but unwired host returns `nativeCalling: false` and
+commands return `notConfigured`.
 
 Native app bootstrap, PushKit/APNs, FCM/Telecom presentation, permissions and a native
-provider/media adapter will still be required. A package install or Dart setup call alone
+provider/media adapter are still required. A package install or Dart setup call alone
 cannot establish those capabilities.
+
+## Native host wiring
+
+Create one durable `CallCoordinator`, a platform executor backed by CallKit/Core-Telecom plus
+your native media/signaling implementation, and a stable login-generation ID. Install it before
+the first Dart `setup` call:
+
+```kotlin
+val runtime = BridgeRuntime(coordinator, telecomExecutor,
+  BridgeCapabilities(accountGeneration, true, false, hold = true, mute = true))
+CallxPlugin.configure(runtime)
+```
+
+```swift
+let runtime = BridgeRuntime(coordinator: coordinator, executor: callKitExecutor,
+  capabilities: .init(accountGeneration: accountGeneration, durableReplay: true,
+    providerManagedSignaling: false, hold: true, mute: true),
+  nowMs: { Int64(Date().timeIntervalSince1970 * 1000) })
+CallxPlugin.configure(runtime)
+```
+
+Push/signaling code calls `runtime.reportIncoming(...)`, `remoteAnswered(...)` and
+`remoteEnded(...)`; the media engine calls `mediaConnected(...)`. Do not call
+`mediaConnected` merely because answer succeeded. On iOS, only fulfill a CallKit action after
+the native performer has completed its signaling/media work.
 
 ## Preview contract and limits
 
@@ -97,7 +121,7 @@ cannot establish those capabilities.
 - No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.
 - Reset clears the simulator; it is not a production SDK command.
 - SDK/toolchain baseline here: Flutter 3.41.6 / Dart 3.11.4. Production baseline is not frozen.
-- The native core is being connected behind `CallxBackend`; the simulator remains explicit.
+- The native core is connected behind `CallxBackend`; the simulator remains explicit.
 
 ## Check
 

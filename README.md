@@ -7,17 +7,20 @@ Goal: synchronise signaling, the OS and the media adapter, with recovery and dia
 
 ## Status
 
-**Discovery + SDK experience preview.** There are two Dart/TypeScript library projects with an explicit
-simulator and two customisable example apps. There is no Swift/Kotlin call runtime, Pigeon/TurboModule
-bridge or media adapter yet; not ready for production. The original reducer still has the command
-confirmation, recovery and replay gaps recorded in the audit.
+**Native integration preview.** Both packages have a Dart/TypeScript API, an explicit simulator,
+MethodChannel/React Native bridges and the canonical Swift/Kotlin coordinator. The native runtime has
+a durable checkpoint/journal, operation query, observation sessions, CallKit/Core-Telecom command
+adapters and host ingress for signaling/media. Not declared production-ready, because push delivery,
+audio, background recovery and system UI still need acceptance on real devices with the app's own
+backend.
 
 ## Try the two libraries first
 
 Read the [preview install/usage guide](docs/preview/README.md),
 the [Flutter project](packages/flutter/README.md) and the [RN project](packages/react-native/README.md).
-Both demos have a call card, controls and an event timeline. Every call is simulated; there is no
-real audio/push/system UI. Both projects block publishing.
+Both demos have a call card, controls and an event timeline; they default to the preview so they run on the web.
+A native build only reports `nativeCalling: true` after the host app installs a runtime with a platform executor;
+there is no silent fallback. Nothing is published to a registry until the device gate is complete.
 
 ## Recommended reading
 
@@ -29,7 +32,7 @@ real audio/push/system UI. Both projects block publishing.
 
 Before development: read the [two-SDK design](docs/architecture/02-dual-sdk.md) and
 [architecture readiness](docs/plan/05-architecture-readiness.md). The architecture direction has a basis;
-there is not yet enough native/build/device evidence to confirm implementation-ready.
+there is native build/unit evidence to develop the integration; device evidence remains the release gate.
 [Contract v0.1.0](docs/contract/v0.md) is currently a review candidate with a manifest/validator/fixtures,
 not a stable API or native evidence.
 
@@ -59,4 +62,4 @@ npm run typecheck
 Pure tests do not prove push delivery, audio, Recents, the lock screen or native builds.
 One live call is the planned v1 scope; multi-call/DTMF/advanced route UI are deferred.
 The root `package.json` only serves the original prototype. The two new projects are in packages/;
-Flutter is currently a Dart API package and RN a TS API shell, not yet complete native plugins/modules.
+Flutter is a plugin and RN an autolinkable native module; both vendor the same canonical native core.
