@@ -1,9 +1,26 @@
-# @bear-block/callx — React Native native-module preview
+# @bear-block/callx
+
+Native call coordination for React Native using iOS CallKit and Android Core-Telecom.
+Includes typed commands, call snapshots, operation lookup and observation sessions.
+
+## Status and requirements
+
+Native integration preview; not yet published or production-validated. Supports one
+live call. Native calling targets iOS/Android; web is simulator-only. Declared peers:
+React `>=18`, React Native `>=0.76`; recorded demo baseline: RN 0.86.3 / Expo 57.
+The peer range is not a tested compatibility matrix. Native builds require iOS 15+
+/ Swift 6 or Android API 29+ and a compatible native toolchain. Bring your own
+signaling/media integration, push setup and app permissions. Expo is optional;
+Expo users need a development/native build for real calls.
 
 Version `0.0.0-preview.1`. The package includes a lazy `NativeModules.Callx` transport,
 event emitter, Android/iOS autolinking entry points, canonical Kotlin/Swift coordinator and an
 explicit simulator. Native entry points advertise `nativeCalling: false` until the app host
 installs a runtime with a real platform executor.
+
+Read the [English integration and API guides](https://github.com/bear-block/callx/blob/main/docs/README.md)
+for architecture, native bootstrap, recovery and device acceptance. In a local checkout,
+the same documentation is under `docs/guides/` at the repository root.
 
 ## Run the customized example now
 
@@ -19,7 +36,7 @@ npm run web
 
 The example uses Expo 57 / React Native 0.86.3 / React 19.2.3, resolved from the official
 blank TypeScript template for this preview. Use `npm run ios` or `npm run android` with a
-compatible simulator/device and Expo client to explore the same simulated flow.
+compatible simulator/device to build a native host and explore the same simulated flow.
 Web is a preview target, not a production calling support promise.
 
 Expo is the demo host, not a required dependency of the SDK. The native module requires a
@@ -36,7 +53,7 @@ npm install /absolute/path/to/callx/packages/react-native
 The demo already uses `"@bear-block/callx": "file:.."`. Rebuild this package after source edits.
 For a self-contained local artifact use `npm pack` here and install the resulting tarball.
 The tarball vendors the same canonical Swift/Kotlin sources as the Flutter package; repository
-CI verifies byte-for-byte parity against `native/`.
+The repository parity script verifies byte-for-byte parity against `native/`.
 
 ## Try the API
 
@@ -135,5 +152,29 @@ npm run typecheck
 npm run build:web
 ```
 
-Tests use shared fixtures from the development monorepo. Published runtime artifacts would use
-only lib/; they have no references to root sources. Preview API is not yet stable.
+Tests use shared fixtures from the development monorepo. Published artifacts contain
+`lib/` plus native Android/iOS sources and autolinking metadata; they do not require
+root sources at runtime. Preview API is not yet stable.
+
+## Build and release
+
+`npm run build` compiles TypeScript; `npm pack` runs the build and produces a
+self-contained tarball with native sources. Install that tarball in clean native
+consumers before publishing. Follow the full
+[build-to-npm runbook](https://github.com/bear-block/callx/blob/main/docs/guides/build-and-release.md)
+for versioning, device evidence and `--access public --tag preview` publication.
+Do not publish from the monorepo root.
+
+## Troubleshooting and support
+
+`nativeUnavailable` means the native module is unavailable in the current host;
+`notConfigured` means host runtime setup is missing. Rebuild the native app after
+installation; Metro reload cannot install native code. See the
+[troubleshooting guide](https://github.com/bear-block/callx/blob/main/docs/guides/acceptance.md).
+Report package/framework/OS versions and a minimal reproduction with sanitized logs;
+omit credentials and push tokens.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Third-party platform/provider dependencies retain their
+own licenses and configuration requirements.

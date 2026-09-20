@@ -1,8 +1,23 @@
-# callx — Flutter native plugin preview
+# callx
+
+Native call coordination for Flutter using iOS CallKit and Android Core-Telecom.
+Includes typed commands, call snapshots, operation lookup and observation sessions.
+
+## Status and requirements
+
+Native integration preview; not yet published or production-validated. Supports one
+live call. Native calling targets iOS/Android; web is simulator-only. Requires Dart
+`^3.11.4`, Flutter `>=3.41.0`, iOS 15+ / Swift 6, and Android API 29+ with a compatible
+Android build toolchain. The recorded development baseline is Flutter 3.41.6.
+Bring your own native signaling/media integration, push setup and app permissions.
 
 Version `0.0.0-preview.1`. The package contains a typed MethodChannel/EventChannel backend,
 Android/iOS entry points and the canonical Kotlin/Swift coordinator. It never falls back
 silently to the simulator.
+
+Read the [English integration and API guides](https://github.com/bear-block/callx/blob/main/docs/README.md)
+for architecture, native bootstrap, recovery and device acceptance. In a local checkout,
+the same documentation is under `docs/guides/` at the repository root.
 
 ## Run the customized example now
 
@@ -15,7 +30,7 @@ flutter run -d chrome
 ```
 
 The example also has generated iOS/Android host projects. Use `flutter run -d <device-id>`
-to run the same simulated UI there while native host wiring is under development.
+to run the same simulated UI there. Real calls require host runtime and provider wiring.
 Web support is for this preview only, not a production calling support promise.
 
 ## Add to another local Flutter app
@@ -29,7 +44,7 @@ dependencies:
 ```
 
 Then run `flutter pub get`. The package's runtime sources do not reference the monorepo.
-Canonical Swift/Kotlin cores are vendored into the published artifact; repository CI checks them
+Canonical Swift/Kotlin cores are vendored into the published artifact; the repository parity script checks them
 byte-for-byte against `native/` to prevent Flutter/React Native semantic drift.
 
 ## Try the API
@@ -135,3 +150,25 @@ flutter build web
 
 Package tests use shared preview fixtures in the development monorepo. Those fixtures are not
 a runtime dependency. Preview API remains subject to change; do not ship it as a calling SDK.
+
+## Build and release
+
+Run package checks above and `flutter pub publish --dry-run` from this directory.
+A plugin ships source; build the example on both native platforms to validate its
+integration. Before upload, follow the full
+[build-to-pub.dev runbook](https://github.com/bear-block/callx/blob/main/docs/guides/build-and-release.md),
+including clean consumers, version/changelog updates and device evidence.
+
+## Troubleshooting and support
+
+`nativeUnavailable` means the native plugin is unavailable in the current host;
+`notConfigured` means host runtime setup is missing. An applied answer does not
+prove media readiness. See the
+[troubleshooting guide](https://github.com/bear-block/callx/blob/main/docs/guides/acceptance.md).
+When reporting an issue, include package/framework/OS versions and a minimal
+reproduction with sanitized logs. Do not include credentials or push tokens.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Third-party platform/provider dependencies retain their
+own licenses and configuration requirements.
