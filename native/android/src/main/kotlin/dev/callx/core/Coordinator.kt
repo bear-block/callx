@@ -22,15 +22,18 @@ data class ObservationCapture(val call: CallRecord?, val watermark: Long, val re
 
 /** Serialized by synchronization until the Android adapter supplies its application coroutine. */
 class CallCoordinator private constructor(private val store: CoordinatorStore?, @Suppress("UNUSED_PARAMETER") marker: Unit) {
+    companion object { const val OPERATION_RETENTION_MS = 86_400_000L; const val OPERATION_QUOTA = 10_000 }
     private var call: CallRecord? = null
     private val pending = mutableMapOf<String, NativeCommand>()
     private val completed = mutableMapOf<String, Pair<NativeCommand, NativeOperation>>()
+    private var lastCompletedPruneAt: Long? = null
     private var journal = EventJournal()
     constructor() : this(null, Unit)
     constructor(checkpoint: CoordinatorCheckpoint) : this(null, Unit) { restore(checkpoint) }
     constructor(store: CoordinatorStore) : this(store, Unit) { store.load()?.let(::restore) }
     private fun restore(checkpoint: CoordinatorCheckpoint) {
         call = checkpoint.call
+        lastCompletedPruneAt = null
         pending.clear(); completed.clear()
         checkpoint.pending.associateByTo(pending) { it.operationId }
         checkpoint.completed.associateTo(completed) { it.command.operationId to (it.command to it.result) }
@@ -75,6 +78,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState", nowMs); pending.remove(id)
             journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.signaling)
         }
+        pruneCompleted(nowMs)
     }
     @Synchronized fun prepare(command: NativeCommand, nowMs: Long): Preparation {
         completed[command.operationId]?.let { return if (it.first == command) Preparation.Existing(it.second) else conflict(command.operationId, nowMs) }
@@ -88,6 +92,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             completed[id] = command to NativeOperation(id, OperationStatus.timedOut, "deadlineExceeded", nowMs); pending.remove(id)
             journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.recovery)
         }
+        pruneCompleted(nowMs)
     }
     @Synchronized fun completeApplied(operationId: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
@@ -151,10 +156,23 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         return Preparation.Existing(result)
     }
     private fun finishResult(command: NativeCommand, status: OperationStatus, error: String?, nowMs: Long): NativeOperation {
-        val result = NativeOperation(command.operationId, status, error, nowMs); completed[command.operationId] = command to result; return result
+        val result = NativeOperation(command.operationId, status, error, nowMs)
+        completed[command.operationId] = command to result; pruneCompleted(nowMs); return result
     }
     private fun conflict(id: String, nowMs: Long) =
         Preparation.Conflict(NativeOperation(id, OperationStatus.rejected, "conflict", nowMs))
+    private fun pruneCompleted(nowMs: Long) {
+        val last = lastCompletedPruneAt
+        if (last == null || nowMs < last || nowMs - last >= OPERATION_RETENTION_MS) {
+            completed.entries.removeIf { (_, pair) ->
+                pair.second.completedAtMs?.let { nowMs - it >= OPERATION_RETENTION_MS } ?: true
+            }
+            lastCompletedPruneAt = nowMs
+        }
+        if (completed.size > OPERATION_QUOTA) completed.entries
+            .sortedBy { it.value.second.completedAtMs }.take(completed.size - OPERATION_QUOTA)
+            .forEach { completed.remove(it.key) }
+    }
     private fun persistOrRestore(before: CoordinatorCheckpoint) {
         try { store?.save(checkpoint()) } catch (error: Throwable) { restore(before); throw error }
     }

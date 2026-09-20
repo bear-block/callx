@@ -48,3 +48,13 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
     #expect(held["state"] == .string("held"))
     #expect(try await bridge.execute(command("end", "end"))["status"] == .string("applied"))
 }
+
+@Test func endedCallDisappearsFromPublicSnapshotAfterFiveMinutes() async throws {
+    let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
+        BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
+            providerManagedSignaling: false, hold: true, mute: true), nowMs: { 301_100 })
+    try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901234567", observedAtMs: 900)
+    _ = try await bridge.execute(["contractVersion": .string("0.1.0"), "operationId": .string("end"),
+        "type": .string("end"), "callId": .string("call-1"), "deadlineAtMs": .integer(302_000)])
+    #expect(try await bridge.getSnapshot()["call"] == .null)
+}

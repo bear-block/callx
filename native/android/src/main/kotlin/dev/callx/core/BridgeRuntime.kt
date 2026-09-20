@@ -103,7 +103,7 @@ class BridgeRuntime(
     fun getSnapshot(): Map<String, Any?> {
         val capture = coordinator.observationCapture()
         return mapOf("contractVersion" to VERSION, "sequence" to capture.watermark.toString(),
-            "call" to capture.call?.let(::callMap))
+            "call" to visibleCall(capture.call)?.let(::callMap))
     }
 
     fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs()) {
@@ -177,8 +177,11 @@ class BridgeRuntime(
 
     private fun snapshotMap(watermark: String, call: CallRecord?): Map<String, Any?> = mapOf(
         "contractVersion" to VERSION, "watermark" to watermark,
-        "calls" to call?.let { listOf(callMap(it)) }.orEmpty(),
+        "calls" to visibleCall(call)?.let { listOf(callMap(it)) }.orEmpty(),
     )
+    private fun visibleCall(value: CallRecord?): CallRecord? = value?.takeUnless {
+        it.state == CallState.ended && it.endedAtMs?.let { ended -> nowMs() - ended >= 300_000 } == true
+    }
     private fun callMap(value: CallRecord): Map<String, Any?> {
         val direction = value.direction ?: throw BridgeViolation("internal", "Call direction is missing.")
         val displayName = value.displayName ?: throw BridgeViolation("internal", "Call displayName is missing.")

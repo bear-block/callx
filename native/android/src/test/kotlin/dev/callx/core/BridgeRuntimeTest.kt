@@ -51,4 +51,16 @@ class BridgeRuntimeTest {
         assertEquals("applied", execute("end", "end", "callId" to "call-1")["status"])
         assertEquals("ended", (bridge.getSnapshot()["call"] as Map<*, *>)["state"])
     }
+    @Test fun endedCallDisappearsFromPublicSnapshotAfterFiveMinutes() {
+        val core = CallCoordinator(); var clock = 1_000L
+        val bridge = BridgeRuntime(core,
+            PlatformCommandExecutor { CompletableFuture.completedFuture(PlatformOutcome.Applied(clock)) },
+            BridgeCapabilities("generation-1", true, false, true, true), nowMs = { clock })
+        bridge.reportIncoming("call-1", "hao.dev7", "+84901234567", 900)
+        bridge.execute(mapOf("contractVersion" to "0.1.0", "operationId" to "end", "type" to "end",
+            "callId" to "call-1")).toCompletableFuture().join()
+        assertNotNull(bridge.getSnapshot()["call"])
+        clock += 300_000
+        assertNull(bridge.getSnapshot()["call"])
+    }
 }

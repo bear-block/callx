@@ -99,7 +99,7 @@ public actor BridgeRuntime {
         let watermark = capture.watermark; emittedThrough = watermark
         return ["contractVersion": .string(Self.version), "sessionId": .string(sessionID),
             "accountGeneration": .string(capabilities.accountGeneration), "status": .string(status),
-            "snapshot": .object(try snapshotMap(watermark: watermark, call: capture.call)),
+            "snapshot": .object(try snapshotMap(watermark: watermark, call: visibleCall(capture.call))),
             "replay": .array(replay.map { .object(eventMap($0)) })]
     }
 
@@ -116,7 +116,7 @@ public actor BridgeRuntime {
         let capture = await coordinator.observationCapture()
         var result: BridgeObject = ["contractVersion": .string(Self.version),
             "sequence": .string(String(capture.watermark))]
-        result["call"] = if let call = capture.call { .object(try callMap(call)) } else { .null }
+        result["call"] = if let call = visibleCall(capture.call) { .object(try callMap(call)) } else { .null }
         return result
     }
     public func reportIncoming(callID: String, displayName: String, handle: String,
@@ -198,6 +198,11 @@ public actor BridgeRuntime {
         let calls: [BridgeValue]
         if let call { calls = [.object(try callMap(call))] } else { calls = [] }
         return ["contractVersion": .string(Self.version), "watermark": .string(String(watermark)), "calls": .array(calls)]
+    }
+    private func visibleCall(_ value: CallRecord?) -> CallRecord? {
+        guard let value, value.state == .ended, let ended = value.endedAtMs,
+              nowMs() - ended >= 300_000 else { return value }
+        return nil
     }
     private func callMap(_ value: CallRecord) throws -> BridgeObject {
         guard let direction = value.direction, let displayName = value.displayName else {

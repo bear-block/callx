@@ -68,10 +68,13 @@ public struct ObservationCapture: Sendable {
 /// Platform-neutral serialized coordinator. CallKit adapters execute only `.execute` commands
 /// and call `completeApplied`; no optimistic state mutation occurs during `prepare`.
 public actor CallCoordinator {
+    public static let operationRetentionMs: Int64 = 86_400_000
+    public static let operationQuota = 10_000
     private struct Pending: Sendable { let command: NativeCommand }
     private var call: CallRecord?
     private var pending: [String: Pending] = [:]
     private var completed: [String: (NativeCommand, NativeOperation)] = [:]
+    private var lastCompletedPruneAt: Int64?
     private var journal = EventJournal()
     private let store: (any CoordinatorStore)?
 
@@ -94,6 +97,7 @@ public actor CallCoordinator {
     }
     private func restore(_ checkpoint: CoordinatorCheckpoint) {
         call = checkpoint.call
+        lastCompletedPruneAt = nil
         pending.removeAll(); completed.removeAll()
         pending = Dictionary(uniqueKeysWithValues: checkpoint.pending.map { ($0.operationID, Pending(command: $0)) })
         completed = Dictionary(uniqueKeysWithValues: checkpoint.completed.map { ($0.command.operationID, ($0.command, $0.result)) })
@@ -148,6 +152,7 @@ public actor CallCoordinator {
             pending.removeValue(forKey: id)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .signaling)
         }
+        pruneCompleted(nowMs: nowMs)
     }
 
     public func prepare(_ command: NativeCommand, nowMs: Int64) -> Preparation {
@@ -163,6 +168,7 @@ public actor CallCoordinator {
             let result = NativeOperation(operationID: command.operationID, status: .timedOut,
                 errorCode: "deadlineExceeded", completedAtMs: nowMs)
             completed[command.operationID] = (command, result)
+            pruneCompleted(nowMs: nowMs)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: command.operationID)
             return .existing(result)
         }
@@ -170,6 +176,7 @@ public actor CallCoordinator {
             let result = NativeOperation(operationID: command.operationID, status: .rejected,
                 errorCode: error, completedAtMs: nowMs)
             completed[command.operationID] = (command, result)
+            pruneCompleted(nowMs: nowMs)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: command.operationID)
             return .existing(result)
         }
@@ -184,6 +191,7 @@ public actor CallCoordinator {
             pending.removeValue(forKey: id)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .recovery)
         }
+        pruneCompleted(nowMs: nowMs)
     }
 
     @discardableResult public func completeApplied(operationID: String, nowMs: Int64) -> NativeOperation? {
@@ -192,12 +200,14 @@ public actor CallCoordinator {
             let result = NativeOperation(operationID: operationID, status: .timedOut,
                 errorCode: "deadlineExceeded", completedAtMs: nowMs)
             completed[operationID] = (item.command, result)
+            pruneCompleted(nowMs: nowMs)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
             return result
         }
         apply(item.command, nowMs: nowMs)
         let result = NativeOperation(operationID: operationID, status: .applied, errorCode: nil, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
+        pruneCompleted(nowMs: nowMs)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: item.command.callID)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
@@ -208,6 +218,7 @@ public actor CallCoordinator {
         let result = NativeOperation(operationID: operationID, status: .rejected,
             errorCode: errorCode, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
+        pruneCompleted(nowMs: nowMs)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
@@ -217,6 +228,7 @@ public actor CallCoordinator {
         let result = NativeOperation(operationID: operationID, status: .unknown,
             errorCode: errorCode, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
+        pruneCompleted(nowMs: nowMs)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
@@ -225,6 +237,7 @@ public actor CallCoordinator {
         let result = NativeOperation(operationID: operationID, status: .timedOut,
             errorCode: "deadlineExceeded", completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
+        pruneCompleted(nowMs: nowMs)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
@@ -269,6 +282,20 @@ public actor CallCoordinator {
 
     private func conflict(_ id: String, nowMs: Int64) -> NativeOperation {
         NativeOperation(operationID: id, status: .rejected, errorCode: "conflict", completedAtMs: nowMs)
+    }
+    private func pruneCompleted(nowMs: Int64) {
+        if lastCompletedPruneAt == nil || nowMs < lastCompletedPruneAt! ||
+            nowMs - lastCompletedPruneAt! >= Self.operationRetentionMs {
+            completed = completed.filter { $0.value.1.completedAtMs.map {
+                nowMs - $0 < Self.operationRetentionMs
+            } ?? false }
+            lastCompletedPruneAt = nowMs
+        }
+        if completed.count > Self.operationQuota {
+            let excess = completed.count - Self.operationQuota
+            for key in completed.sorted(by: { ($0.value.1.completedAtMs ?? 0) < ($1.value.1.completedAtMs ?? 0) })
+                .prefix(excess).map(\.key) { completed.removeValue(forKey: key) }
+        }
     }
     private func persist(orRestore before: CoordinatorCheckpoint) throws {
         guard let store else { return }

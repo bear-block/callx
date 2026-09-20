@@ -51,6 +51,23 @@ class CoordinatorTest {
             )
         }
     }
+    @Test fun completedOperationsExpireAtRetentionBoundary() {
+        val core = CallCoordinator()
+        val first = NativeCommand("old", CommandType.startCall, "call-old", deadlineAtMs = 10_000)
+        assertIs<Preparation.Existing>(core.prepare(first, 1_000)); assertNotNull(core.operation("old"))
+        val later = 1_000 + CallCoordinator.OPERATION_RETENTION_MS
+        val second = NativeCommand("new", CommandType.startCall, "call-new", deadlineAtMs = later + 1_000)
+        assertIs<Preparation.Existing>(core.prepare(second, later)); assertNull(core.operation("old"))
+    }
+    @Test fun completedOperationsRespectRecordQuota() {
+        val core = CallCoordinator()
+        repeat(CallCoordinator.OPERATION_QUOTA + 1) { index ->
+            core.prepare(NativeCommand("op-$index", CommandType.startCall, "call-$index", deadlineAtMs = 20_000),
+                1_000L + index)
+        }
+        assertEquals(CallCoordinator.OPERATION_QUOTA, core.checkpoint().completed.size)
+        assertNull(core.operation("op-0")); assertNotNull(core.operation("op-10000"))
+    }
     @Test fun stateCommitsOnlyAfterApplied() {
         val core = CallCoordinator(); core.reportIncoming("call-1")
         val command = NativeCommand("answer-1", CommandType.answer, "call-1", deadlineAtMs = 5_000)

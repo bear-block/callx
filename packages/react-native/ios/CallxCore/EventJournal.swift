@@ -45,15 +45,20 @@ public struct EventJournal: Sendable {
     public static let retentionMs: Int64 = 86_400_000
     public static let eventQuota = 2_048
     public static let encodedByteQuota = 2_097_152
+    private static let envelopeBytes = 128
     private(set) public var state: JournalCheckpoint
-    public init(checkpoint: JournalCheckpoint = JournalCheckpoint()) { state = checkpoint }
+    private var encodedEventBytes: Int
+    public init(checkpoint: JournalCheckpoint = JournalCheckpoint()) {
+        state = checkpoint; encodedEventBytes = checkpoint.events.reduce(0) { $0 + Self.encodedBytes($1) }
+    }
 
     @discardableResult public mutating func append(kind: String, observedAtMs: Int64,
         callID: String? = nil, operationID: String? = nil, source: EventSource = .local) -> JournalEvent {
         let sequence = state.nextSequence; state.nextSequence += 1
         let event = JournalEvent(eventID: "event-\(sequence)", sequence: sequence, kind: kind, source: source,
             observedAtMs: observedAtMs, callID: callID, operationID: operationID)
-        state.events.append(event); prune(nowMs: observedAtMs); return event
+        state.events.append(event); encodedEventBytes += Self.encodedBytes(event)
+        prune(nowMs: observedAtMs); return event
     }
     public mutating func acknowledge(through sequence: UInt64) throws {
         guard sequence >= state.acknowledged, sequence < state.nextSequence else { throw JournalError.invalidAcknowledgement }
@@ -67,13 +72,16 @@ public struct EventJournal: Sendable {
     }
     public mutating func prune(nowMs: Int64) {
         while let first = state.events.first,
-              nowMs - first.observedAtMs >= Self.retentionMs { state.events.removeFirst() }
-        while state.events.count > Self.eventQuota { state.events.removeFirst() }
-        let encoder = JSONEncoder()
+              nowMs - first.observedAtMs >= Self.retentionMs { removeFirst() }
+        while state.events.count > Self.eventQuota { removeFirst() }
         while state.events.count > 1,
-              (try? encoder.encode(state.events).count) ?? (Self.encodedByteQuota + 1) > Self.encodedByteQuota {
-            state.events.removeFirst()
+              encodedEventBytes + state.events.count + Self.envelopeBytes > Self.encodedByteQuota {
+            removeFirst()
         }
     }
+    private static func encodedBytes(_ event: JournalEvent) -> Int {
+        (try? JSONEncoder().encode(event).count) ?? (encodedByteQuota + 1)
+    }
+    private mutating func removeFirst() { encodedEventBytes -= Self.encodedBytes(state.events.removeFirst()) }
     public enum JournalError: Error { case invalidAcknowledgement }
 }

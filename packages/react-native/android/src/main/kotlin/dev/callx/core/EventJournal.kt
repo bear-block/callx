@@ -13,12 +13,17 @@ sealed interface ReplayOutcome {
 }
 
 class EventJournal(val state: JournalCheckpoint = JournalCheckpoint()) {
-    companion object { const val RETENTION_MS = 86_400_000L; const val EVENT_QUOTA = 2_048; const val BYTE_QUOTA = 2_097_152 }
+    companion object {
+        const val RETENTION_MS = 86_400_000L; const val EVENT_QUOTA = 2_048
+        const val BYTE_QUOTA = 2_097_152; private const val ENVELOPE_BYTES = 128
+    }
+    private var encodedEventBytes = state.events.sumOf(JournalCodec::encodedEventBytes)
     fun append(kind: String, observedAtMs: Long, callId: String? = null, operationId: String? = null,
         source: EventSource = EventSource.local): JournalEvent {
         val sequence = state.nextSequence++
         val event = JournalEvent("event-$sequence", sequence, kind, source, observedAtMs, callId, operationId)
-        state.events += event; prune(observedAtMs); return event
+        state.events += event; encodedEventBytes += JournalCodec.encodedEventBytes(event)
+        prune(observedAtMs); return event
     }
     fun acknowledge(through: Long) {
         if (through < state.acknowledged || through >= state.nextSequence) throw JournalViolation("Invalid acknowledgement")
@@ -30,21 +35,24 @@ class EventJournal(val state: JournalCheckpoint = JournalCheckpoint()) {
         return ReplayOutcome.Replay(state.events.filter { it.sequence > after })
     }
     fun prune(nowMs: Long) {
-        while (state.events.firstOrNull()?.let { nowMs - it.observedAtMs >= RETENTION_MS } == true) state.events.removeFirst()
-        while (state.events.size > EVENT_QUOTA) state.events.removeFirst()
-        while (state.events.size > 1 && JournalCodec.encode(state).toString().toByteArray().size > BYTE_QUOTA) state.events.removeFirst()
+        while (state.events.firstOrNull()?.let { nowMs - it.observedAtMs >= RETENTION_MS } == true) removeFirst()
+        while (state.events.size > EVENT_QUOTA) removeFirst()
+        while (state.events.size > 1 && encodedEventBytes + state.events.size + ENVELOPE_BYTES > BYTE_QUOTA) removeFirst()
     }
+    private fun removeFirst() { encodedEventBytes -= JournalCodec.encodedEventBytes(state.events.removeFirst()) }
 }
 class JournalViolation(message: String) : IllegalArgumentException(message)
 
 object JournalCodec {
+    private fun encodeEvent(event: JournalEvent) = buildJsonObject {
+        put("eventId", event.eventId); put("sequence", event.sequence); put("kind", event.kind)
+        put("source", event.source.name); put("observedAtMs", event.observedAtMs)
+        event.callId?.let { put("callId", it) }; event.operationId?.let { put("operationId", it) }
+    }
+    fun encodedEventBytes(event: JournalEvent) = encodeEvent(event).toString().toByteArray().size
     fun encode(value: JournalCheckpoint) = buildJsonObject {
         put("nextSequence", value.nextSequence); put("acknowledged", value.acknowledged)
-        putJsonArray("events") { value.events.forEach { event -> add(buildJsonObject {
-            put("eventId", event.eventId); put("sequence", event.sequence); put("kind", event.kind)
-            put("source", event.source.name); put("observedAtMs", event.observedAtMs)
-            event.callId?.let { put("callId", it) }; event.operationId?.let { put("operationId", it) }
-        }) } }
+        putJsonArray("events") { value.events.forEach { add(encodeEvent(it)) } }
     }
     fun decode(value: JsonObject) = JournalCheckpoint(value.getValue("nextSequence").jsonPrimitive.long,
         value.getValue("acknowledged").jsonPrimitive.long, value.getValue("events").jsonArray.map { item -> item.jsonObject.let {

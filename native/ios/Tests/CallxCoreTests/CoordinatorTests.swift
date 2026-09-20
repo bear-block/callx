@@ -73,6 +73,26 @@ import Foundation
     }
 }
 
+@Test func completedOperationsExpireAtRetentionBoundary() async {
+    let core = CallCoordinator()
+    let first = NativeCommand(operationID: "old", type: .startCall, callID: "call-old", deadlineAtMs: 10_000)
+    _ = await core.prepare(first, nowMs: 1_000); #expect(await core.operation("old") != nil)
+    let later = 1_000 + CallCoordinator.operationRetentionMs
+    let second = NativeCommand(operationID: "new", type: .startCall, callID: "call-new", deadlineAtMs: later + 1_000)
+    _ = await core.prepare(second, nowMs: later); #expect(await core.operation("old") == nil)
+}
+
+@Test func completedOperationsRespectRecordQuota() async {
+    let core = CallCoordinator()
+    for index in 0...CallCoordinator.operationQuota {
+        let command = NativeCommand(operationID: "op-\(index)", type: .startCall,
+            callID: "call-\(index)", deadlineAtMs: 20_000)
+        _ = await core.prepare(command, nowMs: Int64(1_000 + index))
+    }
+    #expect(await core.checkpoint().completed.count == CallCoordinator.operationQuota)
+    #expect(await core.operation("op-0") == nil); #expect(await core.operation("op-10000") != nil)
+}
+
 @Test func duplicateAndConflictAreDeterministic() async {
     let core = CallCoordinator(); await core.reportIncoming(callID: "call-1")
     let command = NativeCommand(operationID: "same", type: .answer, callID: "call-1", deadlineAtMs: 5_000)
