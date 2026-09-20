@@ -28,3 +28,22 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
     #expect(lookup["status"] == .string("available")); #expect(receiver.events.count == 2)
     #expect(receiver.events.allSatisfy { $0["sessionId"] == opened["sessionId"] })
 }
+
+@Test func bridgeHostIngressAndEveryCommandReachCanonicalMilestones() async throws {
+    let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
+        BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
+            providerManagedSignaling: false, hold: true, mute: true), nowMs: { 1_000 })
+    try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901234567", observedAtMs: 900)
+    func command(_ id: String, _ type: String, value: Bool? = nil) -> BridgeObject {
+        var result: BridgeObject = ["contractVersion": .string("0.1.0"), "operationId": .string(id),
+            "type": .string(type), "callId": .string("call-1")]
+        if let value { result["value"] = .bool(value) }; return result
+    }
+    #expect(try await bridge.execute(command("answer", "answer"))["status"] == .string("applied"))
+    try await bridge.mediaConnected(callID: "call-1", observedAtMs: 1_200)
+    #expect(try await bridge.execute(command("mute", "setMuted", value: true))["status"] == .string("applied"))
+    #expect(try await bridge.execute(command("hold", "setHeld", value: true))["status"] == .string("applied"))
+    guard case .object(let held) = try await bridge.getSnapshot()["call"] else { Issue.record("missing call"); return }
+    #expect(held["state"] == .string("held"))
+    #expect(try await bridge.execute(command("end", "end"))["status"] == .string("applied"))
+}

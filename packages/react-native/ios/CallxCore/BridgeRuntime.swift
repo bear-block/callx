@@ -114,6 +114,32 @@ public actor BridgeRuntime {
         result["call"] = if let call = await coordinator.snapshot() { .object(try callMap(call)) } else { .null }
         return result
     }
+    public func reportIncoming(callID: String, displayName: String, handle: String,
+        observedAtMs: Int64? = nil) async throws {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        _ = try requiredText(["displayName": .string(displayName)], "displayName", maxBytes: 256)
+        _ = try requiredText(["handle": .string(handle)], "handle", maxBytes: 256)
+        try await coordinator.durableReportIncoming(callID: callID, displayName: displayName, handle: handle,
+            nowMs: observedAtMs ?? nowMs()); await publishNewEvents()
+    }
+    public func remoteAnswered(callID: String, observedAtMs: Int64? = nil) async throws {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        try await coordinator.durableRemoteAnswered(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents()
+    }
+    public func mediaConnected(callID: String, observedAtMs: Int64? = nil) async throws {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        try await coordinator.durableMediaConnected(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents()
+    }
+    public func remoteEnded(callID: String, reason: String = "remoteEnded", observedAtMs: Int64? = nil) async throws {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let reasons = ["localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered", "busy",
+            "failed", "answeredElsewhere", "declinedElsewhere"]
+        guard reasons.contains(reason) else { throw invalid("reason is unsupported.") }
+        try await coordinator.durableRemoteEnded(callID: callID, reason: reason, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents()
+    }
     public func setEventReceiver(_ receiver: (any BridgeEventReceiving)?) { eventReceiver = receiver }
 
     public func publishNewEvents() async {

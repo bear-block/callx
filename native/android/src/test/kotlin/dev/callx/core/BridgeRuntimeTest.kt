@@ -36,4 +36,18 @@ class BridgeRuntimeTest {
             "operationId" to "op-1", "accountGeneration" to "generation-old"))["status"])
         assertFailsWith<BridgeViolation> { bridge.execute(mapOf("contractVersion" to "9.0.0")) }
     }
+
+    @Test fun hostIngressAndEveryCommandReachCanonicalMilestones() {
+        val bridge = runtime(); bridge.reportIncoming("call-1", "hao.dev7", "+84901234567", 900)
+        fun execute(id: String, type: String, vararg fields: Pair<String, Any?>) = bridge.execute(
+            mapOf("contractVersion" to "0.1.0", "operationId" to id, "type" to type, *fields),
+        ).toCompletableFuture().join()
+        assertEquals("applied", execute("answer", "answer", "callId" to "call-1")["status"])
+        bridge.mediaConnected("call-1", 1_200)
+        assertEquals("applied", execute("mute", "setMuted", "callId" to "call-1", "value" to true)["status"])
+        assertEquals("applied", execute("hold", "setHeld", "callId" to "call-1", "value" to true)["status"])
+        assertEquals("held", (bridge.getSnapshot()["call"] as Map<*, *>)["state"])
+        assertEquals("applied", execute("end", "end", "callId" to "call-1")["status"])
+        assertEquals("ended", (bridge.getSnapshot()["call"] as Map<*, *>)["state"])
+    }
 }

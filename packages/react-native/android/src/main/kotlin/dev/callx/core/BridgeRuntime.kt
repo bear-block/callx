@@ -101,6 +101,25 @@ class BridgeRuntime(
         return mapOf("contractVersion" to VERSION, "sequence" to watermark, "call" to coordinator.snapshot()?.let(::callMap))
     }
 
+    fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs()) {
+        requiredId(mapOf("callId" to callId), "callId"); requiredText(mapOf("displayName" to displayName), "displayName", 256)
+        requiredText(mapOf("handle" to handle), "handle", 256)
+        coordinator.durableReportIncoming(callId, observedAtMs, displayName, handle); publishNewEvents()
+    }
+    fun remoteAnswered(callId: String, observedAtMs: Long = nowMs()) {
+        requiredId(mapOf("callId" to callId), "callId")
+        coordinator.durableRemoteAnswered(callId, observedAtMs); publishNewEvents()
+    }
+    fun mediaConnected(callId: String, observedAtMs: Long = nowMs()) {
+        requiredId(mapOf("callId" to callId), "callId")
+        coordinator.durableMediaConnected(callId, observedAtMs); publishNewEvents()
+    }
+    fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()) {
+        requiredId(mapOf("callId" to callId), "callId")
+        if (reason !in END_REASONS) invalid("reason is unsupported.")
+        coordinator.durableRemoteEnded(callId, reason, observedAtMs); publishNewEvents()
+    }
+
     @Synchronized fun setEventListener(listener: ((Map<String, Any?>) -> Unit)?) { eventListener = listener }
 
     @Synchronized fun publishNewEvents() {
@@ -194,5 +213,7 @@ class BridgeRuntime(
         const val VERSION = "0.1.0"
         const val MAX_TIMESTAMP = 9_007_199_254_740_991L
         val ID = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+        val END_REASONS = setOf("localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered",
+            "busy", "failed", "answeredElsewhere", "declinedElsewhere")
     }
 }
