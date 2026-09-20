@@ -1,12 +1,14 @@
 {
-  "name": "@bear-block/callx",
+  "name": "callx-development",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "OS-owned call lifecycle for React Native",
+  "description": "Private Callx contract, reference-model and native development tooling",
   "license": "MIT",
   "scripts": {
     "contract:test": "node contracts/v0/validate.mjs",
+    "native:check": "sh tool/check_native_sources.sh",
+    "native:sync": "sh tool/sync_native_sources.sh",
     "native:ios:test": "cd native/ios && swift test",
     "native:android:test": "packages/flutter/example/android/gradlew -p native/android test",
     "test": "node --test src/*.test.ts",
