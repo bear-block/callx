@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fix iOS system-originated action completion, invalidate pending records on
+  timeout/reset, and expose native audio activation/deactivation callbacks.
+  Verified with native tests and iOS package builds; device/media acceptance remains separate.
 - Add the optional Expo 57 config plugin at `@bear-block/callx/app.plugin` for
   microphone text, audio/VoIP background modes, explicit APNs environment and base
   Android permissions. Host push/signaling/media implementation remains required.

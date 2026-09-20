@@ -1,17 +1,10 @@
 #if os(iOS)
 @preconcurrency import CallKit
+@preconcurrency import AVFAudio
 import Foundation
 
 public protocol CallKitUUIDResolving: Sendable {
     func uuid(for callID: String) throws -> UUID
-}
-
-public final class CallKitActionIndex: @unchecked Sendable {
-    private let lock = NSLock()
-    private var operations: [UUID: String] = [:]
-    public init() {}
-    public func register(actionUUID: UUID, operationID: String) { lock.withLock { operations[actionUUID] = operationID } }
-    public func remove(actionUUID: UUID) -> String? { lock.withLock { operations.removeValue(forKey: actionUUID) } }
 }
 
 @available(iOS 15.0, *)
@@ -66,20 +59,57 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
     private let nowMs: @Sendable () -> Int64
     public init(index: CallKitActionIndex, registry: PlatformActionRegistry,
         nowMs: @escaping @Sendable () -> Int64) { self.index = index; self.registry = registry; self.nowMs = nowMs }
+    public func begin(_ action: CXAction) -> Bool {
+        guard !action.isComplete, action.timeoutDate > Date() else {
+            timedOut(action)
+            return false
+        }
+        return index.begin(actionUUID: action.uuid)
+    }
     public func applied(_ action: CXAction) {
-        guard let operationID = index.remove(actionUUID: action.uuid) else { return }
-        action.fulfill(); Task { await registry.complete(operationID, with: .applied(completedAtMs: nowMs())) }
+        guard let completion = index.complete(actionUUID: action.uuid) else { return }
+        let atMs = nowMs()
+        guard !action.isComplete, action.timeoutDate > Date() else {
+            if let operationID = completion.operationID {
+                Task { await registry.timeout(operationID, atMs: atMs) }
+            }
+            return
+        }
+        action.fulfill()
+        if let operationID = completion.operationID {
+            Task { await registry.complete(operationID, with: .applied(completedAtMs: atMs)) }
+        }
     }
     public func rejected(_ action: CXAction, errorCode: String = "platformRejected") {
-        guard let operationID = index.remove(actionUUID: action.uuid) else { return }
-        action.fail(); Task { await registry.complete(operationID,
-            with: .rejected(errorCode: errorCode, completedAtMs: nowMs())) }
+        guard let completion = index.complete(actionUUID: action.uuid) else { return }
+        let atMs = nowMs()
+        guard !action.isComplete, action.timeoutDate > Date() else {
+            if let operationID = completion.operationID {
+                Task { await registry.timeout(operationID, atMs: atMs) }
+            }
+            return
+        }
+        action.fail()
+        if let operationID = completion.operationID {
+            Task { await registry.complete(operationID,
+                with: .rejected(errorCode: errorCode, completedAtMs: atMs)) }
+        }
     }
     public func timedOut(_ action: CXAction) {
         guard let operationID = index.remove(actionUUID: action.uuid) else { return }
-        Task { await registry.timeout(operationID, atMs: nowMs()) }
+        let atMs = nowMs()
+        Task { await registry.timeout(operationID, atMs: atMs) }
     }
-    public func providerReset() { Task { await registry.providerReset(atMs: nowMs()) } }
+    public func providerReset() {
+        let operations = index.reset()
+        let atMs = nowMs()
+        Task {
+            for operationID in operations {
+                await registry.complete(operationID, with: .providerReset(completedAtMs: atMs))
+            }
+            await registry.providerReset(atMs: atMs)
+        }
+    }
 }
 
 public enum CallKitActionKind: Sendable { case start(handle: String), answer, end, setMuted(Bool), setHeld(Bool) }
@@ -88,17 +118,27 @@ public protocol CallKitActionPerforming: Sendable {
     func providerDidReset() async
 }
 
+/// Runs on the provider delegate queue. Configure that queue to match the media SDK's
+/// threading requirements; activation alone must not be reported as mediaConnected.
+public protocol CallKitAudioSessionHandling: Sendable {
+    func didActivate(_ audioSession: AVAudioSession)
+    func didDeactivate(_ audioSession: AVAudioSession)
+}
+
 /// Concrete CXProviderDelegate bridge. The host performer owns media/signaling work; CallKit is
 /// fulfilled only after that work returns true.
 @available(iOS 15.0, *)
 public final class CallKitProviderDelegateAdapter: NSObject, CXProviderDelegate, @unchecked Sendable {
     private let performer: any CallKitActionPerforming
     private let lifecycle: CallKitActionLifecycle
-    public init(performer: any CallKitActionPerforming, lifecycle: CallKitActionLifecycle) {
-        self.performer = performer; self.lifecycle = lifecycle
+    private let audio: (any CallKitAudioSessionHandling)?
+    public init(performer: any CallKitActionPerforming, lifecycle: CallKitActionLifecycle,
+        audio: (any CallKitAudioSessionHandling)? = nil) {
+        self.performer = performer; self.lifecycle = lifecycle; self.audio = audio
     }
     public func providerDidReset(_ provider: CXProvider) {
-        Task { await performer.providerDidReset(); lifecycle.providerReset() }
+        lifecycle.providerReset()
+        Task { await performer.providerDidReset() }
     }
     public func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         perform(.answer, action: action)
@@ -118,7 +158,14 @@ public final class CallKitProviderDelegateAdapter: NSObject, CXProviderDelegate,
     public func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
         lifecycle.timedOut(action)
     }
+    public func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        audio?.didActivate(audioSession)
+    }
+    public func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+        audio?.didDeactivate(audioSession)
+    }
     private func perform(_ kind: CallKitActionKind, action: CXCallAction) {
+        guard lifecycle.begin(action) else { return }
         Task {
             if await performer.perform(kind, callUUID: action.callUUID) { lifecycle.applied(action) }
             else { lifecycle.rejected(action) }

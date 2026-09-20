@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Fix iOS system-originated action completion without SDK operation correlation.
+- Invalidate pending action records on timeout/reset and forward CallKit audio
+  activation/deactivation through an optional native media handler.
+- Verified with native core tests, iOS simulator regression tests and package builds;
+  physical device/media acceptance remains separate.
+
 ## 0.0.0-preview.1
 
 Typed Dart API, explicit simulator, native MethodChannel/EventChannel transport and Android/iOS

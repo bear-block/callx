@@ -10,6 +10,7 @@
 /coverage/
 /ios/Flutter/.last_build_id
 /ios/.swiftpm/
+/ios/build/
 /android/app/debug/
 /android/app/profile/
 /android/app/release/
