@@ -10,6 +10,7 @@ import dev.callx.core.PlatformCommandExecutor
 import dev.callx.core.PlatformOutcome
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -40,19 +41,33 @@ fun interface OutgoingCallStarter {
     suspend fun start(callId: String, displayName: String, handle: String): TelecomActionResult
 }
 
-class CoreTelecomCallHandle(
-    private val control: CallControlScope,
+class CoreTelecomCallHandle internal constructor(
+    private val answerCall: suspend () -> TelecomActionResult,
+    private val disconnectCall: suspend (Int) -> TelecomActionResult,
+    private val changeHold: suspend (Boolean) -> TelecomActionResult,
     private val isIncomingRinging: () -> Boolean,
 ) : TelecomCallHandle {
-    override suspend fun answer() = control.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL).toActionResult()
+    constructor(control: CallControlScope, isIncomingRinging: () -> Boolean) : this(
+        answerCall = { control.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL).toActionResult() },
+        disconnectCall = { code -> control.disconnect(DisconnectCause(code)).toActionResult() },
+        changeHold = { held -> (if (held) control.setInactive() else control.setActive()).toActionResult() },
+        isIncomingRinging = isIncomingRinging,
+    )
 
-    override suspend fun end(): TelecomActionResult {
-        val code = if (isIncomingRinging()) DisconnectCause.REJECTED else DisconnectCause.LOCAL
-        return control.disconnect(DisconnectCause(code)).toActionResult()
+    private val answered = AtomicBoolean(false)
+
+    override suspend fun answer(): TelecomActionResult {
+        val result = answerCall()
+        if (result == TelecomActionResult.Applied) answered.set(true)
+        return result
     }
 
-    override suspend fun setHeld(held: Boolean) =
-        (if (held) control.setInactive() else control.setActive()).toActionResult()
+    override suspend fun end(): TelecomActionResult {
+        val code = if (!answered.get() && isIncomingRinging()) DisconnectCause.REJECTED else DisconnectCause.LOCAL
+        return disconnectCall(code)
+    }
+
+    override suspend fun setHeld(held: Boolean) = changeHold(held)
 }
 
 private fun CallControlResult.toActionResult(): TelecomActionResult = when (this) {

@@ -5,6 +5,7 @@ import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallsManager
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -45,6 +46,7 @@ class CoreTelecomSessionManager(
     ): TelecomActionResult {
         if (sessions.containsKey(callId) || !starting.add(callId)) return TelecomActionResult.Rejected()
         val ready = CompletableDeferred<TelecomActionResult>()
+        val incomingRinging = AtomicBoolean(direction == CallAttributesCompat.DIRECTION_INCOMING)
         val attributes = CallAttributesCompat(
             displayName,
             Uri.parse(handle),
@@ -56,13 +58,16 @@ class CoreTelecomSessionManager(
             try {
                 callsManager.addCall(
                     attributes,
-                    onAnswer = { callType: Int -> systemActions.answer(callId, callType) },
+                    onAnswer = { callType: Int ->
+                        systemActions.answer(callId, callType)
+                        incomingRinging.set(false)
+                    },
                     onDisconnect = { cause: DisconnectCause -> systemActions.disconnect(callId, cause) },
                     onSetActive = { systemActions.setActive(callId) },
                     onSetInactive = { systemActions.setInactive(callId) },
                     block = {
                         sessions[callId] = CoreTelecomCallHandle(this) {
-                            direction == CallAttributesCompat.DIRECTION_INCOMING
+                            incomingRinging.get()
                         }
                         ready.complete(TelecomActionResult.Applied)
                     },
