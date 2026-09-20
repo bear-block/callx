@@ -34,6 +34,8 @@ npm install /absolute/path/to/callx/packages/react-native
 
 The demo already uses `"@bear-block/callx": "file:.."`. Rebuild this package after source edits.
 For a self-contained local artifact use `npm pack` here and install the resulting tarball.
+The tarball vendors the same canonical Swift/Kotlin sources as the Flutter package; repository
+CI verifies byte-for-byte parity against `native/`.
 
 ## Try the API
 

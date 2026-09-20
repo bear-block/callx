@@ -65,3 +65,7 @@ an Activity or the Flutter/RN engine must not own this scope.
 `CoreTelecomSessionManager` calls `CallsManager.addCall` for incoming/outgoing, prevents duplicate registration,
 reports start applied only after receiving a live `CallControlScope`, and routes system actions through the host's
 `TelecomSystemActionHandler`.
+
+The two publishable packages vendor the same canonical Swift/Kotlin sources because pub.dev and npm tarballs must
+be self-contained. Run `tool/sync_native_sources.sh` after every native change and
+`tool/check_native_sources.sh` in CI to fail if a vendored copy drifts.

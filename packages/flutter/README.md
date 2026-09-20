@@ -30,6 +30,8 @@ dependencies:
 ```
 
 Then run `flutter pub get`. The package's runtime sources do not reference the monorepo.
+Canonical Swift/Kotlin cores are vendored into the published artifact; repository CI checks them
+byte-for-byte against `native/` to prevent Flutter/React Native semantic drift.
 
 ## Try the API
 
