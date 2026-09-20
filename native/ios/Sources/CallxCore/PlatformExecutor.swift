@@ -19,7 +19,8 @@ public actor CommandDispatcher {
     public func execute(_ command: NativeCommand, nowMs: Int64) async throws -> NativeOperation {
         if let current = inFlight[command.operationID] {
             guard current.0 == command else {
-                return NativeOperation(operationID: command.operationID, status: .rejected, errorCode: "conflict")
+                return NativeOperation(operationID: command.operationID, status: .rejected,
+                    errorCode: "conflict", completedAtMs: nowMs)
             }
             return try await current.1.value
         }
@@ -33,19 +34,19 @@ public actor CommandDispatcher {
             case .applied(let completedAtMs):
                 result = try await coordinator.durableCompleteApplied(operationID: command.operationID,
                 nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID, status: .unknown,
-                    errorCode: "internal")
+                    errorCode: "internal", completedAtMs: completedAtMs)
             case .rejected(let code, let completedAtMs):
                 result = try await coordinator.durableCompleteRejected(operationID: command.operationID,
                 errorCode: code, nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
-                    status: .unknown, errorCode: "internal")
+                    status: .unknown, errorCode: "internal", completedAtMs: completedAtMs)
             case .timedOut(let completedAtMs):
                 result = try await coordinator.durableCompleteTimedOut(operationID: command.operationID,
                     nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
-                        status: .unknown, errorCode: "internal")
+                        status: .unknown, errorCode: "internal", completedAtMs: completedAtMs)
             case .unknown(let code, let completedAtMs):
                 result = try await coordinator.durableCompleteUnknown(operationID: command.operationID,
                     errorCode: code, nowMs: completedAtMs) ?? NativeOperation(operationID: command.operationID,
-                        status: .unknown, errorCode: "internal")
+                        status: .unknown, errorCode: "internal", completedAtMs: completedAtMs)
             }
             return result
         }

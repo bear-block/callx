@@ -33,7 +33,13 @@ class CommandDispatcher(private val coordinator: CallCoordinator, private val ex
                         is PlatformOutcome.Rejected -> coordinator.durableCompleteRejected(command.operationId, outcome.errorCode, outcome.completedAtMs)
                         is PlatformOutcome.TimedOut -> coordinator.durableCompleteTimedOut(command.operationId, outcome.completedAtMs)
                         is PlatformOutcome.Unknown -> coordinator.durableCompleteUnknown(command.operationId, outcome.errorCode, outcome.completedAtMs)
-                    } ?: NativeOperation(command.operationId, OperationStatus.unknown, "internal"))
+                    } ?: NativeOperation(command.operationId, OperationStatus.unknown, "internal",
+                        when (outcome) {
+                            is PlatformOutcome.Applied -> outcome.completedAtMs
+                            is PlatformOutcome.Rejected -> outcome.completedAtMs
+                            is PlatformOutcome.TimedOut -> outcome.completedAtMs
+                            is PlatformOutcome.Unknown -> outcome.completedAtMs
+                        }))
                 } catch (error: Throwable) { shared.completeExceptionally(error) }
                 finally { synchronized(this) { inFlight.remove(command.operationId) } }
             }

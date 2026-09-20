@@ -71,9 +71,11 @@ object CoordinatorCheckpointCodec {
         value.getValue("deadlineAtMs").jsonPrimitive.long)
     private fun encodeResult(value: NativeOperation) = buildJsonObject {
         put("operationId", value.operationId); put("status", value.status.name); value.errorCode?.let { put("errorCode", it) }
+        value.completedAtMs?.let { put("completedAtMs", it) }
     }
     private fun decodeResult(value: JsonObject) = NativeOperation(value.text("operationId"),
-        OperationStatus.valueOf(value.text("status")), value["errorCode"]?.jsonPrimitive?.contentOrNull)
+        OperationStatus.valueOf(value.text("status")), value["errorCode"]?.jsonPrimitive?.contentOrNull,
+        value["completedAtMs"]?.jsonPrimitive?.longOrNull)
     private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
 }
 

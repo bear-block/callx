@@ -6,12 +6,13 @@ import Foundation
     let core = CallCoordinator()
     let invalid = NativeCommand(operationID: "bad-start", type: .startCall, callID: "call-out", deadlineAtMs: 5_000)
     #expect(await core.prepare(invalid, nowMs: 1_000) == .existing(
-        NativeOperation(operationID: "bad-start", status: .rejected, errorCode: "invalidArgument")))
+        NativeOperation(operationID: "bad-start", status: .rejected, errorCode: "invalidArgument", completedAtMs: 1_000)))
     let start = NativeCommand(operationID: "start", type: .startCall, callID: "call-out",
         displayName: "hao.dev7", handle: "sip:hao.dev7@example.invalid", deadlineAtMs: 5_000)
     #expect(await core.prepare(start, nowMs: 1_001) == .execute)
     #expect(await core.snapshot() == nil)
     #expect(await core.completeApplied(operationID: "start", nowMs: 1_100)?.status == .applied)
+    #expect(await core.operation("start")?.completedAtMs == 1_100)
     #expect(await core.snapshot() == CallRecord(callID: "call-out", state: .outgoing,
         displayName: "hao.dev7", handle: "sip:hao.dev7@example.invalid", direction: .outgoing, createdAtMs: 1_100))
     await core.remoteAnswered(callID: "call-out", nowMs: 1_200)
@@ -78,7 +79,8 @@ import Foundation
     #expect(await core.prepare(command, nowMs: 1_000) == .execute)
     #expect(await core.prepare(command, nowMs: 1_001) == .existing(NativeOperation(operationID: "same", status: .pending, errorCode: nil)))
     let changed = NativeCommand(operationID: "same", type: .end, callID: "call-1", deadlineAtMs: 5_000)
-    #expect(await core.prepare(changed, nowMs: 1_002) == .conflict(NativeOperation(operationID: "same", status: .rejected, errorCode: "conflict")))
+    #expect(await core.prepare(changed, nowMs: 1_002) == .conflict(NativeOperation(
+        operationID: "same", status: .rejected, errorCode: "conflict", completedAtMs: 1_002)))
 }
 
 @Test func timeoutAndRemoteEndDefeatLateCallbacks() async {

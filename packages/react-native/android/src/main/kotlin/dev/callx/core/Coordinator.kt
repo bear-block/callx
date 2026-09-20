@@ -11,7 +11,8 @@ data class CallRecord(val callId: String, val state: CallState, val muted: Boole
     val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null)
 data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
     val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long)
-data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null)
+data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null,
+    val completedAtMs: Long? = null)
 sealed interface Preparation {
     data object Execute : Preparation
     data class Existing(val operation: NativeOperation) : Preparation
@@ -68,46 +69,46 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs)
         journal.append("callChanged", nowMs, callId, source = EventSource.signaling)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
-            completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState"); pending.remove(id)
+            completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState", nowMs); pending.remove(id)
             journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.signaling)
         }
     }
     @Synchronized fun prepare(command: NativeCommand, nowMs: Long): Preparation {
-        completed[command.operationId]?.let { return if (it.first == command) Preparation.Existing(it.second) else conflict(command.operationId) }
-        pending[command.operationId]?.let { return if (it == command) Preparation.Existing(NativeOperation(command.operationId, OperationStatus.pending)) else conflict(command.operationId) }
+        completed[command.operationId]?.let { return if (it.first == command) Preparation.Existing(it.second) else conflict(command.operationId, nowMs) }
+        pending[command.operationId]?.let { return if (it == command) Preparation.Existing(NativeOperation(command.operationId, OperationStatus.pending)) else conflict(command.operationId, nowMs) }
         if (command.deadlineAtMs <= nowMs) return finish(command, OperationStatus.timedOut, "deadlineExceeded", nowMs)
         preconditionError(command)?.let { return finish(command, OperationStatus.rejected, it, nowMs) }
         pending[command.operationId] = command; return Preparation.Execute
     }
     @Synchronized fun expire(nowMs: Long) {
         pending.filterValues { it.deadlineAtMs <= nowMs }.toMap().forEach { (id, command) ->
-            completed[id] = command to NativeOperation(id, OperationStatus.timedOut, "deadlineExceeded"); pending.remove(id)
+            completed[id] = command to NativeOperation(id, OperationStatus.timedOut, "deadlineExceeded", nowMs); pending.remove(id)
             journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.recovery)
         }
     }
     @Synchronized fun completeApplied(operationId: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
         if (command.deadlineAtMs <= nowMs) {
-            val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded")
+            val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded", nowMs)
             journal.append("operationCompleted", nowMs, operationId = operationId); return result
         }
-        apply(command, nowMs); val result = finishResult(command, OperationStatus.applied, null)
+        apply(command, nowMs); val result = finishResult(command, OperationStatus.applied, null, nowMs)
         journal.append("callChanged", nowMs, command.callId); journal.append("operationCompleted", nowMs, operationId = operationId)
         return result
     }
     @Synchronized fun completeRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
-        val result = finishResult(command, OperationStatus.rejected, errorCode)
+        val result = finishResult(command, OperationStatus.rejected, errorCode, nowMs)
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
     @Synchronized fun completeUnknown(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
-        val result = finishResult(command, OperationStatus.unknown, errorCode)
+        val result = finishResult(command, OperationStatus.unknown, errorCode, nowMs)
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
     @Synchronized fun completeTimedOut(operationId: String, nowMs: Long): NativeOperation? {
         val command = pending.remove(operationId) ?: return completed[operationId]?.second
-        val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded")
+        val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded", nowMs)
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
     private fun preconditionError(command: NativeCommand): String? {
@@ -142,14 +143,15 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         }
     }
     private fun finish(command: NativeCommand, status: OperationStatus, error: String, nowMs: Long): Preparation.Existing {
-        val result = finishResult(command, status, error)
+        val result = finishResult(command, status, error, nowMs)
         journal.append("operationCompleted", nowMs, operationId = command.operationId)
         return Preparation.Existing(result)
     }
-    private fun finishResult(command: NativeCommand, status: OperationStatus, error: String?): NativeOperation {
-        val result = NativeOperation(command.operationId, status, error); completed[command.operationId] = command to result; return result
+    private fun finishResult(command: NativeCommand, status: OperationStatus, error: String?, nowMs: Long): NativeOperation {
+        val result = NativeOperation(command.operationId, status, error, nowMs); completed[command.operationId] = command to result; return result
     }
-    private fun conflict(id: String) = Preparation.Conflict(NativeOperation(id, OperationStatus.rejected, "conflict"))
+    private fun conflict(id: String, nowMs: Long) =
+        Preparation.Conflict(NativeOperation(id, OperationStatus.rejected, "conflict", nowMs))
     private fun persistOrRestore(before: CoordinatorCheckpoint) {
         try { store?.save(checkpoint()) } catch (error: Throwable) { restore(before); throw error }
     }

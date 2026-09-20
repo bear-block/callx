@@ -48,6 +48,10 @@ public struct NativeOperation: Codable, Equatable, Sendable {
     public let operationID: String
     public let status: OperationStatus
     public let errorCode: String?
+    public let completedAtMs: Int64?
+    public init(operationID: String, status: OperationStatus, errorCode: String?, completedAtMs: Int64? = nil) {
+        self.operationID = operationID; self.status = status; self.errorCode = errorCode; self.completedAtMs = completedAtMs
+    }
 }
 
 public enum Preparation: Equatable, Sendable {
@@ -130,7 +134,8 @@ public actor CallCoordinator {
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .signaling)
         let affected = pending.filter { $0.value.command.callID == callID }
         for (id, item) in affected {
-            completed[id] = (item.command, NativeOperation(operationID: id, status: .rejected, errorCode: "invalidState"))
+            completed[id] = (item.command, NativeOperation(operationID: id, status: .rejected,
+                errorCode: "invalidState", completedAtMs: nowMs))
             pending.removeValue(forKey: id)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .signaling)
         }
@@ -138,21 +143,23 @@ public actor CallCoordinator {
 
     public func prepare(_ command: NativeCommand, nowMs: Int64) -> Preparation {
         if let old = completed[command.operationID] {
-            return old.0 == command ? .existing(old.1) : .conflict(conflict(command.operationID))
+            return old.0 == command ? .existing(old.1) : .conflict(conflict(command.operationID, nowMs: nowMs))
         }
         if let old = pending[command.operationID] {
             return old.command == command
                 ? .existing(NativeOperation(operationID: command.operationID, status: .pending, errorCode: nil))
-                : .conflict(conflict(command.operationID))
+                : .conflict(conflict(command.operationID, nowMs: nowMs))
         }
         guard command.deadlineAtMs > nowMs else {
-            let result = NativeOperation(operationID: command.operationID, status: .timedOut, errorCode: "deadlineExceeded")
+            let result = NativeOperation(operationID: command.operationID, status: .timedOut,
+                errorCode: "deadlineExceeded", completedAtMs: nowMs)
             completed[command.operationID] = (command, result)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: command.operationID)
             return .existing(result)
         }
         if let error = preconditionError(command) {
-            let result = NativeOperation(operationID: command.operationID, status: .rejected, errorCode: error)
+            let result = NativeOperation(operationID: command.operationID, status: .rejected,
+                errorCode: error, completedAtMs: nowMs)
             completed[command.operationID] = (command, result)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: command.operationID)
             return .existing(result)
@@ -163,7 +170,8 @@ public actor CallCoordinator {
 
     public func expire(nowMs: Int64) {
         for (id, item) in pending where item.command.deadlineAtMs <= nowMs {
-            completed[id] = (item.command, NativeOperation(operationID: id, status: .timedOut, errorCode: "deadlineExceeded"))
+            completed[id] = (item.command, NativeOperation(operationID: id, status: .timedOut,
+                errorCode: "deadlineExceeded", completedAtMs: nowMs))
             pending.removeValue(forKey: id)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .recovery)
         }
@@ -172,13 +180,14 @@ public actor CallCoordinator {
     @discardableResult public func completeApplied(operationID: String, nowMs: Int64) -> NativeOperation? {
         guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
         guard item.command.deadlineAtMs > nowMs else {
-            let result = NativeOperation(operationID: operationID, status: .timedOut, errorCode: "deadlineExceeded")
+            let result = NativeOperation(operationID: operationID, status: .timedOut,
+                errorCode: "deadlineExceeded", completedAtMs: nowMs)
             completed[operationID] = (item.command, result)
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
             return result
         }
         apply(item.command, nowMs: nowMs)
-        let result = NativeOperation(operationID: operationID, status: .applied, errorCode: nil)
+        let result = NativeOperation(operationID: operationID, status: .applied, errorCode: nil, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: item.command.callID)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
@@ -187,7 +196,8 @@ public actor CallCoordinator {
     @discardableResult public func completeRejected(operationID: String, errorCode: String,
         nowMs: Int64) -> NativeOperation? {
         guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
-        let result = NativeOperation(operationID: operationID, status: .rejected, errorCode: errorCode)
+        let result = NativeOperation(operationID: operationID, status: .rejected,
+            errorCode: errorCode, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
@@ -195,14 +205,16 @@ public actor CallCoordinator {
     @discardableResult public func completeUnknown(operationID: String, errorCode: String,
         nowMs: Int64) -> NativeOperation? {
         guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
-        let result = NativeOperation(operationID: operationID, status: .unknown, errorCode: errorCode)
+        let result = NativeOperation(operationID: operationID, status: .unknown,
+            errorCode: errorCode, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
     @discardableResult public func completeTimedOut(operationID: String, nowMs: Int64) -> NativeOperation? {
         guard let item = pending.removeValue(forKey: operationID) else { return completed[operationID]?.1 }
-        let result = NativeOperation(operationID: operationID, status: .timedOut, errorCode: "deadlineExceeded")
+        let result = NativeOperation(operationID: operationID, status: .timedOut,
+            errorCode: "deadlineExceeded", completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
@@ -246,8 +258,8 @@ public actor CallCoordinator {
         call = current
     }
 
-    private func conflict(_ id: String) -> NativeOperation {
-        NativeOperation(operationID: id, status: .rejected, errorCode: "conflict")
+    private func conflict(_ id: String, nowMs: Int64) -> NativeOperation {
+        NativeOperation(operationID: id, status: .rejected, errorCode: "conflict", completedAtMs: nowMs)
     }
     private func persist(orRestore before: CoordinatorCheckpoint) throws {
         guard let store else { return }

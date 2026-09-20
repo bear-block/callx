@@ -13,6 +13,7 @@ class CoordinatorTest {
             displayName = "hao.dev7", handle = "sip:hao.dev7@example.invalid", deadlineAtMs = 5_000)
         assertEquals(Preparation.Execute, core.prepare(start, 1_001)); assertNull(core.snapshot())
         assertEquals(OperationStatus.applied, core.completeApplied("start", 1_100)?.status)
+        assertEquals(1_100, core.operation("start")?.completedAtMs)
         assertEquals(CallRecord("call-out", CallState.outgoing, displayName = "hao.dev7",
             handle = "sip:hao.dev7@example.invalid", direction = CallDirection.outgoing, createdAtMs = 1_100),
             core.snapshot())
