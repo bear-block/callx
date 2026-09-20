@@ -2,7 +2,7 @@ import {CallxError, CONTRACT_VERSION} from './index.js';
 import type {CallEvent, CallxBackend, CallxConfig, Capabilities, Command, CommandResult,
   ObservationSession, OperationLookup, Snapshot} from './index.js';
 
-interface NativeModule {
+export interface NativeModule {
   setup(value: object): Promise<Capabilities>;
   execute(value: Command): Promise<CommandResult>;
   queryOperation(value: object): Promise<OperationLookup>;
@@ -13,7 +13,7 @@ interface NativeModule {
   dispose(): void;
 }
 
-type ReactNativeShape = {
+export type ReactNativeShape = {
   NativeModules: Record<string, unknown>;
   NativeEventEmitter: new (module?: unknown) => {
     addListener(name: string, listener: (value: unknown) => void): {remove(): void};
@@ -22,6 +22,9 @@ type ReactNativeShape = {
 
 export class NativeCallxBackend implements CallxBackend {
   private loaded?: Promise<{module: NativeModule; rn: ReactNativeShape}>;
+  constructor(binding?: {module: NativeModule; rn: ReactNativeShape}) {
+    if (binding) this.loaded = Promise.resolve(binding);
+  }
   private async native(): Promise<{module: NativeModule; rn: ReactNativeShape}> {
     try {
       const rn = await import('react-native') as unknown as ReactNativeShape;
