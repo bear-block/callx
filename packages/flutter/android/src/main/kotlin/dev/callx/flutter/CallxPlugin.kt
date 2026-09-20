@@ -1,5 +1,9 @@
 package dev.callx.flutter
 
+import android.os.Handler
+import android.os.Looper
+import dev.callx.core.BridgeRuntime
+import dev.callx.core.BridgeViolation
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -8,6 +12,14 @@ import io.flutter.plugin.common.MethodChannel
 class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
     private lateinit var methods: MethodChannel
     private lateinit var events: EventChannel
+    private val main = Handler(Looper.getMainLooper())
+
+    companion object {
+        @Volatile private var hostRuntime: BridgeRuntime? = null
+        /** Install once from Application after creating the native signaling/media executor. */
+        @JvmStatic fun configure(runtime: BridgeRuntime) { hostRuntime = runtime }
+        @JvmStatic fun reset() { hostRuntime = null }
+    }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methods = MethodChannel(binding.binaryMessenger, "dev.callx/methods")
@@ -22,18 +34,44 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        val runtime = hostRuntime
         when (call.method) {
-            "setup" -> result.success(mapOf(
+            "setup" -> result.success(runtime?.setup() ?: mapOf(
                 "contractVersion" to "0.1.0", "coreVersion" to "0.1.0",
                 "execution" to "native", "accountGeneration" to "unconfigured",
                 "nativeCalling" to false, "durableReplay" to false,
                 "providerManagedSignaling" to false, "hold" to false, "mute" to false,
             ))
             "dispose" -> result.success(null)
-            else -> result.error("notConfigured", "Native Callx host has not been configured.", null)
+            else -> if (runtime == null) unavailable(result) else invoke(runtime, call, result)
         }
     }
 
-    override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) = Unit
-    override fun onCancel(arguments: Any?) = Unit
+    private fun invoke(runtime: BridgeRuntime, call: MethodCall, result: MethodChannel.Result) {
+        try {
+            @Suppress("UNCHECKED_CAST") val arguments = (call.arguments as? Map<String, Any?>).orEmpty()
+            when (call.method) {
+                "execute" -> runtime.execute(arguments).whenComplete { value, error -> main.post {
+                    if (error != null) failure(result, error.cause ?: error) else result.success(value)
+                } }
+                "queryOperation" -> result.success(runtime.queryOperation(arguments))
+                "openSession" -> result.success(runtime.openSession(arguments))
+                "acknowledge" -> { runtime.acknowledge(arguments); result.success(null) }
+                "closeSession" -> { runtime.closeSession(arguments); result.success(null) }
+                "getSnapshot" -> result.success(runtime.getSnapshot())
+                else -> result.notImplemented()
+            }
+        } catch (error: Throwable) { failure(result, error) }
+    }
+    private fun failure(result: MethodChannel.Result, error: Throwable) {
+        val violation = error as? BridgeViolation
+        result.error(violation?.code ?: "internal", error.message ?: "Native Callx operation failed.", null)
+    }
+    private fun unavailable(result: MethodChannel.Result) =
+        result.error("notConfigured", "Native Callx host has not been configured.", null)
+
+    override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
+        hostRuntime?.setEventListener { event -> main.post { sink?.success(event) } }
+    }
+    override fun onCancel(arguments: Any?) { hostRuntime?.setEventListener(null) }
 }
