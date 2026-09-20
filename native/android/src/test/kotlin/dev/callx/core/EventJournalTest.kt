@@ -8,6 +8,7 @@ class EventJournalTest {
         journal.append("callChanged", 1_000, callId = "call-1")
         journal.append("operationCompleted", 2_000, operationId = "op-1")
         assertEquals(ReplayOutcome.Replay(journal.state.events), journal.replay(0))
+        assertEquals(listOf(EventSource.local, EventSource.local), journal.state.events.map { it.source })
         journal.acknowledge(2); assertEquals(2, journal.state.acknowledged)
         journal.prune(1_000 + EventJournal.RETENTION_MS); assertEquals(ReplayOutcome.Gap, journal.replay(0))
 
@@ -17,5 +18,6 @@ class EventJournalTest {
         val recovered = CallCoordinator(core.checkpoint())
         val replay = assertIs<ReplayOutcome.Replay>(recovered.replayEvents(0))
         assertEquals(listOf("callChanged", "callChanged", "operationCompleted"), replay.events.map { it.kind })
+        assertEquals(listOf(EventSource.platform, EventSource.local, EventSource.local), replay.events.map { it.source })
     }
 }

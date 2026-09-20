@@ -1,12 +1,33 @@
 import Foundation
 
+public enum EventSource: String, Codable, Sendable { case local, platform, signaling, media, recovery }
+
 public struct JournalEvent: Codable, Equatable, Sendable {
     public let eventID: String
     public let sequence: UInt64
     public let kind: String
+    public let source: EventSource
     public let observedAtMs: Int64
     public let callID: String?
     public let operationID: String?
+    public init(eventID: String, sequence: UInt64, kind: String, source: EventSource,
+        observedAtMs: Int64, callID: String? = nil, operationID: String? = nil) {
+        self.eventID = eventID; self.sequence = sequence; self.kind = kind; self.source = source
+        self.observedAtMs = observedAtMs; self.callID = callID; self.operationID = operationID
+    }
+    private enum CodingKeys: String, CodingKey {
+        case eventID, sequence, kind, source, observedAtMs, callID, operationID
+    }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        eventID = try values.decode(String.self, forKey: .eventID)
+        sequence = try values.decode(UInt64.self, forKey: .sequence)
+        kind = try values.decode(String.self, forKey: .kind)
+        source = try values.decodeIfPresent(EventSource.self, forKey: .source) ?? .recovery
+        observedAtMs = try values.decode(Int64.self, forKey: .observedAtMs)
+        callID = try values.decodeIfPresent(String.self, forKey: .callID)
+        operationID = try values.decodeIfPresent(String.self, forKey: .operationID)
+    }
 }
 
 public struct JournalCheckpoint: Codable, Equatable, Sendable {
@@ -28,9 +49,9 @@ public struct EventJournal: Sendable {
     public init(checkpoint: JournalCheckpoint = JournalCheckpoint()) { state = checkpoint }
 
     @discardableResult public mutating func append(kind: String, observedAtMs: Int64,
-        callID: String? = nil, operationID: String? = nil) -> JournalEvent {
+        callID: String? = nil, operationID: String? = nil, source: EventSource = .local) -> JournalEvent {
         let sequence = state.nextSequence; state.nextSequence += 1
-        let event = JournalEvent(eventID: "event-\(sequence)", sequence: sequence, kind: kind,
+        let event = JournalEvent(eventID: "event-\(sequence)", sequence: sequence, kind: kind, source: source,
             observedAtMs: observedAtMs, callID: callID, operationID: operationID)
         state.events.append(event); prune(nowMs: observedAtMs); return event
     }

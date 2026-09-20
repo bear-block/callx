@@ -2,7 +2,8 @@ package dev.callx.core
 
 import kotlinx.serialization.json.*
 
-data class JournalEvent(val eventId: String, val sequence: Long, val kind: String,
+enum class EventSource { local, platform, signaling, media, recovery }
+data class JournalEvent(val eventId: String, val sequence: Long, val kind: String, val source: EventSource,
     val observedAtMs: Long, val callId: String? = null, val operationId: String? = null)
 data class JournalCheckpoint(var nextSequence: Long = 1, var acknowledged: Long = 0,
     val events: MutableList<JournalEvent> = mutableListOf())
@@ -13,9 +14,10 @@ sealed interface ReplayOutcome {
 
 class EventJournal(val state: JournalCheckpoint = JournalCheckpoint()) {
     companion object { const val RETENTION_MS = 86_400_000L; const val EVENT_QUOTA = 2_048; const val BYTE_QUOTA = 2_097_152 }
-    fun append(kind: String, observedAtMs: Long, callId: String? = null, operationId: String? = null): JournalEvent {
+    fun append(kind: String, observedAtMs: Long, callId: String? = null, operationId: String? = null,
+        source: EventSource = EventSource.local): JournalEvent {
         val sequence = state.nextSequence++
-        val event = JournalEvent("event-$sequence", sequence, kind, observedAtMs, callId, operationId)
+        val event = JournalEvent("event-$sequence", sequence, kind, source, observedAtMs, callId, operationId)
         state.events += event; prune(observedAtMs); return event
     }
     fun acknowledge(through: Long) {
@@ -39,13 +41,15 @@ object JournalCodec {
     fun encode(value: JournalCheckpoint) = buildJsonObject {
         put("nextSequence", value.nextSequence); put("acknowledged", value.acknowledged)
         putJsonArray("events") { value.events.forEach { event -> add(buildJsonObject {
-            put("eventId", event.eventId); put("sequence", event.sequence); put("kind", event.kind); put("observedAtMs", event.observedAtMs)
+            put("eventId", event.eventId); put("sequence", event.sequence); put("kind", event.kind)
+            put("source", event.source.name); put("observedAtMs", event.observedAtMs)
             event.callId?.let { put("callId", it) }; event.operationId?.let { put("operationId", it) }
         }) } }
     }
     fun decode(value: JsonObject) = JournalCheckpoint(value.getValue("nextSequence").jsonPrimitive.long,
         value.getValue("acknowledged").jsonPrimitive.long, value.getValue("events").jsonArray.map { item -> item.jsonObject.let {
             JournalEvent(it.text("eventId"), it.getValue("sequence").jsonPrimitive.long, it.text("kind"),
+                it["source"]?.jsonPrimitive?.contentOrNull?.let(EventSource::valueOf) ?: EventSource.recovery,
                 it.getValue("observedAtMs").jsonPrimitive.long, it["callId"]?.jsonPrimitive?.contentOrNull,
                 it["operationId"]?.jsonPrimitive?.contentOrNull)
         } }.toMutableList())

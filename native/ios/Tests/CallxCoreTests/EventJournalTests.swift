@@ -6,6 +6,7 @@ import Testing
     journal.append(kind: "callChanged", observedAtMs: 1_000, callID: "call-1")
     journal.append(kind: "operationCompleted", observedAtMs: 2_000, operationID: "op-1")
     #expect(journal.replay(after: 0) == .replay(journal.state.events))
+    #expect(journal.state.events.map(\.source) == [.local, .local])
     try journal.acknowledge(through: 2)
     #expect(journal.state.acknowledged == 2)
     journal.prune(nowMs: 1_000 + EventJournal.retentionMs)
@@ -20,4 +21,5 @@ import Testing
         Issue.record("Expected replay after recovery"); return
     }
     #expect(events.map(\.kind) == ["callChanged", "callChanged", "operationCompleted"])
+    #expect(events.map(\.source) == [.platform, .local, .local])
 }

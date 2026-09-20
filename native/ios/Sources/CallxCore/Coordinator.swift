@@ -106,13 +106,13 @@ public actor CallCoordinator {
         guard call == nil || call?.state == .ended else { return }
         call = CallRecord(callID: callID, state: .incoming, displayName: displayName, handle: handle,
             direction: .incoming, createdAtMs: nowMs)
-        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .platform)
     }
 
     public func remoteAnswered(callID: String, nowMs: Int64) {
         guard var current = call, current.callID == callID, current.state == .outgoing else { return }
         current.state = .connecting; current.acceptedAtMs = nowMs; call = current
-        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .signaling)
     }
 
     public func mediaConnected(callID: String, nowMs: Int64) {
@@ -120,19 +120,19 @@ public actor CallCoordinator {
               current.state == .connecting || current.state == .held else { return }
         if current.state != .held { current.state = .active }
         current.mediaReady = true; current.mediaConnectedAtMs = nowMs; call = current
-        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .media)
     }
 
     public func remoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64 = 0) {
         guard var current = call, current.callID == callID, current.state != .ended else { return }
         current.state = .ended; current.mediaReady = false; current.endReason = reason
         current.endedAtMs = nowMs; call = current
-        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .signaling)
         let affected = pending.filter { $0.value.command.callID == callID }
         for (id, item) in affected {
             completed[id] = (item.command, NativeOperation(operationID: id, status: .rejected, errorCode: "invalidState"))
             pending.removeValue(forKey: id)
-            journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id)
+            journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .signaling)
         }
     }
 
@@ -165,7 +165,7 @@ public actor CallCoordinator {
         for (id, item) in pending where item.command.deadlineAtMs <= nowMs {
             completed[id] = (item.command, NativeOperation(operationID: id, status: .timedOut, errorCode: "deadlineExceeded"))
             pending.removeValue(forKey: id)
-            journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id)
+            journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: id, source: .recovery)
         }
     }
 

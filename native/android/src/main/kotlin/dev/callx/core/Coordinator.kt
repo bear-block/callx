@@ -47,29 +47,29 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         if (call == null || call?.state == CallState.ended) {
             call = CallRecord(callId, CallState.incoming, displayName = displayName, handle = handle,
                 direction = CallDirection.incoming, createdAtMs = nowMs)
-            journal.append("callChanged", nowMs, callId)
+            journal.append("callChanged", nowMs, callId, source = EventSource.platform)
         }
     }
     @Synchronized fun remoteAnswered(callId: String, nowMs: Long) {
         val current = call ?: return
         if (current.callId != callId || current.state != CallState.outgoing) return
         call = current.copy(state = CallState.connecting, acceptedAtMs = nowMs)
-        journal.append("callChanged", nowMs, callId)
+        journal.append("callChanged", nowMs, callId, source = EventSource.signaling)
     }
     @Synchronized fun mediaConnected(callId: String, nowMs: Long) {
         val current = call ?: return
         if (current.callId != callId || current.state !in setOf(CallState.connecting, CallState.held)) return
         call = current.copy(state = if (current.state == CallState.held) CallState.held else CallState.active,
             mediaReady = true, mediaConnectedAtMs = nowMs)
-        journal.append("callChanged", nowMs, callId)
+        journal.append("callChanged", nowMs, callId, source = EventSource.media)
     }
     @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0) {
         val current = call ?: return; if (current.callId != callId || current.state == CallState.ended) return
         call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs)
-        journal.append("callChanged", nowMs, callId)
+        journal.append("callChanged", nowMs, callId, source = EventSource.signaling)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
             completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState"); pending.remove(id)
-            journal.append("operationCompleted", nowMs, operationId = id)
+            journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.signaling)
         }
     }
     @Synchronized fun prepare(command: NativeCommand, nowMs: Long): Preparation {
@@ -82,7 +82,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     @Synchronized fun expire(nowMs: Long) {
         pending.filterValues { it.deadlineAtMs <= nowMs }.toMap().forEach { (id, command) ->
             completed[id] = command to NativeOperation(id, OperationStatus.timedOut, "deadlineExceeded"); pending.remove(id)
-            journal.append("operationCompleted", nowMs, operationId = id)
+            journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.recovery)
         }
     }
     @Synchronized fun completeApplied(operationId: String, nowMs: Long): NativeOperation? {
