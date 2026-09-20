@@ -69,18 +69,18 @@ class BridgeRuntime(
         activeSession = sessionId
         val replay: List<JournalEvent>
         val status: String
+        val capture = coordinator.observationCapture(after)
         if (after == null) { status = "fresh"; replay = emptyList() }
-        else when (val outcome = coordinator.replayEvents(after)) {
+        else when (val outcome = requireNotNull(capture.replay)) {
             ReplayOutcome.Gap -> { status = "resynced"; replay = emptyList() }
             is ReplayOutcome.Replay -> { status = "resumed"; replay = outcome.events }
         }
-        val checkpoint = coordinator.checkpoint()
-        val watermark = (checkpoint.journal?.nextSequence?.minus(1) ?: 0).toString()
+        val watermark = capture.watermark.toString()
         emittedThrough = watermark.toLong()
         return mapOf(
             "contractVersion" to VERSION, "sessionId" to sessionId,
             "accountGeneration" to capabilities.accountGeneration, "status" to status,
-            "snapshot" to snapshotMap(watermark), "replay" to replay.map(::eventMap),
+            "snapshot" to snapshotMap(watermark, capture.call), "replay" to replay.map(::eventMap),
         )
     }
 
@@ -97,8 +97,9 @@ class BridgeRuntime(
     }
 
     fun getSnapshot(): Map<String, Any?> {
-        val watermark = (coordinator.checkpoint().journal?.nextSequence?.minus(1) ?: 0).toString()
-        return mapOf("contractVersion" to VERSION, "sequence" to watermark, "call" to coordinator.snapshot()?.let(::callMap))
+        val capture = coordinator.observationCapture()
+        return mapOf("contractVersion" to VERSION, "sequence" to capture.watermark.toString(),
+            "call" to capture.call?.let(::callMap))
     }
 
     fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs()) {
@@ -166,9 +167,9 @@ class BridgeRuntime(
         return base
     }
 
-    private fun snapshotMap(watermark: String): Map<String, Any?> = mapOf(
+    private fun snapshotMap(watermark: String, call: CallRecord?): Map<String, Any?> = mapOf(
         "contractVersion" to VERSION, "watermark" to watermark,
-        "calls" to coordinator.snapshot()?.let { listOf(callMap(it)) }.orEmpty(),
+        "calls" to call?.let { listOf(callMap(it)) }.orEmpty(),
     )
     private fun callMap(value: CallRecord): Map<String, Any?> {
         val direction = value.direction ?: throw BridgeViolation("internal", "Call direction is missing.")

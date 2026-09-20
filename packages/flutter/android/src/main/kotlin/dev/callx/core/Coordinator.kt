@@ -18,6 +18,7 @@ sealed interface Preparation {
     data class Existing(val operation: NativeOperation) : Preparation
     data class Conflict(val operation: NativeOperation) : Preparation
 }
+data class ObservationCapture(val call: CallRecord?, val watermark: Long, val replay: ReplayOutcome?)
 
 /** Serialized by synchronization until the Android adapter supplies its application coroutine. */
 class CallCoordinator private constructor(private val store: CoordinatorStore?, @Suppress("UNUSED_PARAMETER") marker: Unit) {
@@ -43,6 +44,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         completed = completed.values.map { CompletedOperation(it.first, it.second) }, journal = journal.state)
     @Synchronized fun replayEvents(after: Long) = journal.replay(after)
     @Synchronized fun acknowledgeEvents(through: Long) = journal.acknowledge(through)
+    @Synchronized fun observationCapture(after: Long? = null) = ObservationCapture(
+        call, journal.state.nextSequence - 1, after?.let(journal::replay))
     @Synchronized fun reportIncoming(callId: String, nowMs: Long = 0,
         displayName: String? = null, handle: String? = null) {
         if (call == null || call?.state == CallState.ended) {

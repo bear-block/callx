@@ -59,6 +59,11 @@ public enum Preparation: Equatable, Sendable {
     case existing(NativeOperation)
     case conflict(NativeOperation)
 }
+public struct ObservationCapture: Sendable {
+    public let call: CallRecord?
+    public let watermark: UInt64
+    public let replay: ReplayOutcome?
+}
 
 /// Platform-neutral serialized coordinator. CallKit adapters execute only `.execute` commands
 /// and call `completeApplied`; no optimistic state mutation occurs during `prepare`.
@@ -105,6 +110,10 @@ public actor CallCoordinator {
     }
     public func replayEvents(after sequence: UInt64) -> ReplayOutcome { journal.replay(after: sequence) }
     public func acknowledgeEvents(through sequence: UInt64) throws { try journal.acknowledge(through: sequence) }
+    public func observationCapture(after sequence: UInt64? = nil) -> ObservationCapture {
+        ObservationCapture(call: call, watermark: journal.state.nextSequence - 1,
+            replay: sequence.map { journal.replay(after: $0) })
+    }
 
     public func reportIncoming(callID: String, displayName: String? = nil, handle: String? = nil, nowMs: Int64 = 0) {
         guard call == nil || call?.state == .ended else { return }

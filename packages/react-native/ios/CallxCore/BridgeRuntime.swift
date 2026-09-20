@@ -84,18 +84,18 @@ public actor BridgeRuntime {
             after = parsed
         } else { after = nil }
         sessionCounter += 1; let sessionID = "session-\(sessionCounter)"; activeSession = sessionID
+        let capture = await coordinator.observationCapture(after: after)
         let status: String; let replay: [JournalEvent]
-        if let after {
-            switch await coordinator.replayEvents(after: after) {
+        if after != nil {
+            switch capture.replay! {
             case .gap: status = "resynced"; replay = []
             case .replay(let events): status = "resumed"; replay = events
             }
         } else { status = "fresh"; replay = [] }
-        let checkpoint = await coordinator.checkpoint()
-        let watermark = (checkpoint.journal?.nextSequence ?? 1) - 1; emittedThrough = watermark
+        let watermark = capture.watermark; emittedThrough = watermark
         return ["contractVersion": .string(Self.version), "sessionId": .string(sessionID),
             "accountGeneration": .string(capabilities.accountGeneration), "status": .string(status),
-            "snapshot": .object(try await snapshotMap(watermark: watermark)),
+            "snapshot": .object(try snapshotMap(watermark: watermark, call: capture.call)),
             "replay": .array(replay.map { .object(eventMap($0)) })]
     }
 
@@ -109,9 +109,10 @@ public actor BridgeRuntime {
     }
     public func closeSession(_ value: BridgeObject) throws { try requireSession(value); activeSession = nil }
     public func getSnapshot() async throws -> BridgeObject {
-        let watermark = ((await coordinator.checkpoint()).journal?.nextSequence ?? 1) - 1
-        var result: BridgeObject = ["contractVersion": .string(Self.version), "sequence": .string(String(watermark))]
-        result["call"] = if let call = await coordinator.snapshot() { .object(try callMap(call)) } else { .null }
+        let capture = await coordinator.observationCapture()
+        var result: BridgeObject = ["contractVersion": .string(Self.version),
+            "sequence": .string(String(capture.watermark))]
+        result["call"] = if let call = capture.call { .object(try callMap(call)) } else { .null }
         return result
     }
     public func reportIncoming(callID: String, displayName: String, handle: String,
@@ -185,9 +186,9 @@ public actor BridgeRuntime {
             "message": .string(errorMessage(code)), "retryable": .bool(code == "nativeUnavailable")]) }
         return result
     }
-    private func snapshotMap(watermark: UInt64) async throws -> BridgeObject {
+    private func snapshotMap(watermark: UInt64, call: CallRecord?) throws -> BridgeObject {
         let calls: [BridgeValue]
-        if let call = await coordinator.snapshot() { calls = [.object(try callMap(call))] } else { calls = [] }
+        if let call { calls = [.object(try callMap(call))] } else { calls = [] }
         return ["contractVersion": .string(Self.version), "watermark": .string(String(watermark)), "calls": .array(calls)]
     }
     private func callMap(_ value: CallRecord) throws -> BridgeObject {
