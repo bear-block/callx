@@ -1,6 +1,7 @@
 import Foundation
 
 public enum CallState: String, Codable, Sendable { case incoming, outgoing, connecting, active, held, ended }
+public enum CallDirection: String, Codable, Sendable { case incoming, outgoing }
 public enum CommandType: String, Codable, Sendable { case startCall, answer, end, setMuted, setHeld }
 public enum OperationStatus: String, Codable, Sendable { case pending, applied, rejected, timedOut, unknown }
 
@@ -10,9 +11,21 @@ public struct CallRecord: Codable, Equatable, Sendable {
     public var muted: Bool
     public var mediaReady: Bool
     public var endReason: String?
-    public init(callID: String, state: CallState, muted: Bool = false, mediaReady: Bool = false, endReason: String? = nil) {
+    public var displayName: String?
+    public var handle: String?
+    public var direction: CallDirection?
+    public var createdAtMs: Int64?
+    public var acceptedAtMs: Int64?
+    public var mediaConnectedAtMs: Int64?
+    public var endedAtMs: Int64?
+    public init(callID: String, state: CallState, muted: Bool = false, mediaReady: Bool = false,
+        endReason: String? = nil, displayName: String? = nil, handle: String? = nil,
+        direction: CallDirection? = nil, createdAtMs: Int64? = nil, acceptedAtMs: Int64? = nil,
+        mediaConnectedAtMs: Int64? = nil, endedAtMs: Int64? = nil) {
         self.callID = callID; self.state = state; self.muted = muted
-        self.mediaReady = mediaReady; self.endReason = endReason
+        self.mediaReady = mediaReady; self.endReason = endReason; self.displayName = displayName
+        self.handle = handle; self.direction = direction; self.createdAtMs = createdAtMs
+        self.acceptedAtMs = acceptedAtMs; self.mediaConnectedAtMs = mediaConnectedAtMs; self.endedAtMs = endedAtMs
     }
 }
 
@@ -89,15 +102,31 @@ public actor CallCoordinator {
     public func replayEvents(after sequence: UInt64) -> ReplayOutcome { journal.replay(after: sequence) }
     public func acknowledgeEvents(through sequence: UInt64) throws { try journal.acknowledge(through: sequence) }
 
-    public func reportIncoming(callID: String, nowMs: Int64 = 0) {
+    public func reportIncoming(callID: String, displayName: String? = nil, handle: String? = nil, nowMs: Int64 = 0) {
         guard call == nil || call?.state == .ended else { return }
-        call = CallRecord(callID: callID, state: .incoming)
+        call = CallRecord(callID: callID, state: .incoming, displayName: displayName, handle: handle,
+            direction: .incoming, createdAtMs: nowMs)
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+    }
+
+    public func remoteAnswered(callID: String, nowMs: Int64) {
+        guard var current = call, current.callID == callID, current.state == .outgoing else { return }
+        current.state = .connecting; current.acceptedAtMs = nowMs; call = current
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
+    }
+
+    public func mediaConnected(callID: String, nowMs: Int64) {
+        guard var current = call, current.callID == callID,
+              current.state == .connecting || current.state == .held else { return }
+        if current.state != .held { current.state = .active }
+        current.mediaReady = true; current.mediaConnectedAtMs = nowMs; call = current
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
     }
 
     public func remoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64 = 0) {
         guard var current = call, current.callID == callID, current.state != .ended else { return }
-        current.state = .ended; current.mediaReady = false; current.endReason = reason; call = current
+        current.state = .ended; current.mediaReady = false; current.endReason = reason
+        current.endedAtMs = nowMs; call = current
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID)
         let affected = pending.filter { $0.value.command.callID == callID }
         for (id, item) in affected {
@@ -148,7 +177,7 @@ public actor CallCoordinator {
             journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
             return result
         }
-        apply(item.command)
+        apply(item.command, nowMs: nowMs)
         let result = NativeOperation(operationID: operationID, status: .applied, errorCode: nil)
         completed[operationID] = (item.command, result)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: item.command.callID)
@@ -196,18 +225,20 @@ public actor CallCoordinator {
         }
     }
 
-    private func apply(_ command: NativeCommand) {
+    private func apply(_ command: NativeCommand, nowMs: Int64) {
         if command.type == .startCall {
-            call = CallRecord(callID: command.callID, state: .outgoing)
+            call = CallRecord(callID: command.callID, state: .outgoing, displayName: command.displayName,
+                handle: command.handle, direction: .outgoing, createdAtMs: nowMs)
             return
         }
         guard var current = call, current.callID == command.callID, current.state != .ended else { return }
         switch command.type {
-        case .answer: current.state = .connecting
+        case .answer: current.state = .connecting; current.acceptedAtMs = nowMs
         case .end:
             let wasIncoming = current.state == .incoming
             current.state = .ended; current.mediaReady = false
             current.endReason = wasIncoming ? "declined" : "localHangup"
+            current.endedAtMs = nowMs
         case .setMuted: current.muted = command.value!
         case .setHeld: current.state = command.value! ? .held : .active
         case .startCall: break
@@ -228,8 +259,17 @@ public actor CallCoordinator {
         let before = checkpoint(); let result = prepare(command, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
-    public func durableReportIncoming(callID: String, nowMs: Int64) throws {
-        let before = checkpoint(); reportIncoming(callID: callID, nowMs: nowMs); try persist(orRestore: before)
+    public func durableReportIncoming(callID: String, displayName: String? = nil, handle: String? = nil,
+        nowMs: Int64) throws {
+        let before = checkpoint()
+        reportIncoming(callID: callID, displayName: displayName, handle: handle, nowMs: nowMs)
+        try persist(orRestore: before)
+    }
+    public func durableRemoteAnswered(callID: String, nowMs: Int64) throws {
+        let before = checkpoint(); remoteAnswered(callID: callID, nowMs: nowMs); try persist(orRestore: before)
+    }
+    public func durableMediaConnected(callID: String, nowMs: Int64) throws {
+        let before = checkpoint(); mediaConnected(callID: callID, nowMs: nowMs); try persist(orRestore: before)
     }
     public func durableRemoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64) throws {
         let before = checkpoint(); remoteEnded(callID: callID, reason: reason, nowMs: nowMs); try persist(orRestore: before)

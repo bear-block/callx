@@ -48,10 +48,18 @@ object CoordinatorCheckpointCodec {
     private fun encodeCall(value: CallRecord) = buildJsonObject {
         put("callId", value.callId); put("state", value.state.name); put("muted", value.muted); put("mediaReady", value.mediaReady)
         value.endReason?.let { put("endReason", it) }
+        value.displayName?.let { put("displayName", it) }; value.handle?.let { put("handle", it) }
+        value.direction?.let { put("direction", it.name) }
+        value.createdAtMs?.let { put("createdAtMs", it) }; value.acceptedAtMs?.let { put("acceptedAtMs", it) }
+        value.mediaConnectedAtMs?.let { put("mediaConnectedAtMs", it) }; value.endedAtMs?.let { put("endedAtMs", it) }
     }
     private fun decodeCall(value: JsonObject) = CallRecord(value.text("callId"), CallState.valueOf(value.text("state")),
         value.getValue("muted").jsonPrimitive.boolean, value.getValue("mediaReady").jsonPrimitive.boolean,
-        value["endReason"]?.jsonPrimitive?.contentOrNull)
+        value["endReason"]?.jsonPrimitive?.contentOrNull, value["displayName"]?.jsonPrimitive?.contentOrNull,
+        value["handle"]?.jsonPrimitive?.contentOrNull,
+        value["direction"]?.jsonPrimitive?.contentOrNull?.let(CallDirection::valueOf),
+        value["createdAtMs"]?.jsonPrimitive?.longOrNull, value["acceptedAtMs"]?.jsonPrimitive?.longOrNull,
+        value["mediaConnectedAtMs"]?.jsonPrimitive?.longOrNull, value["endedAtMs"]?.jsonPrimitive?.longOrNull)
     private fun encodeCommand(value: NativeCommand) = buildJsonObject {
         put("operationId", value.operationId); put("type", value.type.name); put("callId", value.callId)
         value.value?.let { put("value", it) }; value.displayName?.let { put("displayName", it) }

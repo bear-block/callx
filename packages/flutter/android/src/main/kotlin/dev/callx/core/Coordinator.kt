@@ -1,10 +1,14 @@
 package dev.callx.core
 
 enum class CallState { incoming, outgoing, connecting, active, held, ended }
+enum class CallDirection { incoming, outgoing }
 enum class CommandType { startCall, answer, end, setMuted, setHeld }
 enum class OperationStatus { pending, applied, rejected, timedOut, unknown }
 data class CallRecord(val callId: String, val state: CallState, val muted: Boolean = false,
-    val mediaReady: Boolean = false, val endReason: String? = null)
+    val mediaReady: Boolean = false, val endReason: String? = null,
+    val displayName: String? = null, val handle: String? = null, val direction: CallDirection? = null,
+    val createdAtMs: Long? = null, val acceptedAtMs: Long? = null,
+    val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null)
 data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
     val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long)
 data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null)
@@ -38,14 +42,30 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         completed = completed.values.map { CompletedOperation(it.first, it.second) }, journal = journal.state)
     @Synchronized fun replayEvents(after: Long) = journal.replay(after)
     @Synchronized fun acknowledgeEvents(through: Long) = journal.acknowledge(through)
-    @Synchronized fun reportIncoming(callId: String, nowMs: Long = 0) {
+    @Synchronized fun reportIncoming(callId: String, nowMs: Long = 0,
+        displayName: String? = null, handle: String? = null) {
         if (call == null || call?.state == CallState.ended) {
-            call = CallRecord(callId, CallState.incoming); journal.append("callChanged", nowMs, callId)
+            call = CallRecord(callId, CallState.incoming, displayName = displayName, handle = handle,
+                direction = CallDirection.incoming, createdAtMs = nowMs)
+            journal.append("callChanged", nowMs, callId)
         }
+    }
+    @Synchronized fun remoteAnswered(callId: String, nowMs: Long) {
+        val current = call ?: return
+        if (current.callId != callId || current.state != CallState.outgoing) return
+        call = current.copy(state = CallState.connecting, acceptedAtMs = nowMs)
+        journal.append("callChanged", nowMs, callId)
+    }
+    @Synchronized fun mediaConnected(callId: String, nowMs: Long) {
+        val current = call ?: return
+        if (current.callId != callId || current.state !in setOf(CallState.connecting, CallState.held)) return
+        call = current.copy(state = if (current.state == CallState.held) CallState.held else CallState.active,
+            mediaReady = true, mediaConnectedAtMs = nowMs)
+        journal.append("callChanged", nowMs, callId)
     }
     @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0) {
         val current = call ?: return; if (current.callId != callId || current.state == CallState.ended) return
-        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason)
+        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs)
         journal.append("callChanged", nowMs, callId)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
             completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState"); pending.remove(id)
@@ -71,7 +91,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded")
             journal.append("operationCompleted", nowMs, operationId = operationId); return result
         }
-        apply(command); val result = finishResult(command, OperationStatus.applied, null)
+        apply(command, nowMs); val result = finishResult(command, OperationStatus.applied, null)
         journal.append("callChanged", nowMs, command.callId); journal.append("operationCompleted", nowMs, operationId = operationId)
         return result
     }
@@ -105,16 +125,17 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             CommandType.startCall -> null
         }
     }
-    private fun apply(command: NativeCommand) {
+    private fun apply(command: NativeCommand, nowMs: Long) {
         if (command.type == CommandType.startCall) {
-            call = CallRecord(command.callId, CallState.outgoing)
+            call = CallRecord(command.callId, CallState.outgoing, displayName = command.displayName,
+                handle = command.handle, direction = CallDirection.outgoing, createdAtMs = nowMs)
             return
         }
         val current = call ?: return
         call = when (command.type) {
-            CommandType.answer -> current.copy(state = CallState.connecting)
+            CommandType.answer -> current.copy(state = CallState.connecting, acceptedAtMs = nowMs)
             CommandType.end -> current.copy(state = CallState.ended, mediaReady = false,
-                endReason = if (current.state == CallState.incoming) "declined" else "localHangup")
+                endReason = if (current.state == CallState.incoming) "declined" else "localHangup", endedAtMs = nowMs)
             CommandType.setMuted -> current.copy(muted = command.value!!)
             CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
             CommandType.startCall -> current
@@ -135,8 +156,15 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     @Synchronized fun durablePrepare(command: NativeCommand, nowMs: Long): Preparation {
         val before = checkpoint(); val result = prepare(command, nowMs); persistOrRestore(before); return result
     }
-    @Synchronized fun durableReportIncoming(callId: String, nowMs: Long) {
-        val before = checkpoint(); reportIncoming(callId, nowMs); persistOrRestore(before)
+    @Synchronized fun durableReportIncoming(callId: String, nowMs: Long,
+        displayName: String? = null, handle: String? = null) {
+        val before = checkpoint(); reportIncoming(callId, nowMs, displayName, handle); persistOrRestore(before)
+    }
+    @Synchronized fun durableRemoteAnswered(callId: String, nowMs: Long) {
+        val before = checkpoint(); remoteAnswered(callId, nowMs); persistOrRestore(before)
+    }
+    @Synchronized fun durableMediaConnected(callId: String, nowMs: Long) {
+        val before = checkpoint(); mediaConnected(callId, nowMs); persistOrRestore(before)
     }
     @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long) {
         val before = checkpoint(); remoteEnded(callId, reason, nowMs); persistOrRestore(before)
