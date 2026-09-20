@@ -6,6 +6,13 @@
     "scheme": "callx-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "plugins": [
+      ["@bear-block/callx/app.plugin", {
+        "microphonePermission": "Allow Callx to use your microphone for voice calls.",
+        "iosVoip": false,
+        "androidNotifications": false
+      }]
+    ],
     "ios": {
       "bundleIdentifier": "dev.callx.preview.rn"
     },

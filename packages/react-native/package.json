@@ -4,7 +4,10 @@
   "description": "Native call coordination for React Native using CallKit and Android Core-Telecom",
   "license": "MIT",
   "homepage": "https://github.com/bear-block/callx",
-  "repository": {"type": "git", "url": "https://github.com/bear-block/callx.git"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bear-block/callx.git"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -13,6 +16,7 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./app.plugin": "./app.plugin.cjs",
     "./preview": {
       "types": "./lib/preview.d.ts",
       "default": "./lib/preview.js"
@@ -20,6 +24,7 @@
   },
   "files": [
     "lib",
+    "app.plugin.cjs",
     "android",
     "ios",
     "callx-react-native.podspec",
@@ -34,10 +39,15 @@
     "prepack": "npm run build"
   },
   "devDependencies": {
+    "@expo/config-plugins": "57.0.9",
     "typescript": "~5.9.3"
   },
   "peerDependencies": {
+    "@expo/config-plugins": ">=57.0.0 <58.0.0",
     "react": ">=18",
     "react-native": ">=0.76"
+  },
+  "peerDependenciesMeta": {
+    "@expo/config-plugins": {"optional": true}
   }
 }

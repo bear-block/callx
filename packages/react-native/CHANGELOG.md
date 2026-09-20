@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add the optional Expo 57 config plugin at `@bear-block/callx/app.plugin` for
+  microphone text, audio/VoIP background modes, explicit APNs environment and base
+  Android permissions. Host push/signaling/media implementation remains required.
+- Document RN CLI/Expo setup and a BYO backend/signaling/push integration recipe.
+
 ## 0.0.0-preview.1
 
 Typed API, explicit simulator, lazy native transport, event emitter, and Android/iOS autolinking
