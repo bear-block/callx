@@ -37,7 +37,7 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                 do {
                     let value: Any
                     switch method {
-                    case "setup": value = bridgeAny(await runtime.setup())
+                    case "setup": value = bridgeAny(try await runtime.setup(arguments))
                     case "execute": value = bridgeAny(try await runtime.execute(arguments))
                     case "queryOperation": value = bridgeAny(try await runtime.queryOperation(arguments))
                     case "openSession": value = bridgeAny(try await runtime.openSession(arguments))

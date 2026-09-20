@@ -20,7 +20,10 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
     override fun getName() = "Callx"
 
     @ReactMethod fun setup(config: ReadableMap, promise: Promise) {
-        hostRuntime?.let { promise.resolve(Arguments.makeNativeMap(it.setup())); return }
+        hostRuntime?.let {
+            try { promise.resolve(Arguments.makeNativeMap(it.setup(config.toHashMap()))) }
+            catch (error: Throwable) { reject(promise, error) }; return
+        }
         promise.resolve(WritableNativeMap().apply {
             putString("contractVersion", "0.1.0"); putString("coreVersion", "0.1.0")
             putString("execution", "native"); putString("accountGeneration", "unconfigured")
@@ -59,13 +62,15 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
         val runtime = hostRuntime ?: return unavailable(promise)
         try {
             val value = runtime.action(request.toHashMap())
-            promise.resolve(if (value is Map<*, *>) Arguments.makeNativeMap(value as Map<String, Any?>) else value)
+            promise.resolve(if (value is Map<*, *>) nativeMap(value) else value)
         } catch (error: Throwable) { reject(promise, error) }
     }
     private fun reject(promise: Promise, error: Throwable) {
         val violation = error as? BridgeViolation
         promise.reject(violation?.code ?: "internal", error.message ?: "Native Callx operation failed.")
     }
+    @Suppress("UNCHECKED_CAST")
+    private fun nativeMap(value: Map<*, *>) = Arguments.makeNativeMap(value as Map<String, Any?>)
 
     private fun unavailable(promise: Promise) =
         promise.reject("notConfigured", "Native Callx host has not been configured.")

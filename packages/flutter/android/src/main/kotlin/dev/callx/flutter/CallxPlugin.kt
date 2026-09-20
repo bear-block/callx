@@ -36,12 +36,12 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val runtime = hostRuntime
         when (call.method) {
-            "setup" -> result.success(runtime?.setup() ?: mapOf(
+            "setup" -> if (runtime == null) result.success(mapOf(
                 "contractVersion" to "0.1.0", "coreVersion" to "0.1.0",
                 "execution" to "native", "accountGeneration" to "unconfigured",
                 "nativeCalling" to false, "durableReplay" to false,
                 "providerManagedSignaling" to false, "hold" to false, "mute" to false,
-            ))
+            )) else invoke(runtime, call, result)
             "dispose" -> result.success(null)
             else -> if (runtime == null) unavailable(result) else invoke(runtime, call, result)
         }
@@ -51,6 +51,7 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         try {
             @Suppress("UNCHECKED_CAST") val arguments = (call.arguments as? Map<String, Any?>).orEmpty()
             when (call.method) {
+                "setup" -> result.success(runtime.setup(arguments))
                 "execute" -> runtime.execute(arguments).whenComplete { value, error -> main.post {
                     if (error != null) failure(result, error.cause ?: error) else result.success(value)
                 } }

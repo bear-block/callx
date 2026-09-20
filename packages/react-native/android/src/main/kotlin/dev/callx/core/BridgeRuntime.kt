@@ -25,13 +25,17 @@ class BridgeRuntime(
     private var emittedThrough = coordinator.checkpoint().journal?.nextSequence?.minus(1) ?: 0
     private var eventListener: ((Map<String, Any?>) -> Unit)? = null
 
-    fun setup(): Map<String, Any?> = mapOf(
+    fun setup(value: Map<String, Any?>): Map<String, Any?> {
+        requireVersion(value); requiredText(value, "appName", 128)
+        requiredId(mapOf("accountGeneration" to capabilities.accountGeneration), "accountGeneration")
+        return mapOf(
         "contractVersion" to VERSION, "coreVersion" to VERSION, "execution" to "native",
         "accountGeneration" to capabilities.accountGeneration, "nativeCalling" to true,
         "durableReplay" to capabilities.durableReplay,
         "providerManagedSignaling" to capabilities.providerManagedSignaling,
         "hold" to capabilities.hold, "mute" to capabilities.mute,
-    )
+        )
+    }
 
     fun execute(value: Map<String, Any?>): CompletionStage<Map<String, Any?>> {
         val receivedAt = nowMs()
@@ -143,15 +147,19 @@ class BridgeRuntime(
             ?: receivedAt + if (type == CommandType.startCall) 10_000 else 4_000
         if (deadline < 0 || deadline > MAX_TIMESTAMP) invalid("deadlineAtMs is invalid.")
         if (type == CommandType.startCall) {
+            if (value.containsKey("callId") || value.containsKey("value")) invalid("startCall contains forbidden fields.")
             val input = value["input"] as? Map<*, *> ?: invalid("input is required.")
             val callId = requiredId(input, "callId")
             return NativeCommand(operationId, type, callId,
                 displayName = requiredText(input, "displayName", 256),
                 handle = requiredText(input, "handle", 256), deadlineAtMs = deadline)
         }
+        if (value.containsKey("input")) invalid("input is only valid for startCall.")
         val callId = requiredId(value, "callId")
         val commandValue = if (type in setOf(CommandType.setMuted, CommandType.setHeld))
             value["value"] as? Boolean ?: invalid("value is required.") else null
+        if (type !in setOf(CommandType.setMuted, CommandType.setHeld) && value.containsKey("value"))
+            invalid("value is forbidden for this command.")
         return NativeCommand(operationId, type, callId, value = commandValue, deadlineAtMs = deadline)
     }
 

@@ -47,13 +47,17 @@ public actor BridgeRuntime {
         self.capabilities = capabilities; self.nowMs = nowMs
     }
 
-    public func setup() -> BridgeObject { [
+    public func setup(_ value: BridgeObject) throws -> BridgeObject {
+        try requireVersion(value); _ = try requiredText(value, "appName", maxBytes: 128)
+        _ = try requiredID(["accountGeneration": .string(capabilities.accountGeneration)], "accountGeneration")
+        return [
         "contractVersion": .string(Self.version), "coreVersion": .string(Self.version),
         "execution": .string("native"), "accountGeneration": .string(capabilities.accountGeneration),
         "nativeCalling": .bool(true), "durableReplay": .bool(capabilities.durableReplay),
         "providerManagedSignaling": .bool(capabilities.providerManagedSignaling),
         "hold": .bool(capabilities.hold), "mute": .bool(capabilities.mute),
-    ] }
+        ]
+    }
 
     public func execute(_ value: BridgeObject) async throws -> BridgeObject {
         let receivedAt = nowMs()
@@ -165,15 +169,19 @@ public actor BridgeRuntime {
             }; deadline = number
         } else { deadline = receivedAt + (type == .startCall ? 10_000 : 4_000) }
         if type == .startCall {
+            guard value["callId"] == nil, value["value"] == nil else { throw invalid("startCall contains forbidden fields.") }
             guard case .object(let input) = value["input"] else { throw invalid("input is required.") }
             return NativeCommand(operationID: operationID, type: type, callID: try requiredID(input, "callId"),
                 displayName: try requiredText(input, "displayName", maxBytes: 256),
                 handle: try requiredText(input, "handle", maxBytes: 256), deadlineAtMs: deadline)
         }
+        guard value["input"] == nil else { throw invalid("input is only valid for startCall.") }
         let bool: Bool?
         if type == .setMuted || type == .setHeld {
             guard case .bool(let value) = value["value"] else { throw invalid("value is required.") }; bool = value
-        } else { bool = nil }
+        } else {
+            guard value["value"] == nil else { throw invalid("value is forbidden for this command.") }; bool = nil
+        }
         return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
             value: bool, deadlineAtMs: deadline)
     }

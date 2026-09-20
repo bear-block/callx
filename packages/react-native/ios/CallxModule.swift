@@ -14,7 +14,10 @@ final class CallxModule: RCTEventEmitter {
         rejecter reject: @escaping RCTPromiseRejectBlock) {
         if let runtime = Self.hostRuntime {
             let callback = ReactPromiseBox(resolve, reject)
-            Task { callback.resolve(bridgeAny(await runtime.setup())) }
+            let object: BridgeObject
+            do { object = try bridgeObject(config) } catch { callback.reject(error); return }
+            Task { do { callback.resolve(bridgeAny(try await runtime.setup(object))) }
+                catch { callback.reject(error) } }
             return
         }
         resolve([
