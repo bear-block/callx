@@ -3,6 +3,64 @@
 Native call coordination for React Native using iOS CallKit and Android Core-Telecom.
 Includes typed commands, call snapshots, operation lookup and observation sessions.
 
+## Start here: choose simulation or a real integration
+
+For a UI-only demonstration, follow **Run the customized example** below. For real
+calls, complete these steps in order:
+
+1. Install the package in a native app; choose RN CLI/manual setup or Expo/plugin setup.
+2. Configure native permissions, platform reporting and application-scoped runtime.
+3. Implement native signaling/media and PushKit/FCM receivers.
+4. Register device tokens with your backend and send a real call invitation.
+5. Use `new Callx()`, check setup capabilities, then verify incoming → answer → audio → end.
+
+The package supplies the coordinator and platform adapter seams. It does **not**
+supply a signaling server, push sender/receiver or media engine. `setup` cannot
+configure those services. The simulator deliberately works without them.
+
+| Integration question | Detailed guide |
+|---|---|
+| RN CLI or Expo? Which native configuration changes? | [RN CLI and Expo](https://github.com/bear-block/callx/blob/main/docs/guides/react-native-and-expo.md) |
+| What push do I send? What endpoints do I implement? | [Signaling and APNs/FCM payloads](https://github.com/bear-block/callx/blob/main/docs/guides/signaling-and-push.md) |
+| How do I construct and configure the native runtime? | [Native bootstrap](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) |
+| How do retries, state and replay work? | [API and recovery](https://github.com/bear-block/callx/blob/main/docs/guides/api.md) |
+
+These guides also exist under `docs/guides/` in the source checkout.
+
+## Expo configuration
+
+For the Expo 57 baseline, install the optional build-time peer if needed:
+
+```sh
+npm install --save-dev @expo/config-plugins@57.0.9
+```
+
+Add the explicit plugin export to your app configuration:
+
+```json
+{
+  "expo": {
+    "plugins": [["@bear-block/callx/app.plugin", {
+      "microphonePermission": "Allow microphone access for voice calls.",
+      "iosVoip": true,
+      "androidNotifications": true
+    }]]
+  }
+}
+```
+
+Then inspect with `npx expo config --type introspect`, run `npx expo prebuild` and
+rebuild with `npx expo run:ios` / `npx expo run:android`. The plugin merges iOS audio/
+VoIP background modes and microphone text, plus base Android permissions. Optional
+`apsEnvironment` explicitly sets APNs entitlement; match your signing environment.
+It does not generate PushKit/FCM receivers or authenticated runtime bootstrap.
+Preserve host code in committed native projects or a reproducible local integration
+package before using `prebuild --clean`. Expo Go cannot load Callx native code.
+
+RN CLI consumers do not need Expo or its plugin: apply the manual configuration in
+the linked guide, install pods and rebuild. Autolinking includes native source;
+it does not configure your backend or native runtime.
+
 ## Status and requirements
 
 Native integration preview; not yet published or production-validated. Supports one

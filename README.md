@@ -31,6 +31,8 @@ Start with the [English documentation](docs/README.md):
 5. [Testing and acceptance](docs/guides/acceptance.md).
 6. [Build and release to npm/pub.dev](docs/guides/build-and-release.md).
 7. [Repository maintenance](docs/guides/repository-maintenance.md).
+8. [Signaling, backend endpoints and push payloads](docs/guides/signaling-and-push.md).
+9. [RN CLI and Expo config plugin](docs/guides/react-native-and-expo.md).
 
 Both example apps show call controls and an event timeline using an explicit simulator,
 including when run on a phone. Web is a demo target, not a native calling platform.

@@ -3,6 +3,36 @@
 Native call coordination for Flutter using iOS CallKit and Android Core-Telecom.
 Includes typed commands, call snapshots, operation lookup and observation sessions.
 
+## Start here: choose simulation or a real integration
+
+For a UI-only demonstration, follow **Run the customized example** below. For real
+calls, complete these steps in order:
+
+1. Install this package into a Flutter iOS/Android app.
+2. Configure native permissions, platform reporting and an application-scoped runtime.
+3. Implement native signaling/media and PushKit/FCM receivers.
+4. Register device tokens with your backend and send a real call invitation.
+5. Use `Callx()`, check capabilities, and verify incoming → answer → audio → end.
+
+This package provides coordination and native adapter seams, not a signaling server,
+push sender/receiver or media engine. Neither `flutter pub get` nor Dart `setup`
+creates those integrations. Timing-critical incoming handling must work before the
+Dart engine attaches.
+
+| Integration question | Detailed guide |
+|---|---|
+| What push do I send? How should signaling work? | [Backend endpoints and APNs/FCM payloads](https://github.com/bear-block/callx/blob/main/docs/guides/signaling-and-push.md) |
+| What Swift/Kotlin host code is required? | [Native bootstrap](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) |
+| What owns call state and audio? | [Architecture](https://github.com/bear-block/callx/blob/main/docs/guides/architecture.md) |
+| How do retries and event recovery work? | [API and recovery](https://github.com/bear-block/callx/blob/main/docs/guides/api.md) |
+
+In the source checkout these guides are under `docs/guides/`. Flutter does not use
+the Expo plugin: configure its generated native host directly. Set an iOS microphone
+description, appropriate audio/VoIP background capabilities and signing; declare
+Android `INTERNET`, `RECORD_AUDIO`, `MANAGE_OWN_CALLS` and any additional permissions
+required by your notification/media integration. Request runtime permissions where
+applicable; a manifest declaration is not a grant.
+
 ## Status and requirements
 
 Native integration preview; not yet published or production-validated. Supports one
