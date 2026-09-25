@@ -8,6 +8,8 @@
 - Reject command deadlines more than 30 seconds ahead with `invalidArgument`, as the
   contract requires.
 - Stop shipping the test-only `ContractValidator` and Android's unused action registry.
+- Document how hosts assemble the platform executors and reconcile work left pending
+  by a previous process, plus error codes, end reasons and input limits.
 - Fix Android reporting an answered incoming call as declined when it is ended.
 - `observe` listeners now share the active observation session instead of each
   replacing it, and subscribe to events before reading the first snapshot.

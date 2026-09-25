@@ -101,18 +101,34 @@ Web is a preview target, not a production calling support promise.
 Expo is the demo host, not a required dependency of the SDK. The native module requires a
 development/native build; Expo Go is not the real-call integration path.
 
-## Add to another local React Native app
+## Try it in your own app before release
 
-Build this package first, then from the consumer app:
+The package is not on npm yet, so install it from this checkout. Choose one way:
 
-```sh
-npm install /absolute/path/to/callx/packages/react-native
-```
+- **Link the folder** while you are changing Callx. npm points your app at this folder, so
+  it picks up later changes after each `npm run build`:
 
-The demo already uses `"@bear-block/callx": "file:.."`. Rebuild this package after source edits.
-For a self-contained local artifact use `npm pack` here and install the resulting tarball.
-The tarball vendors the same canonical Swift/Kotlin sources as the Flutter package; the
-repository parity script verifies byte-for-byte parity against `native/`.
+  ```sh
+  cd /absolute/path/to/callx/packages/react-native
+  npm ci && npm run build
+  cd /path/to/your-app
+  npm install /absolute/path/to/callx/packages/react-native
+  ```
+
+- **Install a packed copy** to test exactly what npm would publish. `npm pack` builds the
+  package and prints the `.tgz` file name:
+
+  ```sh
+  cd /absolute/path/to/callx/packages/react-native
+  npm ci && npm pack
+  cd /path/to/your-app
+  npm install /absolute/path/to/callx/packages/react-native/bear-block-callx-<version>.tgz
+  ```
+
+Either way, the package contains native code, so rebuild the app rather than only reloading
+JavaScript: run `pod install` in `ios/` and build both platforms, or with Expo run
+`npx expo prebuild` and then `npx expo run:ios` / `npx expo run:android`. The example in this
+repository already links the package with `"@bear-block/callx": "file:.."`.
 
 ## Try the API
 
@@ -164,7 +180,9 @@ remain separate steps; autolinking does not replace them.
 ## Native host wiring
 
 Create one durable coordinator and a platform executor backed by native signaling/media, then
-install the runtime before JavaScript calls `setup`:
+install the runtime before JavaScript calls `setup`. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md)
+shows how `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and
+how to reconcile work left pending by a previous process. In Swift, `import callx_react_native`.
 
 ```kotlin
 val runtime = BridgeRuntime(coordinator, telecomExecutor,

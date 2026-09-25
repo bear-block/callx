@@ -65,9 +65,9 @@ The example also has generated iOS/Android host projects. Use `flutter run -d <d
 to run the same simulated UI there. Real calls require host runtime and provider wiring.
 Web support is for this preview only, not a production calling support promise.
 
-## Add to another local Flutter app
+## Try it in your own app before release
 
-Use the actual path to this package in the consumer's pubspec.yaml:
+The package is not on pub.dev yet, so point your app's `pubspec.yaml` at this checkout:
 
 ```yaml
 dependencies:
@@ -75,9 +75,10 @@ dependencies:
     path: /absolute/path/to/callx/packages/flutter
 ```
 
-Then run `flutter pub get`. The package's runtime sources do not reference the monorepo.
-Canonical Swift/Kotlin cores are vendored into the published artifact; the repository parity script checks them
-byte-for-byte against `native/` to prevent Flutter/React Native semantic drift.
+Run `flutter pub get`, set Android `minSdk = 29` as described above, then build and run the
+app. Flutter installs the iOS side itself through Swift Package Manager or CocoaPods. Dart
+changes in the package apply on hot restart, but Swift/Kotlin changes need a full rebuild:
+stop the app and run `flutter run` again.
 
 ## Try the API
 
@@ -120,7 +121,7 @@ flutter pub add callx
 
 The intended construction is `final callx = Callx();`, followed by `setup`. A missing plugin
 throws `nativeUnavailable`; an attached but unwired host returns `nativeCalling: false` and
-commands return `notConfigured`.
+commands throw `CallxException` with code `notConfigured`.
 
 Native app bootstrap, PushKit/APNs, FCM/Telecom presentation, permissions and a native
 provider/media adapter are still required. A package install or Dart setup call alone
@@ -130,7 +131,9 @@ cannot establish those capabilities.
 
 Create one durable `CallCoordinator`, a platform executor backed by CallKit/Core-Telecom plus
 your native media/signaling implementation, and a stable login-generation ID. Install it before
-the first Dart `setup` call:
+the first Dart `setup` call. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) shows how
+`telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and how to
+reconcile work left pending by a previous process. In Swift, `import callx`.
 
 ```kotlin
 val runtime = BridgeRuntime(coordinator, telecomExecutor,
