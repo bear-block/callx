@@ -10,3 +10,7 @@
 /coverage/
 /pubspec.lock
 /doc/api/
+/android/build/
+# Swift Package Manager output
+.build/
+.swiftpm/

@@ -7,6 +7,9 @@
 - `snapshots` listeners now share the active observation session instead of each
   replacing it, so several listeners and a manual session work together.
 - Document the Android `minSdk = 29` requirement for host apps.
+- Support Swift Package Manager on iOS; CocoaPods builds the same sources.
+- Support AGP 9 built-in Kotlin and the new Android DSL. The plugin applies the
+  Kotlin Gradle plugin only when the host has not enabled built-in Kotlin.
 - Fix iOS system-originated action completion without SDK operation correlation.
 - Invalidate pending action records on timeout/reset and forward CallKit audio
   activation/deactivation through an optional native media handler.

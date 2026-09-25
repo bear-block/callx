@@ -8,7 +8,12 @@ buildscript {
 }
 
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
+
+// AGP 9 compiles Kotlin itself unless android.builtInKotlin=false, and rejects the separate
+// Kotlin plugin when it does. Older AGP and opted-out hosts still need the plugin applied.
+def builtInKotlin = androidComponents.pluginVersion.major >= 9 &&
+    (findProperty("android.builtInKotlin")?.toString()?.toBoolean() ?: true)
+if (!builtInKotlin) pluginManager.apply("org.jetbrains.kotlin.android")
 
 android {
     namespace = "dev.callx.flutter"
@@ -18,7 +23,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 dependencies {

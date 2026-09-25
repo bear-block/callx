@@ -19,3 +19,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # The plugin lives in packages/flutter, not a folder named callx. For a plugin's own
+  # example, Flutter then registers the plugin's Swift package under two identities
+  # and resolution fails, so this example builds iOS through CocoaPods. Apps that
+  # depend on callx are unaffected and use Swift Package Manager by default.
+  config:
+    enable-swift-package-manager: false
