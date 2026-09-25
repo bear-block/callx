@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix Android events never reaching JS when the host configures or replaces the runtime
+  after the module initialized; listeners now attach on each JS subscription.
+- Fix iOS `dispose()` stopping event delivery for every other `Callx` instance.
+- Reject command deadlines more than 30 seconds ahead with `invalidArgument`, as the
+  contract requires.
+- Stop shipping the test-only `ContractValidator` and Android's unused action registry.
 - Fix Android reporting an answered incoming call as declined when it is ended.
 - `observe` listeners now share the active observation session instead of each
   replacing it, and subscribe to events before reading the first snapshot.

@@ -12,8 +12,9 @@ and [host integration guide](../docs/guides/native-integration.md).
   mutations restore the prior in-memory checkpoint when persistence fails.
 - `CommandDispatcher`: executes prepared operations through `PlatformCommandExecutor`.
 - `RecoveredOperationReconciler`: uses a host probe to resolve recovered pending work.
-- `PlatformActionRegistry` and `RegistryBackedPlatformExecutor`: correlate completion,
-  timeout and reset. Transaction submission is not action completion.
+- `PlatformActionRegistry` and `RegistryBackedPlatformExecutor` (iOS): correlate CallKit
+  completion, timeout and reset. Transaction submission is not action completion. Android
+  needs neither: Core-Telecom returns the terminal result directly.
 - `BridgeRuntime`: validates requests, exposes snapshots/sessions and receives host ingress.
 - CallKit adapters and Android `telecom` module: connect platform actions to host behavior.
 
@@ -37,7 +38,8 @@ packages/flutter/example/android/gradlew -p native/android :telecom:assembleDebu
 ```
 
 The baseline uses Swift tools 6.0 and Kotlin/JVM 2.2.20 with JDK 17. Native tests consume
-shared fixtures under `contracts/v0`. Edit canonical sources here, then run
+shared fixtures under `contracts/v0` through a test-only `ContractValidator`, which is not
+shipped in the packages. Edit canonical sources here, then run
 `./tool/sync_native_sources.sh`; do not edit vendored core copies independently.
 Compile affected framework packages after synchronization. Device acceptance remains
 separate from unit tests.

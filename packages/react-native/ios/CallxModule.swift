@@ -48,7 +48,8 @@ final class CallxModule: RCTEventEmitter {
         Task { do { callback.resolve(bridgeAny(try await runtime.getSnapshot())) }
             catch { callback.reject(error) } }
     }
-    @objc func dispose() { if let runtime = Self.hostRuntime { Task { await runtime.setEventReceiver(nil) } } }
+    // Event delivery belongs to start/stopObserving; one Callx instance must not stop it for others.
+    @objc func dispose() {}
 
     override func startObserving() {
         guard let runtime = Self.hostRuntime else { return }

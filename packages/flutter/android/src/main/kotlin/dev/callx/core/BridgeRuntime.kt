@@ -146,6 +146,9 @@ class BridgeRuntime(
         val deadline = (value["deadlineAtMs"] as? Number)?.toLong()
             ?: receivedAt + if (type == CommandType.startCall) 10_000 else 4_000
         if (deadline < 0 || deadline > MAX_TIMESTAMP) invalid("deadlineAtMs is invalid.")
+        // Only the upper bound is enforced: a retry must still reach its stored result after
+        // the deadline passes, and an expired deadline already completes as timedOut.
+        if (deadline - receivedAt > MAX_DEADLINE_LEAD_MS) invalid("deadlineAtMs is more than 30 seconds ahead.")
         if (type == CommandType.startCall) {
             if (value.containsKey("callId") || value.containsKey("value")) invalid("startCall contains forbidden fields.")
             val input = value["input"] as? Map<*, *> ?: invalid("input is required.")
@@ -224,6 +227,7 @@ class BridgeRuntime(
     private companion object {
         const val VERSION = "0.1.0"
         const val MAX_TIMESTAMP = 9_007_199_254_740_991L
+        const val MAX_DEADLINE_LEAD_MS = 30_000L
         val ID = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
         val END_REASONS = setOf("localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered",
             "busy", "failed", "answeredElsewhere", "declinedElsewhere")

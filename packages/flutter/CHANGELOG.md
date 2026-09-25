@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Reject command deadlines more than 30 seconds ahead with `invalidArgument`, as the
+  contract requires.
+- Stop shipping the test-only `ContractValidator` and Android's unused action registry.
 - Fix Android reporting an answered incoming call as declined when it is ended.
 - Fix native `acknowledge` and `closeSession` always failing with `internal`.
 - `snapshots` listeners now share the active observation session instead of each

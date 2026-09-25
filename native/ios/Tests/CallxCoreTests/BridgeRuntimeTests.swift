@@ -58,3 +58,17 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
         "type": .string("end"), "callId": .string("call-1"), "deadlineAtMs": .integer(302_000)])
     #expect(try await bridge.getSnapshot()["call"] == .null)
 }
+
+@Test func deadlineMoreThanThirtySecondsAheadIsRejected() async throws {
+    let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
+        BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
+            providerManagedSignaling: false, hold: true, mute: true), nowMs: { 1_000 })
+    func end(_ id: String, _ deadline: Int64) async throws -> BridgeObject {
+        try await bridge.execute(["contractVersion": .string("0.1.0"), "operationId": .string(id),
+            "type": .string("end"), "callId": .string("call-1"), "deadlineAtMs": .integer(deadline)])
+    }
+    await #expect(throws: BridgeError.self) { _ = try await end("op-far", 31_001) }
+    #expect(try await end("op-limit", 31_000)["status"] != nil)
+    // An expired deadline is not a validation error; the coordinator reports timedOut.
+    #expect(try await end("op-late", 999)["status"] == .string("timedOut"))
+}

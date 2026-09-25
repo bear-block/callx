@@ -168,6 +168,9 @@ public actor BridgeRuntime {
                 throw invalid("deadlineAtMs is invalid.")
             }; deadline = number
         } else { deadline = receivedAt + (type == .startCall ? 10_000 : 4_000) }
+        // Only the upper bound is enforced: a retry must still reach its stored result after
+        // the deadline passes, and an expired deadline already completes as timedOut.
+        guard deadline - receivedAt <= 30_000 else { throw invalid("deadlineAtMs is more than 30 seconds ahead.") }
         if type == .startCall {
             guard value["callId"] == nil, value["value"] == nil else { throw invalid("startCall contains forbidden fields.") }
             guard case .object(let input) = value["input"] else { throw invalid("input is required.") }

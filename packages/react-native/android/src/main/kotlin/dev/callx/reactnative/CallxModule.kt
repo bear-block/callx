@@ -47,16 +47,23 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
         try { promise.resolve(Arguments.makeNativeMap(runtime.getSnapshot())) } catch (error: Throwable) { reject(promise, error) }
     }
     @ReactMethod fun dispose() = Unit
-    @ReactMethod fun addListener(eventName: String) = Unit
-    @ReactMethod fun removeListeners(count: Double) = Unit
 
-    override fun initialize() {
-        super.initialize()
+    private var listenerCount = 0
+    // Attach on every JS subscription, like iOS startObserving, so a runtime configured or
+    // replaced after this module initialized (for example after login) still reaches JS.
+    @ReactMethod fun addListener(eventName: String) { listenerCount++; attachEvents() }
+    @ReactMethod fun removeListeners(count: Double) {
+        listenerCount = maxOf(0, listenerCount - count.toInt())
+        if (listenerCount == 0) hostRuntime?.setEventListener(null)
+    }
+
+    override fun initialize() { super.initialize(); attachEvents() }
+    override fun invalidate() { hostRuntime?.setEventListener(null); super.invalidate() }
+    private fun attachEvents() {
         hostRuntime?.setEventListener { event -> reactApplicationContext
             .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
             .emit("callxEvent", Arguments.makeNativeMap(event)) }
     }
-    override fun invalidate() { hostRuntime?.setEventListener(null); super.invalidate() }
 
     private fun invoke(request: ReadableMap, promise: Promise, action: BridgeRuntime.(Map<String, Any?>) -> Any?) {
         val runtime = hostRuntime ?: return unavailable(promise)

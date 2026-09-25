@@ -28,6 +28,16 @@ class BridgeRuntimeTest {
         assertTrue(events.all { it["sessionId"] == opened["sessionId"] })
     }
 
+    @Test fun deadlineMoreThanThirtySecondsAheadIsRejected() {
+        val bridge = runtime()
+        fun end(id: String, deadline: Long) = bridge.execute(mapOf("contractVersion" to "0.1.0",
+            "operationId" to id, "type" to "end", "callId" to "call-1", "deadlineAtMs" to deadline))
+        assertEquals("invalidArgument", assertFailsWith<BridgeViolation> { end("op-far", 31_001) }.code)
+        assertNotNull(end("op-limit", 31_000).toCompletableFuture().join()["status"])
+        // An expired deadline is not a validation error; the coordinator reports timedOut.
+        assertEquals("timedOut", end("op-late", 999).toCompletableFuture().join()["status"])
+    }
+
     @Test fun replayGapGenerationAndValidationFailClosed() {
         val bridge = runtime()
         assertEquals("resynced", bridge.openSession(mapOf(

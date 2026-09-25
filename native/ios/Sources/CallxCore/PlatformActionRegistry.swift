@@ -13,7 +13,7 @@ public actor PlatformActionRegistry {
     private var terminalIDs: Set<String> = []
 
     public init() {}
-    public func isPending(_ operationID: String) -> Bool { waiters[operationID] != nil }
+    func isPending(_ operationID: String) -> Bool { waiters[operationID] != nil }
     public func outcome(for operationID: String) async -> PlatformActionOutcome {
         if let outcome = buffered.removeValue(forKey: operationID) { return outcome }
         return await withCheckedContinuation { waiters[operationID] = $0 }
