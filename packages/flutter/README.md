@@ -40,7 +40,7 @@ is lower and the Android build fails below the plugin's floor.
 Native integration preview; not yet published or production-validated. Supports one
 live call. Native calling targets iOS/Android; web is simulator-only. Requires Dart
 `^3.11.4`, Flutter `>=3.41.0`, iOS 15+ / Swift 6, and Android API 29+ with a compatible
-Android build toolchain. The recorded development baseline is Flutter 3.41.6.
+Android build toolchain. The recorded development baseline is Flutter 3.47.5.
 Bring your own native signaling/media integration, push setup and app permissions.
 
 Version `0.0.0-preview.1`. The package contains a typed MethodChannel/EventChannel backend,
@@ -167,7 +167,7 @@ the native performer has completed its signaling/media work.
 - Each stream subscriber receives current snapshot plus changes. No durable replay/ack.
 - No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.
 - Reset clears the simulator; it is not a production SDK command.
-- SDK/toolchain baseline here: Flutter 3.41.6 / Dart 3.11.4. Production baseline is not frozen.
+- SDK/toolchain baseline here: Flutter 3.47.5 / Dart 3.13.4. Production baseline is not frozen.
 - The native core is connected behind `CallxBackend`; the simulator remains explicit.
 
 ## Check
