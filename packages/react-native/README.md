@@ -53,12 +53,13 @@ Then inspect with `npx expo config --type introspect`, run `npx expo prebuild` a
 rebuild with `npx expo run:ios` / `npx expo run:android`. The plugin merges iOS audio/
 VoIP background modes and microphone text, plus base Android permissions. Optional
 `apsEnvironment` explicitly sets APNs entitlement; match your signing environment.
+The plugin also raises Android `minSdkVersion` to 29 when it is lower.
 It does not generate PushKit/FCM receivers or authenticated runtime bootstrap.
 Preserve host code in committed native projects or a reproducible local integration
 package before using `prebuild --clean`. Expo Go cannot load Callx native code.
 
 RN CLI consumers do not need Expo or its plugin: apply the manual configuration in
-the linked guide, install pods and rebuild. Autolinking includes native source;
+the linked guide, including Android `minSdkVersion = 29`, install pods and rebuild. Autolinking includes native source;
 it does not configure your backend or native runtime.
 
 ## Status and requirements
@@ -110,8 +111,8 @@ npm install /absolute/path/to/callx/packages/react-native
 
 The demo already uses `"@bear-block/callx": "file:.."`. Rebuild this package after source edits.
 For a self-contained local artifact use `npm pack` here and install the resulting tarball.
-The tarball vendors the same canonical Swift/Kotlin sources as the Flutter package; repository
-The repository parity script verifies byte-for-byte parity against `native/`.
+The tarball vendors the same canonical Swift/Kotlin sources as the Flutter package; the
+repository parity script verifies byte-for-byte parity against `native/`.
 
 ## Try the API
 

@@ -32,6 +32,8 @@ description, appropriate audio/VoIP background capabilities and signing; declare
 Android `INTERNET`, `RECORD_AUDIO`, `MANAGE_OWN_CALLS` and any additional permissions
 required by your notification/media integration. Request runtime permissions where
 applicable; a manifest declaration is not a grant.
+Set `minSdk = 29` in `android/app/build.gradle(.kts)`; the Flutter template default
+is lower and the Android build fails below the plugin's floor.
 
 ## Status and requirements
 

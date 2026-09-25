@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fix Android reporting an answered incoming call as declined when it is ended.
+- `observe` listeners now share the active observation session instead of each
+  replacing it, and subscribe to events before reading the first snapshot.
+- The Expo plugin raises Android `minSdkVersion` to 29 when it is lower; RN CLI
+  setup documents the same requirement.
 - Fix iOS system-originated action completion, invalidate pending records on
   timeout/reset, and expose native audio activation/deactivation callbacks.
   Verified with native tests and iOS package builds; device/media acceptance remains separate.

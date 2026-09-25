@@ -13,19 +13,31 @@ final class NativeCallxBackend implements CallxBackend {
   final EventChannel _events;
   Stream<Map<Object?, Object?>>? _nativeEvents;
 
+  // The native runtime keeps one observation session; opening another makes
+  // the previous one stale. Snapshot observers share whichever session is active.
+  String? _activeSessionId;
+  String? _observerSessionId;
+  Future<void>? _openingObserverSession;
+  int _snapshotObservers = 0;
+
+  Stream<Map<Object?, Object?>> get _eventMaps => _nativeEvents ??= _events
+      .receiveBroadcastStream()
+      .map((e) => (e as Map).cast<Object?, Object?>());
+
   Future<Map<Object?, Object?>> _invoke(
     String method, [
     Object? arguments,
   ]) async {
+    final value = await _invokeRaw(method, arguments);
+    if (value is! Map) {
+      throw const CallxException('internal', 'Native response must be a map.');
+    }
+    return value.cast<Object?, Object?>();
+  }
+
+  Future<Object?> _invokeRaw(String method, [Object? arguments]) async {
     try {
-      final value = await _methods.invokeMethod<Object?>(method, arguments);
-      if (value is! Map) {
-        throw const CallxException(
-          'internal',
-          'Native response must be a map.',
-        );
-      }
-      return value.cast<Object?, Object?>();
+      return await _methods.invokeMethod<Object?>(method, arguments);
     } on PlatformException catch (error) {
       throw CallxException(
         error.code,
@@ -78,6 +90,7 @@ final class NativeCallxBackend implements CallxBackend {
       'afterSequence': ?afterSequence,
     });
     final snapshot = (map['snapshot'] as Map).cast<Object?, Object?>();
+    _activeSessionId = _string(map, 'sessionId');
     return ObservationSession(
       sessionId: _string(map, 'sessionId'),
       accountGeneration: _string(map, 'accountGeneration'),
@@ -96,13 +109,11 @@ final class NativeCallxBackend implements CallxBackend {
 
   @override
   Stream<CallEvent> eventsFor(String sessionId) =>
-      (_nativeEvents ??= _events.receiveBroadcastStream().map(
-        (e) => (e as Map).cast<Object?, Object?>(),
-      )).where((event) => event['sessionId'] == sessionId).map(_event);
+      _eventMaps.where((event) => event['sessionId'] == sessionId).map(_event);
 
   @override
   Future<void> acknowledge(String sessionId, String throughSequence) async {
-    await _invoke('acknowledge', {
+    await _invokeRaw('acknowledge', {
       'sessionId': sessionId,
       'throughSequence': throughSequence,
     });
@@ -110,7 +121,29 @@ final class NativeCallxBackend implements CallxBackend {
 
   @override
   Future<void> closeSession(String sessionId) async {
-    await _invoke('closeSession', {'sessionId': sessionId});
+    await _invokeRaw('closeSession', {'sessionId': sessionId});
+    if (_activeSessionId == sessionId) _activeSessionId = null;
+    if (_observerSessionId == sessionId) _observerSessionId = null;
+    // Native stops emitting without a session, so keep live observers fed.
+    if (_snapshotObservers > 0) await _ensureObserverSession();
+  }
+
+  Future<void> _ensureObserverSession() async {
+    if (_activeSessionId != null) return;
+    await (_openingObserverSession ??= openSession()
+        .then((session) => _observerSessionId = session.sessionId)
+        .whenComplete(() => _openingObserverSession = null));
+  }
+
+  Future<void> _releaseObserverSession() async {
+    final sessionId = _observerSessionId;
+    _observerSessionId = null;
+    if (sessionId == null || sessionId != _activeSessionId) return;
+    try {
+      await closeSession(sessionId);
+    } on CallxException {
+      // Best effort: a stale or already-closed session needs no cleanup.
+    }
   }
 
   @override
@@ -125,17 +158,39 @@ final class NativeCallxBackend implements CallxBackend {
   }
 
   @override
-  Stream<CallSnapshot> get snapshots async* {
-    final session = await openSession();
-    yield CallSnapshot(
-      sequence: session.snapshot.watermark,
-      call: session.snapshot.calls.isEmpty
-          ? null
-          : session.snapshot.calls.single,
-    );
-    await for (final _ in eventsFor(session.sessionId)) {
-      yield await getSnapshot();
+  Stream<CallSnapshot> get snapshots {
+    late final StreamController<CallSnapshot> controller;
+    StreamSubscription<Object?>? events;
+    var refreshing = Future<void>.value();
+    void refresh() {
+      refreshing = refreshing.then((_) async {
+        try {
+          final snapshot = await getSnapshot();
+          if (!controller.isClosed) controller.add(snapshot);
+        } catch (error, stackTrace) {
+          if (!controller.isClosed) controller.addError(error, stackTrace);
+        }
+      });
     }
+
+    controller = StreamController<CallSnapshot>(
+      onListen: () async {
+        _snapshotObservers++;
+        // Subscribe before reading so no change lands between the two.
+        events = _eventMaps.listen((_) => refresh());
+        try {
+          await _ensureObserverSession();
+        } catch (error, stackTrace) {
+          if (!controller.isClosed) controller.addError(error, stackTrace);
+        }
+        refresh();
+      },
+      onCancel: () async {
+        await events?.cancel();
+        if (--_snapshotObservers == 0) await _releaseObserverSession();
+      },
+    );
+    return controller.stream;
   }
 
   @override

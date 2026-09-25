@@ -22,6 +22,12 @@ export type ReactNativeShape = {
 
 export class NativeCallxBackend implements CallxBackend {
   private loaded?: Promise<{module: NativeModule; rn: ReactNativeShape}>;
+  // The native runtime keeps one observation session; opening another makes
+  // the previous one stale. Snapshot observers share whichever session is active.
+  private activeSessionId?: string;
+  private observerSessionId?: string;
+  private openingObserverSession?: Promise<void>;
+  private snapshotObservers = 0;
   constructor(binding?: {module: NativeModule; rn: ReactNativeShape}) {
     if (binding) this.loaded = Promise.resolve(binding);
   }
@@ -43,34 +49,66 @@ export class NativeCallxBackend implements CallxBackend {
     return (await this.binding()).module.queryOperation({contractVersion: CONTRACT_VERSION, operationId, accountGeneration});
   }
   async openSession(afterSequence?: string) {
-    return (await this.binding()).module.openSession({contractVersion: CONTRACT_VERSION, ...(afterSequence ? {afterSequence} : {})});
+    const session = await (await this.binding()).module.openSession(
+      {contractVersion: CONTRACT_VERSION, ...(afterSequence ? {afterSequence} : {})});
+    this.activeSessionId = session.sessionId;
+    return session;
   }
-  observeEvents(sessionId: string, listener: (event: CallEvent) => void): () => void {
+  private subscribe(listener: (event: CallEvent & {sessionId?: string}) => void): () => void {
     let active = true;
     let subscription: {remove(): void} | undefined;
     void this.binding().then(({module, rn}) => {
       if (!active) return;
-      subscription = new rn.NativeEventEmitter(module).addListener('callxEvent', (raw) => {
-        const event = raw as CallEvent & {sessionId?: string};
-        if (event.sessionId === sessionId) listener(event);
-      });
-    });
+      subscription = new rn.NativeEventEmitter(module).addListener('callxEvent',
+        (raw) => listener(raw as CallEvent & {sessionId?: string}));
+    }, () => {});
     return () => { active = false; subscription?.remove(); };
+  }
+  observeEvents(sessionId: string, listener: (event: CallEvent) => void): () => void {
+    return this.subscribe((event) => { if (event.sessionId === sessionId) listener(event); });
   }
   async acknowledge(sessionId: string, throughSequence: string) {
     await (await this.binding()).module.acknowledge({sessionId, throughSequence});
   }
-  async closeSession(sessionId: string) { await (await this.binding()).module.closeSession({sessionId}); }
+  async closeSession(sessionId: string) {
+    await (await this.binding()).module.closeSession({sessionId});
+    if (this.activeSessionId === sessionId) this.activeSessionId = undefined;
+    if (this.observerSessionId === sessionId) this.observerSessionId = undefined;
+    // Native stops emitting without a session, so keep live observers fed.
+    if (this.snapshotObservers > 0) await this.ensureObserverSession();
+  }
+  private ensureObserverSession(): Promise<void> {
+    if (this.activeSessionId) return Promise.resolve();
+    return this.openingObserverSession ??= this.openSession()
+      .then((session) => { this.observerSessionId = session.sessionId; })
+      .finally(() => { this.openingObserverSession = undefined; });
+  }
+  private async releaseObserverSession() {
+    const sessionId = this.observerSessionId;
+    this.observerSessionId = undefined;
+    if (!sessionId || sessionId !== this.activeSessionId) return;
+    // Best effort: a stale or already-closed session needs no cleanup.
+    await this.closeSession(sessionId).catch(() => {});
+  }
   async getSnapshot() { return (await this.binding()).module.getSnapshot(); }
   observe(listener: (snapshot: Snapshot) => void): () => void {
     let active = true;
-    let off = () => {};
-    void this.getSnapshot().then((snapshot) => { if (active) listener(snapshot); });
-    void this.openSession().then((session) => {
+    let refreshing = Promise.resolve();
+    const refresh = () => {
+      refreshing = refreshing.then(async () => {
+        const snapshot = await this.getSnapshot();
+        if (active) listener(snapshot);
+      }).catch(() => {});
+    };
+    this.snapshotObservers++;
+    // Subscribe before reading so no change lands between the two.
+    const off = this.subscribe(refresh);
+    void this.ensureObserverSession().catch(() => {}).then(refresh);
+    return () => {
       if (!active) return;
-      off = this.observeEvents(session.sessionId, () => { void this.getSnapshot().then(listener); });
-    });
-    return () => { active = false; off(); };
+      active = false; off();
+      if (--this.snapshotObservers === 0) void this.releaseObserverSession();
+    };
   }
   dispose() { void this.binding().then(({module}) => module.dispose()); }
 }

@@ -61,3 +61,28 @@ test('plugin rejects invalid options and conflicting entitlements', async () => 
     ios: {bundleIdentifier: 'dev.callx.test', entitlements: {'aps-environment': 'development'}},
   }), /conflicts/);
 });
+
+test('plugin raises Android minSdk to the library floor without lowering it', async () => {
+  const {withGradleProperties} = require('@expo/config-plugins');
+  async function minSdk(existing) {
+    const projectRoot = mkdtempSync(join(tmpdir(), 'callx-plugin-'));
+    try {
+      let config = plugin({name: 'Callx test', slug: 'callx-test', android: {package: 'dev.callx.test'}}, {});
+      // Mods added later run first, so this seeds the value Callx then sees.
+      if (existing) config = withGradleProperties(config, mod => {
+        mod.modResults.push({type: 'property', key: 'android.minSdkVersion', value: existing});
+        return mod;
+      });
+      const result = await compileModsAsync(config, {projectRoot, introspect: true,
+        ignoreExistingNativeFiles: true, platforms: ['android']});
+      return result._internal.modResults.android.gradleProperties
+        .filter(item => item.type === 'property' && item.key === 'android.minSdkVersion')
+        .map(item => item.value);
+    } finally {
+      rmSync(projectRoot, {recursive: true, force: true});
+    }
+  }
+  assert.deepEqual(await minSdk(), ['29']);
+  assert.deepEqual(await minSdk('24'), ['29']);
+  assert.deepEqual(await minSdk('31'), ['31']);
+});

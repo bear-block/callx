@@ -1,5 +1,9 @@
-const {createRunOncePlugin, withInfoPlist, withEntitlementsPlist, withAndroidManifest} = require('@expo/config-plugins');
+const {createRunOncePlugin, withInfoPlist, withEntitlementsPlist, withAndroidManifest,
+  withGradleProperties} = require('@expo/config-plugins');
 const {version} = require('./package.json');
+
+// Must match defaultConfig.minSdk in android/build.gradle.
+const ANDROID_MIN_SDK = 29;
 
 function withCallx(config, options = {}) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) {
@@ -43,6 +47,14 @@ function withCallx(config, options = {}) {
       return mod;
     });
   }
+  config = withGradleProperties(config, mod => {
+    const key = 'android.minSdkVersion';
+    const entry = mod.modResults.find(item => item.type === 'property' && item.key === key);
+    const current = Number.parseInt(entry?.value ?? '', 10);
+    if (!entry) mod.modResults.push({type: 'property', key, value: String(ANDROID_MIN_SDK)});
+    else if (!(current >= ANDROID_MIN_SDK)) entry.value = String(ANDROID_MIN_SDK);
+    return mod;
+  });
   return withAndroidManifest(config, mod => {
     const permissions = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO',
       'android.permission.MANAGE_OWN_CALLS'];

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fix Android reporting an answered incoming call as declined when it is ended.
+- Fix native `acknowledge` and `closeSession` always failing with `internal`.
+- `snapshots` listeners now share the active observation session instead of each
+  replacing it, so several listeners and a manual session work together.
+- Document the Android `minSdk = 29` requirement for host apps.
 - Fix iOS system-originated action completion without SDK operation correlation.
 - Invalidate pending action records on timeout/reset and forward CallKit audio
   activation/deactivation through an optional native media handler.

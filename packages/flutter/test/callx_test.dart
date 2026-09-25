@@ -317,4 +317,120 @@ void main() {
       await preview.callx.dispose();
     },
   );
+
+  group('native observation sessions', () {
+    const methods = MethodChannel('dev.callx/methods');
+    const events = EventChannel('dev.callx/events');
+    late List<MethodCall> calls;
+    late MockStreamHandlerEventSink sink;
+    var sessions = 0;
+    var sequence = 0;
+
+    setUp(() {
+      calls = [];
+      sessions = 0;
+      sequence = 0;
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      // Mirrors CallxPlugin: acknowledge/closeSession reply with null.
+      messenger.setMockMethodCallHandler(methods, (call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'openSession':
+            sessions++;
+            return <String, Object?>{
+              'sessionId': 'session-$sessions',
+              'accountGeneration': 'generation-1',
+              'status': 'fresh',
+              'snapshot': {'watermark': '$sequence', 'calls': <Object?>[]},
+              'replay': <Object?>[],
+            };
+          case 'getSnapshot':
+            return <String, Object?>{'sequence': '$sequence', 'call': null};
+          default:
+            return null;
+        }
+      });
+      messenger.setMockStreamHandler(
+        events,
+        MockStreamHandler.inline(onListen: (_, events) => sink = events),
+      );
+      addTearDown(() {
+        messenger.setMockMethodCallHandler(methods, null);
+        messenger.setMockStreamHandler(events, null);
+      });
+    });
+
+    void emit(String sessionId) {
+      sequence++;
+      sink.success(<String, Object?>{
+        'sessionId': sessionId,
+        'eventId': 'event-$sequence',
+        'sequence': '$sequence',
+        'kind': 'callChanged',
+        'source': 'platform',
+        'observedAtMs': 1000 + sequence,
+      });
+    }
+
+    Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+    test('acknowledge and closeSession accept a void native reply', () async {
+      final callx = Callx();
+      await callx.acknowledge('session-1', '3');
+      await callx.closeSession('session-1');
+      expect(calls.map((c) => c.method), ['acknowledge', 'closeSession']);
+      expect(calls.first.arguments, {
+        'sessionId': 'session-1',
+        'throughSequence': '3',
+      });
+    });
+
+    test(
+      'snapshot observers share the app session and keep updating',
+      () async {
+        final callx = Callx();
+        final session = await callx.openSession();
+        final first = <String>[];
+        final second = <String>[];
+        final a = callx.snapshots.listen((s) => first.add(s.sequence));
+        final b = callx.snapshots.listen((s) => second.add(s.sequence));
+        await settle();
+        emit(session.sessionId);
+        await settle();
+
+        expect(sessions, 1, reason: 'observers must not replace the session');
+        expect(first, ['0', '1']);
+        expect(second, ['0', '1']);
+        await callx.acknowledge(session.sessionId, '1');
+
+        await a.cancel();
+        await b.cancel();
+        expect(
+          calls.where((c) => c.method == 'closeSession'),
+          isEmpty,
+          reason: 'the app owns its session',
+        );
+      },
+    );
+
+    test('observers open, reopen and release their own session', () async {
+      final callx = Callx();
+      final seen = <String>[];
+      final subscription = callx.snapshots.listen((s) => seen.add(s.sequence));
+      await settle();
+      expect(sessions, 1);
+
+      final app = await callx.openSession();
+      await callx.closeSession(app.sessionId);
+      expect(sessions, 3, reason: 'observers need a live session after close');
+      emit('session-3');
+      await settle();
+      expect(seen.last, '1');
+
+      await subscription.cancel();
+      expect(calls.last.method, 'closeSession');
+      expect(calls.last.arguments, {'sessionId': 'session-3'});
+    });
+  });
 }
