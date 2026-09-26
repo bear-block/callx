@@ -8,7 +8,21 @@ data class CallRecord(val callId: String, val state: CallState, val muted: Boole
     val mediaReady: Boolean = false, val endReason: String? = null,
     val displayName: String? = null, val handle: String? = null, val direction: CallDirection? = null,
     val createdAtMs: Long? = null, val acceptedAtMs: Long? = null,
-    val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null)
+    val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null, val ringDeadlineAtMs: Long? = null)
+/** A call that ended; its ID is never used again while the record is retained. */
+data class TerminalRecord(val callId: String, val reason: String, val endedAtMs: Long)
+/** Why an incoming invitation did or did not create a call. */
+sealed interface IncomingOutcome {
+    data object Accepted : IncomingOutcome
+    /** The same call is already live. */
+    data object Duplicate : IncomingOutcome
+    /** The call already ended; the platform must not ring for it again. */
+    data class Ended(val reason: String) : IncomingOutcome
+    /** Another call is live. */
+    data object Busy : IncomingOutcome
+    /** The invitation expired before it arrived. */
+    data object Expired : IncomingOutcome
+}
 data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
     val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long)
 data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null,
@@ -22,8 +36,12 @@ data class ObservationCapture(val call: CallRecord?, val watermark: Long, val re
 
 /** Serialized by synchronization until the Android adapter supplies its application coroutine. */
 class CallCoordinator private constructor(private val store: CoordinatorStore?, @Suppress("UNUSED_PARAMETER") marker: Unit) {
-    companion object { const val OPERATION_RETENTION_MS = 86_400_000L; const val OPERATION_QUOTA = 10_000 }
+    companion object {
+        const val OPERATION_RETENTION_MS = 86_400_000L; const val OPERATION_QUOTA = 10_000
+        const val TERMINAL_RETENTION_MS = 86_400_000L; const val TERMINAL_QUOTA = 1_000
+    }
     private var call: CallRecord? = null
+    private val terminal = linkedMapOf<String, TerminalRecord>()
     private val pending = mutableMapOf<String, NativeCommand>()
     private val completed = mutableMapOf<String, Pair<NativeCommand, NativeOperation>>()
     private var lastCompletedPruneAt: Long? = null
@@ -34,7 +52,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     private fun restore(checkpoint: CoordinatorCheckpoint) {
         call = checkpoint.call
         lastCompletedPruneAt = null
-        pending.clear(); completed.clear()
+        pending.clear(); completed.clear(); terminal.clear()
+        checkpoint.terminal.forEach { terminal[it.callId] = it }
         checkpoint.pending.associateByTo(pending) { it.operationId }
         checkpoint.completed.associateTo(completed) { it.command.operationId to (it.command to it.result) }
         journal = EventJournal(checkpoint.journal ?: JournalCheckpoint())
@@ -44,24 +63,77 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         ?: pending[id]?.let { NativeOperation(id, OperationStatus.pending) }
     @Synchronized fun pendingCommands() = pending.values.toList()
     @Synchronized fun checkpoint() = CoordinatorCheckpoint(call = call, pending = pending.values.toList(),
-        completed = completed.values.map { CompletedOperation(it.first, it.second) }, journal = journal.state)
+        completed = completed.values.map { CompletedOperation(it.first, it.second) }, journal = journal.state,
+        terminal = terminal.values.toList())
     @Synchronized fun replayEvents(after: Long) = journal.replay(after)
     @Synchronized fun acknowledgeEvents(through: Long) = journal.acknowledge(through)
     @Synchronized fun observationCapture(after: Long? = null) = ObservationCapture(
         call, journal.state.nextSequence - 1, after?.let(journal::replay))
+    @Synchronized fun terminalRecord(callId: String, nowMs: Long): TerminalRecord? =
+        terminal[callId]?.takeIf { nowMs - it.endedAtMs < TERMINAL_RETENTION_MS }
     @Synchronized fun reportIncoming(callId: String, nowMs: Long = 0,
-        displayName: String? = null, handle: String? = null) {
-        if (call == null || call?.state == CallState.ended) {
-            call = CallRecord(callId, CallState.incoming, displayName = displayName, handle = handle,
-                direction = CallDirection.incoming, createdAtMs = nowMs)
-            journal.append("callChanged", nowMs, callId, source = EventSource.platform)
+        displayName: String? = null, handle: String? = null,
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
+        expireRinging(nowMs)
+        terminalRecord(callId, nowMs)?.let { return IncomingOutcome.Ended(it.reason) }
+        val current = call
+        if (current?.callId == callId) {
+            return if (current.state == CallState.ended) IncomingOutcome.Ended(current.endReason ?: "failed")
+                else IncomingOutcome.Duplicate
         }
+        if (expiresAtMs != null && expiresAtMs <= nowMs) return IncomingOutcome.Expired
+        if (current != null && current.state != CallState.ended) return IncomingOutcome.Busy
+        val deadline = listOfNotNull(ringDeadlineAtMs, expiresAtMs).minOrNull()
+        call = CallRecord(callId, CallState.incoming, displayName = displayName, handle = handle,
+            direction = CallDirection.incoming, createdAtMs = nowMs, ringDeadlineAtMs = deadline)
+        journal.append("callChanged", nowMs, callId, source = EventSource.platform)
+        return IncomingOutcome.Accepted
     }
-    @Synchronized fun remoteAnswered(callId: String, nowMs: Long) {
-        val current = call ?: return
-        if (current.callId != callId || current.state != CallState.outgoing) return
+    /** An answer the OS performed itself; the platform action is already complete. */
+    @Synchronized fun platformAnswered(callId: String, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId || current.state != CallState.incoming) return false
+        call = current.copy(state = CallState.connecting, acceptedAtMs = nowMs, ringDeadlineAtMs = null)
+        journal.append("callChanged", nowMs, callId, source = EventSource.platform); return true
+    }
+    /** A hangup or decline the OS performed itself. Without a reason, incoming calls are declined. */
+    @Synchronized fun platformEnded(callId: String, reason: String? = null, nowMs: Long): Boolean {
+        val current = call?.takeIf { it.callId == callId && it.state != CallState.ended } ?: return false
+        val resolved = reason ?: if (current.state == CallState.incoming) "declined" else "localHangup"
+        return end(callId, resolved, EventSource.platform, nowMs)
+    }
+    /** A mute change the OS made itself, for example from a car or headset. True when state changed. */
+    @Synchronized fun platformMuted(callId: String, muted: Boolean, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId || current.muted == muted ||
+            current.state == CallState.incoming || current.state == CallState.ended) return false
+        call = current.copy(muted = muted)
+        journal.append("callChanged", nowMs, callId, source = EventSource.platform); return true
+    }
+    /** A hold or resume the OS made itself, for example for call waiting. True when state changed. */
+    @Synchronized fun platformHeld(callId: String, held: Boolean, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId) return false
+        val next = when {
+            held && current.state == CallState.active -> CallState.held
+            !held && current.state == CallState.held -> CallState.active
+            else -> return false
+        }
+        call = current.copy(state = next)
+        journal.append("callChanged", nowMs, callId, source = EventSource.platform); return true
+    }
+    /** Ends an incoming call whose ring deadline passed; returns its ID. */
+    @Synchronized fun expireRinging(nowMs: Long): String? {
+        val current = call ?: return null
+        val deadline = current.ringDeadlineAtMs ?: return null
+        if (current.state != CallState.incoming || deadline > nowMs) return null
+        end(current.callId, "unanswered", EventSource.local, nowMs); return current.callId
+    }
+    @Synchronized fun remoteAnswered(callId: String, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId || current.state != CallState.outgoing) return false
         call = current.copy(state = CallState.connecting, acceptedAtMs = nowMs)
-        journal.append("callChanged", nowMs, callId, source = EventSource.signaling)
+        journal.append("callChanged", nowMs, callId, source = EventSource.signaling); return true
     }
     @Synchronized fun mediaConnected(callId: String, nowMs: Long) {
         val current = call ?: return
@@ -70,21 +142,35 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             mediaReady = true, mediaConnectedAtMs = nowMs)
         journal.append("callChanged", nowMs, callId, source = EventSource.media)
     }
-    @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0) {
-        val current = call ?: return; if (current.callId != callId || current.state == CallState.ended) return
-        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs)
-        journal.append("callChanged", nowMs, callId, source = EventSource.signaling)
+    /** Ends the live call, or records a tombstone so a later invitation for this ID cannot ring. */
+    @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0): Boolean {
+        if (end(callId, reason, EventSource.signaling, nowMs)) return true
+        if (call?.callId != callId && terminalRecord(callId, nowMs) == null) recordTerminal(callId, reason, nowMs)
+        return false
+    }
+    private fun end(callId: String, reason: String, source: EventSource, nowMs: Long): Boolean {
+        val current = call ?: return false; if (current.callId != callId || current.state == CallState.ended) return false
+        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs,
+            ringDeadlineAtMs = null)
+        recordTerminal(callId, reason, nowMs)
+        journal.append("callChanged", nowMs, callId, source = source)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
             completed[id] = command to NativeOperation(id, OperationStatus.rejected, "invalidState", nowMs); pending.remove(id)
-            journal.append("operationCompleted", nowMs, operationId = id, source = EventSource.signaling)
+            journal.append("operationCompleted", nowMs, operationId = id, source = source)
         }
-        pruneCompleted(nowMs)
+        pruneCompleted(nowMs); return true
+    }
+    private fun recordTerminal(callId: String, reason: String, nowMs: Long) {
+        terminal.remove(callId); terminal[callId] = TerminalRecord(callId, reason, nowMs)
+        terminal.entries.removeIf { nowMs - it.value.endedAtMs >= TERMINAL_RETENTION_MS }
+        while (terminal.size > TERMINAL_QUOTA) terminal.remove(terminal.keys.first())
     }
     @Synchronized fun prepare(command: NativeCommand, nowMs: Long): Preparation {
+        expireRinging(nowMs)
         completed[command.operationId]?.let { return if (it.first == command) Preparation.Existing(it.second) else conflict(command.operationId, nowMs) }
         pending[command.operationId]?.let { return if (it == command) Preparation.Existing(NativeOperation(command.operationId, OperationStatus.pending)) else conflict(command.operationId, nowMs) }
         if (command.deadlineAtMs <= nowMs) return finish(command, OperationStatus.timedOut, "deadlineExceeded", nowMs)
-        preconditionError(command)?.let { return finish(command, OperationStatus.rejected, it, nowMs) }
+        preconditionError(command, nowMs)?.let { return finish(command, OperationStatus.rejected, it, nowMs) }
         pending[command.operationId] = command; return Preparation.Execute
     }
     @Synchronized fun expire(nowMs: Long) {
@@ -119,9 +205,11 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         val result = finishResult(command, OperationStatus.timedOut, "deadlineExceeded", nowMs)
         journal.append("operationCompleted", nowMs, operationId = operationId); return result
     }
-    private fun preconditionError(command: NativeCommand): String? {
+    private fun preconditionError(command: NativeCommand, nowMs: Long): String? {
         if (command.type == CommandType.startCall) {
             if (command.displayName.isNullOrEmpty() || command.handle.isNullOrEmpty()) return "invalidArgument"
+            // A call ID identifies one session and is never reused.
+            if (call?.callId == command.callId || terminalRecord(command.callId, nowMs) != null) return "invalidState"
             return if (call == null || call?.state == CallState.ended) null else "busy"
         }
         val current = call ?: return "callNotFound"; if (current.callId != command.callId) return "callNotFound"
@@ -142,9 +230,13 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         }
         val current = call ?: return
         call = when (command.type) {
-            CommandType.answer -> current.copy(state = CallState.connecting, acceptedAtMs = nowMs)
-            CommandType.end -> current.copy(state = CallState.ended, mediaReady = false,
-                endReason = if (current.state == CallState.incoming) "declined" else "localHangup", endedAtMs = nowMs)
+            CommandType.answer -> current.copy(state = CallState.connecting, acceptedAtMs = nowMs, ringDeadlineAtMs = null)
+            CommandType.end -> {
+                val reason = if (current.state == CallState.incoming) "declined" else "localHangup"
+                recordTerminal(current.callId, reason, nowMs)
+                current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs,
+                    ringDeadlineAtMs = null)
+            }
             CommandType.setMuted -> current.copy(muted = command.value!!)
             CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
             CommandType.startCall -> current
@@ -180,17 +272,35 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         val before = checkpoint(); val result = prepare(command, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableReportIncoming(callId: String, nowMs: Long,
-        displayName: String? = null, handle: String? = null) {
-        val before = checkpoint(); reportIncoming(callId, nowMs, displayName, handle); persistOrRestore(before)
+        displayName: String? = null, handle: String? = null,
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
+        val before = checkpoint()
+        val outcome = reportIncoming(callId, nowMs, displayName, handle, ringDeadlineAtMs, expiresAtMs)
+        persistOrRestore(before); return outcome
     }
-    @Synchronized fun durableRemoteAnswered(callId: String, nowMs: Long) {
-        val before = checkpoint(); remoteAnswered(callId, nowMs); persistOrRestore(before)
+    @Synchronized fun durablePlatformAnswered(callId: String, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = platformAnswered(callId, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durablePlatformEnded(callId: String, reason: String? = null, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = platformEnded(callId, reason, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durablePlatformMuted(callId: String, muted: Boolean, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = platformMuted(callId, muted, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durablePlatformHeld(callId: String, held: Boolean, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = platformHeld(callId, held, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableExpireRinging(nowMs: Long): String? {
+        val before = checkpoint(); val result = expireRinging(nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableRemoteAnswered(callId: String, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = remoteAnswered(callId, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableMediaConnected(callId: String, nowMs: Long) {
         val before = checkpoint(); mediaConnected(callId, nowMs); persistOrRestore(before)
     }
-    @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long) {
-        val before = checkpoint(); remoteEnded(callId, reason, nowMs); persistOrRestore(before)
+    @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long): Boolean {
+        val before = checkpoint(); val result = remoteEnded(callId, reason, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableCompleteApplied(operationId: String, nowMs: Long): NativeOperation? {
         val before = checkpoint(); val result = completeApplied(operationId, nowMs); persistOrRestore(before); return result

@@ -8,7 +8,8 @@ import kotlinx.serialization.json.*
 
 data class CompletedOperation(val command: NativeCommand, val result: NativeOperation)
 data class CoordinatorCheckpoint(val schemaVersion: Int = 1, val call: CallRecord?,
-    val pending: List<NativeCommand>, val completed: List<CompletedOperation>, val journal: JournalCheckpoint? = null)
+    val pending: List<NativeCommand>, val completed: List<CompletedOperation>, val journal: JournalCheckpoint? = null,
+    val terminal: List<TerminalRecord> = emptyList())
 
 interface CoordinatorStore { fun save(checkpoint: CoordinatorCheckpoint); fun load(): CoordinatorCheckpoint? }
 
@@ -34,6 +35,9 @@ object CoordinatorCheckpointCodec {
             put("command", encodeCommand(item.command)); put("result", encodeResult(item.result))
         }) } }
         value.journal?.let { put("journal", JournalCodec.encode(it)) }
+        putJsonArray("terminal") { value.terminal.forEach { item -> add(buildJsonObject {
+            put("callId", item.callId); put("reason", item.reason); put("endedAtMs", item.endedAtMs)
+        }) } }
     }
     fun decode(value: JsonObject): CoordinatorCheckpoint {
         val schema = value.getValue("schemaVersion").jsonPrimitive.int
@@ -43,7 +47,10 @@ object CoordinatorCheckpointCodec {
             value.getValue("pending").jsonArray.map { decodeCommand(it.jsonObject) },
             value.getValue("completed").jsonArray.map { item -> item.jsonObject.let {
                 CompletedOperation(decodeCommand(it.getValue("command").jsonObject), decodeResult(it.getValue("result").jsonObject))
-            } }, value["journal"]?.jsonObject?.let(JournalCodec::decode))
+            } }, value["journal"]?.jsonObject?.let(JournalCodec::decode),
+            value["terminal"]?.jsonArray?.map { item -> item.jsonObject.let {
+                TerminalRecord(it.text("callId"), it.text("reason"), it.getValue("endedAtMs").jsonPrimitive.long)
+            } }.orEmpty())
     }
     private fun encodeCall(value: CallRecord) = buildJsonObject {
         put("callId", value.callId); put("state", value.state.name); put("muted", value.muted); put("mediaReady", value.mediaReady)
@@ -52,6 +59,7 @@ object CoordinatorCheckpointCodec {
         value.direction?.let { put("direction", it.name) }
         value.createdAtMs?.let { put("createdAtMs", it) }; value.acceptedAtMs?.let { put("acceptedAtMs", it) }
         value.mediaConnectedAtMs?.let { put("mediaConnectedAtMs", it) }; value.endedAtMs?.let { put("endedAtMs", it) }
+        value.ringDeadlineAtMs?.let { put("ringDeadlineAtMs", it) }
     }
     private fun decodeCall(value: JsonObject) = CallRecord(value.text("callId"), CallState.valueOf(value.text("state")),
         value.getValue("muted").jsonPrimitive.boolean, value.getValue("mediaReady").jsonPrimitive.boolean,
@@ -59,7 +67,8 @@ object CoordinatorCheckpointCodec {
         value["handle"]?.jsonPrimitive?.contentOrNull,
         value["direction"]?.jsonPrimitive?.contentOrNull?.let(CallDirection::valueOf),
         value["createdAtMs"]?.jsonPrimitive?.longOrNull, value["acceptedAtMs"]?.jsonPrimitive?.longOrNull,
-        value["mediaConnectedAtMs"]?.jsonPrimitive?.longOrNull, value["endedAtMs"]?.jsonPrimitive?.longOrNull)
+        value["mediaConnectedAtMs"]?.jsonPrimitive?.longOrNull, value["endedAtMs"]?.jsonPrimitive?.longOrNull,
+        value["ringDeadlineAtMs"]?.jsonPrimitive?.longOrNull)
     private fun encodeCommand(value: NativeCommand) = buildJsonObject {
         put("operationId", value.operationId); put("type", value.type.name); put("callId", value.callId)
         value.value?.let { put("value", it) }; value.displayName?.let { put("displayName", it) }

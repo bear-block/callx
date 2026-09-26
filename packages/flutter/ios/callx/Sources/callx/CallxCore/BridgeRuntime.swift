@@ -31,12 +31,15 @@ public protocol BridgeEventReceiving: AnyObject, Sendable {
 /** Framework-neutral actor. Flutter and React Native only translate BridgeValue at their boundary. */
 public actor BridgeRuntime {
     private static let version = "0.1.0"
+    private static let endReasons = ["localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered", "busy",
+        "failed", "answeredElsewhere", "declinedElsewhere"]
     private static let identifier = try! NSRegularExpression(pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
     private let coordinator: CallCoordinator
     private let dispatcher: CommandDispatcher
     private let capabilities: BridgeCapabilities
     private let nowMs: @Sendable () -> Int64
     private var sessionCounter: UInt64 = 0
+    private var nativeOperationCounter: UInt64 = 0
     private var activeSession: String?
     private var emittedThrough: UInt64 = 0
     private weak var eventReceiver: (any BridgeEventReceiving)?
@@ -119,31 +122,82 @@ public actor BridgeRuntime {
         result["call"] = if let call = visibleCall(capture.call) { .object(try callMap(call)) } else { .null }
         return result
     }
+    /// Records an invitation. Only `.accepted` means the platform should ring.
+    @discardableResult
     public func reportIncoming(callID: String, displayName: String, handle: String,
-        observedAtMs: Int64? = nil) async throws {
+        observedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil) async throws -> IncomingOutcome {
         _ = try requiredID(["callId": .string(callID)], "callId")
         _ = try requiredText(["displayName": .string(displayName)], "displayName", maxBytes: 256)
         _ = try requiredText(["handle": .string(handle)], "handle", maxBytes: 256)
-        try await coordinator.durableReportIncoming(callID: callID, displayName: displayName, handle: handle,
-            nowMs: observedAtMs ?? nowMs()); await publishNewEvents()
+        let outcome = try await coordinator.durableReportIncoming(callID: callID, displayName: displayName,
+            handle: handle, nowMs: observedAtMs ?? nowMs(), ringDeadlineAtMs: ringDeadlineAtMs, expiresAtMs: expiresAtMs)
+        await publishNewEvents(); return outcome
     }
-    public func remoteAnswered(callID: String, observedAtMs: Int64? = nil) async throws {
+    /// Returns true when an outgoing call moved to connecting.
+    @discardableResult
+    public func remoteAnswered(callID: String, observedAtMs: Int64? = nil) async throws -> Bool {
         _ = try requiredID(["callId": .string(callID)], "callId")
-        try await coordinator.durableRemoteAnswered(callID: callID, nowMs: observedAtMs ?? nowMs())
-        await publishNewEvents()
+        let result = try await coordinator.durableRemoteAnswered(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
     }
     public func mediaConnected(callID: String, observedAtMs: Int64? = nil) async throws {
         _ = try requiredID(["callId": .string(callID)], "callId")
         try await coordinator.durableMediaConnected(callID: callID, nowMs: observedAtMs ?? nowMs())
         await publishNewEvents()
     }
-    public func remoteEnded(callID: String, reason: String = "remoteEnded", observedAtMs: Int64? = nil) async throws {
+    /// Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later.
+    @discardableResult
+    public func remoteEnded(callID: String, reason: String = "remoteEnded", observedAtMs: Int64? = nil) async throws -> Bool {
         _ = try requiredID(["callId": .string(callID)], "callId")
-        let reasons = ["localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered", "busy",
-            "failed", "answeredElsewhere", "declinedElsewhere"]
-        guard reasons.contains(reason) else { throw invalid("reason is unsupported.") }
-        try await coordinator.durableRemoteEnded(callID: callID, reason: reason, nowMs: observedAtMs ?? nowMs())
-        await publishNewEvents()
+        guard Self.endReasons.contains(reason) else { throw invalid("reason is unsupported.") }
+        let ended = try await coordinator.durableRemoteEnded(callID: callID, reason: reason, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return ended
+    }
+    /// Records an answer the OS already performed; does not request a platform action.
+    @discardableResult
+    public func platformAnswered(callID: String, observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let result = try await coordinator.durablePlatformAnswered(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
+    }
+    /// Records a hangup or decline the OS already performed; does not request a platform action.
+    @discardableResult
+    public func platformEnded(callID: String, reason: String? = nil, observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        if let reason, !Self.endReasons.contains(reason) { throw invalid("reason is unsupported.") }
+        let result = try await coordinator.durablePlatformEnded(callID: callID, reason: reason,
+            nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
+    }
+    /// Records a mute change the OS already made; apply it to media only when this returns true.
+    @discardableResult
+    public func platformMuted(callID: String, muted: Bool, observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let result = try await coordinator.durablePlatformMuted(callID: callID, muted: muted, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
+    }
+    /// Records a hold or resume the OS already made; does not request a platform action.
+    @discardableResult
+    public func platformHeld(callID: String, held: Bool, observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let result = try await coordinator.durablePlatformHeld(callID: callID, held: held, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
+    }
+    /// Ends a ringing call whose deadline passed and returns its ID so the platform call can end too.
+    @discardableResult
+    public func expireRinging(observedAtMs: Int64? = nil) async throws -> String? {
+        let result = try await coordinator.durableExpireRinging(nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return result
+    }
+    /// Runs a call-control command that started in native UI, such as a notification button.
+    public func executeNative(_ type: CommandType, callID: String, value: Bool? = nil) async throws -> NativeOperation {
+        guard type != .startCall else { throw invalid("startCall needs input.") }
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let receivedAt = nowMs(); nativeOperationCounter += 1
+        let command = NativeCommand(operationID: "native-\(receivedAt)-\(nativeOperationCounter)", type: type,
+            callID: callID, value: value, deadlineAtMs: receivedAt + 4_000)
+        let operation = try await dispatcher.execute(command, nowMs: receivedAt)
+        await publishNewEvents(); return operation
     }
     public func setEventReceiver(_ receiver: (any BridgeEventReceiving)?) { eventReceiver = receiver }
 

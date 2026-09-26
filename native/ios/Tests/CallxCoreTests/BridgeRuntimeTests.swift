@@ -72,3 +72,35 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
     // An expired deadline is not a validation error; the coordinator reports timedOut.
     #expect(try await end("op-late", 999)["status"] == .string("timedOut"))
 }
+
+@Test func nativeIngressReportsOutcomesAndPublishesEvents() async throws {
+    let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
+        BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
+            providerManagedSignaling: false, hold: true, mute: true), nowMs: { 1_000 })
+    _ = try await bridge.openSession(["contractVersion": .string("0.1.0")])
+    let receiver = EventReceiver(); await bridge.setEventReceiver(receiver)
+    #expect(try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901",
+        ringDeadlineAtMs: 1_500) == .accepted)
+    #expect(try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901") == .duplicate)
+    #expect(try await bridge.platformAnswered(callID: "call-1"))
+    #expect(try await bridge.executeNative(.end, callID: "call-1").status == .applied)
+    guard case .object(let call) = try await bridge.getSnapshot()["call"] else { Issue.record("missing call"); return }
+    #expect(call["endReason"] == .string("localHangup"))
+    #expect(try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901")
+        == .ended(reason: "localHangup"))
+    #expect(Array(receiver.events.prefix(4).map { $0["source"] }) ==
+        [.string("platform"), .string("platform"), .string("local"), .string("local")])
+    await #expect(throws: BridgeError.self) { _ = try await bridge.executeNative(.startCall, callID: "call-2") }
+    await #expect(throws: BridgeError.self) { _ = try await bridge.platformEnded(callID: "call-1", reason: "notAReason") }
+}
+
+@Test func ringingExpiresThroughTheRuntime() async throws {
+    let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
+        BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
+            providerManagedSignaling: false, hold: true, mute: true), nowMs: { 1_000 })
+    try await bridge.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901", observedAtMs: 1_000,
+        ringDeadlineAtMs: 1_500)
+    #expect(try await bridge.expireRinging(observedAtMs: 1_400) == nil)
+    #expect(try await bridge.expireRinging(observedAtMs: 1_500) == "call-1")
+    #expect(try await bridge.remoteEnded(callID: "call-1", reason: "callerCancelled", observedAtMs: 1_600) == false)
+}

@@ -21,6 +21,7 @@ class BridgeRuntime(
 ) {
     private val dispatcher = CommandDispatcher(coordinator, executor)
     private var sessionCounter = 0L
+    private var nativeOperationCounter = 0L
     private var activeSession: String? = null
     private var emittedThrough = coordinator.checkpoint().journal?.nextSequence?.minus(1) ?: 0
     private var eventListener: ((Map<String, Any?>) -> Unit)? = null
@@ -106,23 +107,61 @@ class BridgeRuntime(
             "call" to visibleCall(capture.call)?.let(::callMap))
     }
 
-    fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs()) {
+    /** Records an invitation. Only [IncomingOutcome.Accepted] means the platform should ring. */
+    fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs(),
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
         requiredId(mapOf("callId" to callId), "callId"); requiredText(mapOf("displayName" to displayName), "displayName", 256)
         requiredText(mapOf("handle" to handle), "handle", 256)
-        coordinator.durableReportIncoming(callId, observedAtMs, displayName, handle); publishNewEvents()
+        return coordinator.durableReportIncoming(callId, observedAtMs, displayName, handle, ringDeadlineAtMs, expiresAtMs)
+            .also { publishNewEvents() }
     }
-    fun remoteAnswered(callId: String, observedAtMs: Long = nowMs()) {
+    /** Returns true when an outgoing call moved to connecting. */
+    fun remoteAnswered(callId: String, observedAtMs: Long = nowMs()): Boolean {
         requiredId(mapOf("callId" to callId), "callId")
-        coordinator.durableRemoteAnswered(callId, observedAtMs); publishNewEvents()
+        return coordinator.durableRemoteAnswered(callId, observedAtMs).also { publishNewEvents() }
     }
     fun mediaConnected(callId: String, observedAtMs: Long = nowMs()) {
         requiredId(mapOf("callId" to callId), "callId")
         coordinator.durableMediaConnected(callId, observedAtMs); publishNewEvents()
     }
-    fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()) {
+    /** Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later. */
+    fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()): Boolean {
         requiredId(mapOf("callId" to callId), "callId")
         if (reason !in END_REASONS) invalid("reason is unsupported.")
-        coordinator.durableRemoteEnded(callId, reason, observedAtMs); publishNewEvents()
+        return coordinator.durableRemoteEnded(callId, reason, observedAtMs).also { publishNewEvents() }
+    }
+    /** Records an answer the OS already performed; does not request a platform action. */
+    fun platformAnswered(callId: String, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durablePlatformAnswered(callId, observedAtMs).also { publishNewEvents() }
+    }
+    /** Records a hangup or decline the OS already performed; does not request a platform action. */
+    fun platformEnded(callId: String, reason: String? = null, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        if (reason != null && reason !in END_REASONS) invalid("reason is unsupported.")
+        return coordinator.durablePlatformEnded(callId, reason, observedAtMs).also { publishNewEvents() }
+    }
+    /** Records a mute change the OS already made; apply it to media only when this returns true. */
+    fun platformMuted(callId: String, muted: Boolean, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durablePlatformMuted(callId, muted, observedAtMs).also { publishNewEvents() }
+    }
+    /** Records a hold or resume the OS already made; does not request a platform action. */
+    fun platformHeld(callId: String, held: Boolean, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durablePlatformHeld(callId, held, observedAtMs).also { publishNewEvents() }
+    }
+    /** Ends a ringing call whose deadline passed and returns its ID so the platform call can end too. */
+    fun expireRinging(observedAtMs: Long = nowMs()): String? =
+        coordinator.durableExpireRinging(observedAtMs).also { publishNewEvents() }
+    /** Runs a call-control command that started in native UI, such as a notification button. */
+    fun executeNative(type: CommandType, callId: String, value: Boolean? = null): CompletionStage<NativeOperation> {
+        if (type == CommandType.startCall) invalid("startCall needs input.")
+        requiredId(mapOf("callId" to callId), "callId")
+        val receivedAt = nowMs()
+        val operationId = synchronized(this) { "native-$receivedAt-${++nativeOperationCounter}" }
+        val command = NativeCommand(operationId, type, callId, value = value, deadlineAtMs = receivedAt + 4_000)
+        return dispatcher.execute(command, receivedAt).thenApply { it.also { publishNewEvents() } }
     }
 
     @Synchronized fun setEventListener(listener: ((Map<String, Any?>) -> Unit)?) { eventListener = listener }

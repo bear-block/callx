@@ -12,10 +12,12 @@ public struct CoordinatorCheckpoint: Codable, Equatable, Sendable {
     public let pending: [NativeCommand]
     public let completed: [CompletedOperation]
     public let journal: JournalCheckpoint?
+    /// Absent in checkpoints written before the terminal ledger existed.
+    public let terminal: [TerminalRecord]?
     public init(schemaVersion: Int = 1, call: CallRecord?, pending: [NativeCommand], completed: [CompletedOperation],
-        journal: JournalCheckpoint? = nil) {
+        journal: JournalCheckpoint? = nil, terminal: [TerminalRecord]? = nil) {
         self.schemaVersion = schemaVersion; self.call = call; self.pending = pending; self.completed = completed
-        self.journal = journal
+        self.journal = journal; self.terminal = terminal
     }
 }
 

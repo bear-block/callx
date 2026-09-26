@@ -28,6 +28,30 @@ class BridgeRuntimeTest {
         assertTrue(events.all { it["sessionId"] == opened["sessionId"] })
     }
 
+    @Test fun nativeIngressReportsOutcomesAndPublishesEvents() {
+        val bridge = runtime()
+        bridge.openSession(mapOf("contractVersion" to "0.1.0"))
+        val events = mutableListOf<Map<String, Any?>>(); bridge.setEventListener(events::add)
+        assertEquals(IncomingOutcome.Accepted, bridge.reportIncoming("call-1", "hao.dev7", "+84901", ringDeadlineAtMs = 1_500))
+        assertEquals(IncomingOutcome.Duplicate, bridge.reportIncoming("call-1", "hao.dev7", "+84901"))
+        assertTrue(bridge.platformAnswered("call-1"))
+        val ended = bridge.executeNative(CommandType.end, "call-1").toCompletableFuture().join()
+        assertEquals(OperationStatus.applied, ended.status)
+        assertEquals("localHangup", (bridge.getSnapshot()["call"] as Map<*, *>)["endReason"])
+        assertEquals(IncomingOutcome.Ended("localHangup"), bridge.reportIncoming("call-1", "hao.dev7", "+84901"))
+        assertEquals(listOf("platform", "platform", "local", "local"), events.map { it["source"] }.take(4))
+        assertFailsWith<BridgeViolation> { bridge.executeNative(CommandType.startCall, "call-2") }
+        assertFailsWith<BridgeViolation> { bridge.platformEnded("call-1", "notAReason") }
+    }
+
+    @Test fun ringingExpiresThroughTheRuntime() {
+        val bridge = runtime()
+        bridge.reportIncoming("call-1", "hao.dev7", "+84901", observedAtMs = 1_000, ringDeadlineAtMs = 1_500)
+        assertNull(bridge.expireRinging(1_400))
+        assertEquals("call-1", bridge.expireRinging(1_500))
+        assertFalse(bridge.remoteEnded("call-1", "callerCancelled", 1_600))
+    }
+
     @Test fun deadlineMoreThanThirtySecondsAheadIsRejected() {
         val bridge = runtime()
         fun end(id: String, deadline: Long) = bridge.execute(mapOf("contractVersion" to "0.1.0",
