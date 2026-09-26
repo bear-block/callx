@@ -1,5 +1,5 @@
 name: callx_flutter_example
-description: "Interactive Callx SDK preview — no real calls."
+description: "Callx SDK example: in-memory simulator and native device trials."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -14,6 +14,8 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 

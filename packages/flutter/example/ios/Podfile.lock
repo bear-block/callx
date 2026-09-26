@@ -2,20 +2,26 @@ PODS:
   - callx (0.0.1):
     - Flutter
   - Flutter (1.0.0)
+  - integration_test (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - callx (from `.symlinks/plugins/callx/ios`)
   - Flutter (from `Flutter`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
 
 EXTERNAL SOURCES:
   callx:
     :path: ".symlinks/plugins/callx/ios"
   Flutter:
     :path: Flutter
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
 
 SPEC CHECKSUMS:
   callx: 25267d11b8534d189b4c01c2c6f91d613710b4b2
   Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
 
 PODFILE CHECKSUM: 12d8c31f66ead02d02a1fb27ae23075a548643aa
 

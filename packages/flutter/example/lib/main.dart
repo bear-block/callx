@@ -1,9 +1,79 @@
 import 'dart:async';
+import 'dart:math';
+
 import 'package:callx/callx.dart';
 import 'package:callx/callx_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() => runApp(const CallxDemoApp());
+
+/// The example's own native channel (Android MainActivity, iOS AppDelegate). It stands in for the
+/// signaling backend and media engine during device trials; it is not part of the Callx API.
+class DeviceHost {
+  static const _channel = MethodChannel('callx_example/host');
+
+  Future<HostStatus> status() async => HostStatus(
+    await _channel.invokeMapMethod<String, Object?>('status') ?? const {},
+  );
+  Future<void> requestPermissions() async =>
+      _channel.invokeMethod<void>('requestPermissions');
+  Future<String?> incoming(String callId, String displayName) =>
+      _channel.invokeMethod<String>('incoming', {
+        'callId': callId,
+        'displayName': displayName,
+      });
+  Future<void> remoteAnswered(String callId) async =>
+      _channel.invokeMethod<void>('remoteAnswered', {'callId': callId});
+  Future<void> remoteEnded(String callId, String reason) async => _channel
+      .invokeMethod<void>('remoteEnded', {'callId': callId, 'reason': reason});
+  Future<void> mediaConnected(String callId) async =>
+      _channel.invokeMethod<void>('mediaConnected', {'callId': callId});
+  Future<bool> selectAudioEndpoint(int index) async =>
+      await _channel.invokeMethod<bool>('selectAudioEndpoint', {
+        'index': index,
+      }) ??
+      false;
+}
+
+class HostStatus {
+  HostStatus(Map<String, Object?> map)
+    : platform = map['platform'] as String? ?? '?',
+      simulator = map['simulator'] == true,
+      pushReady = map['pushReady'] == true,
+      pushToken = map['pushToken'] as String?,
+      events = ((map['events'] as List?) ?? const []).cast<String>(),
+      endpoints = ((map['endpoints'] as List?) ?? const [])
+          .map((e) => (e as Map).cast<String, Object?>())
+          .map(
+            (e) => (
+              name: e['name'] as String? ?? '?',
+              current: e['current'] == true,
+            ),
+          )
+          .toList();
+  final String platform;
+
+  /// The iOS Simulator ends CallKit calls as soon as they start.
+  final bool simulator;
+  final bool pushReady;
+  final String? pushToken;
+  final List<String> events;
+  final List<({String name, bool current})> endpoints;
+}
+
+enum Mode { simulator, device }
+
+/// Device trials use UUID call IDs, which CallKit maps to its call UUID directly.
+String newCallId() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-'
+      '${hex.substring(16, 20)}-${hex.substring(20)}';
+}
 
 class CallxDemoApp extends StatelessWidget {
   const CallxDemoApp({super.key});
@@ -34,6 +104,12 @@ class PreviewScreen extends StatefulWidget {
 
 class _PreviewScreenState extends State<PreviewScreen> {
   final preview = CallxPreview();
+  final device = Callx();
+  final host = DeviceHost();
+  Mode mode = Mode.simulator;
+  bool deviceAvailable = false;
+  HostStatus? hostStatus;
+  Timer? statusTimer;
   StreamSubscription<CallSnapshot>? subscription;
   CallSnapshot snapshot = const CallSnapshot(sequence: '0');
   final List<String> journal = [];
@@ -42,10 +118,18 @@ class _PreviewScreenState extends State<PreviewScreen> {
   bool busy = false;
   int counter = 0;
 
+  Callx get callx => mode == Mode.device ? device : preview.callx;
+
   @override
   void initState() {
     super.initState();
-    subscription = preview.callx.snapshots.listen((value) {
+    observe();
+    unawaited(initialize());
+  }
+
+  void observe() {
+    unawaited(subscription?.cancel());
+    subscription = callx.snapshots.listen((value) {
       if (!mounted) return;
       setState(() {
         snapshot = value;
@@ -57,7 +141,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
         if (journal.length > 8) journal.removeLast();
       });
     });
-    unawaited(initialize());
   }
 
   Future<void> initialize() async {
@@ -66,6 +149,45 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (mounted) setState(() => ready = true);
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
+    }
+    // Device mode needs the native host this example configures; tests and web have none.
+    try {
+      final capabilities = await device.setup(
+        const CallxConfig(appName: 'Acme Support'),
+      );
+      if (capabilities.nativeCalling && mounted) {
+        setState(() => deviceAvailable = true);
+        switchMode(Mode.device);
+      }
+    } on CallxException {
+      // nativeUnavailable: stay in the simulator.
+    }
+  }
+
+  void switchMode(Mode next) {
+    setState(() {
+      mode = next;
+      snapshot = const CallSnapshot(sequence: '0');
+      journal.clear();
+      error = null;
+    });
+    observe();
+    statusTimer?.cancel();
+    if (next == Mode.device) {
+      unawaited(refreshStatus());
+      statusTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => refreshStatus(),
+      );
+    }
+  }
+
+  Future<void> refreshStatus() async {
+    try {
+      final status = await host.status();
+      if (mounted) setState(() => hostStatus = status);
+    } on PlatformException catch (e) {
+      if (mounted) setState(() => error = e.message);
     }
   }
 
@@ -101,6 +223,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   @override
   void dispose() {
+    statusTimer?.cancel();
     unawaited(subscription?.cancel());
     unawaited(preview.callx.dispose());
     super.dispose();
@@ -114,6 +237,112 @@ class _PreviewScreenState extends State<PreviewScreen> {
     onPressed: ready && !busy && enabled ? () => run(action) : null,
     child: Text(label),
   );
+
+  List<Widget> deviceControls(Call? call, bool live) {
+    final status = hostStatus;
+    const heading = TextStyle(fontSize: 20, fontWeight: FontWeight.w700);
+    const mono = TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.6);
+    return [
+      const Text('01 / Drive the device trial', style: heading),
+      const SizedBox(height: 8),
+      const Text(
+        'Invitations here use the same native path as a push. The remote side and media are '
+        'simulated by the example host; see the example README to send real pushes.',
+      ),
+      if (status?.simulator == true) ...[
+        const SizedBox(height: 8),
+        const Text(
+          'The iOS Simulator ends CallKit calls immediately. Use a device for call trials.',
+          style: TextStyle(
+            color: Color(0xffa94135),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+      const SizedBox(height: 16),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          button('Permissions', host.requestPermissions),
+          button(
+            'Incoming (local signaling)',
+            () => host.incoming(newCallId(), 'hao.dev7'),
+            enabled: !live,
+          ),
+          button(
+            'Start outgoing',
+            () => device.startCall(
+              CallInput(
+                callId: newCallId(),
+                displayName: 'hao.dev7',
+                handle: 'callx:hao.dev7',
+              ),
+            ),
+            enabled: !live,
+          ),
+          button(
+            'Remote answers',
+            () => host.remoteAnswered(call!.callId),
+            enabled: call?.state == CallState.outgoing,
+          ),
+          button(
+            'Media connected (simulated)',
+            () => host.mediaConnected(call!.callId),
+            enabled: call?.state == CallState.connecting,
+          ),
+          button(
+            'Caller cancels',
+            () => host.remoteEnded(call!.callId, 'callerCancelled'),
+            enabled: call?.state == CallState.incoming,
+          ),
+          button(
+            'Remote ends',
+            () => host.remoteEnded(call!.callId, 'remoteEnded'),
+            enabled: live,
+          ),
+        ],
+      ),
+      if (status != null && status.endpoints.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final (index, endpoint) in status.endpoints.indexed)
+              ChoiceChip(
+                label: Text(endpoint.name),
+                selected: endpoint.current,
+                onSelected: (_) => run(() => host.selectAudioEndpoint(index)),
+              ),
+          ],
+        ),
+      ],
+      const SizedBox(height: 20),
+      Text('Push · ${status?.platform ?? '…'}', style: heading),
+      const SizedBox(height: 8),
+      if (status == null)
+        const Text('Reading host status…')
+      else if (status.pushToken == null)
+        Text(
+          status.platform == 'android'
+              ? 'No FCM token. Add android/app/google-services.json and rebuild.'
+              : 'No VoIP token. Sign the app with push capability and run on a device.',
+        )
+      else ...[
+        SelectableText(status.pushToken!, style: mono),
+        TextButton(
+          onPressed: () =>
+              Clipboard.setData(ClipboardData(text: status.pushToken!)),
+          child: const Text('Copy token'),
+        ),
+      ],
+      const SizedBox(height: 12),
+      const Text('Host log', style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 6),
+      for (final line in (status?.events ?? const <String>[]).take(12))
+        Text(line, style: mono),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,16 +379,38 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     style: TextStyle(fontSize: 16, height: 1.6),
                   ),
                   const SizedBox(height: 20),
+                  if (deviceAvailable) ...[
+                    SegmentedButton<Mode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: Mode.device,
+                          label: Text('Device'),
+                        ),
+                        ButtonSegment(
+                          value: Mode.simulator,
+                          label: Text('Simulator'),
+                        ),
+                      ],
+                      selected: {mode},
+                      onSelectionChanged: (value) => switchMode(value.single),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xffffebcf),
+                      color: mode == Mode.device
+                          ? const Color(0xffd7e9de)
+                          : const Color(0xffffebcf),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'PREVIEW ONLY  ·  No real calls, microphone, push or system call UI.',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                    child: Text(
+                      mode == Mode.device
+                          ? 'DEVICE TRIAL  ·  Real push, CallKit/Telecom and notifications. '
+                                'Media is simulated: no audio.'
+                          : 'PREVIEW ONLY  ·  No real calls, microphone, push or system call UI.',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -233,9 +484,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                   ready &&
                                       !busy &&
                                       call?.state == CallState.incoming
-                                  ? () => run(
-                                      () => preview.callx.answer(call!.callId),
-                                    )
+                                  ? () => run(() => callx.answer(call!.callId))
                                   : null,
                               child: const Text('Answer'),
                             ),
@@ -248,7 +497,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                 FilledButton.tonal(
                                   onPressed: media && !busy
                                       ? () => run(
-                                          () => preview.callx.setMuted(
+                                          () => callx.setMuted(
                                             call!.callId,
                                             !call.muted,
                                           ),
@@ -261,7 +510,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                 FilledButton.tonal(
                                   onPressed: media && !busy
                                       ? () => run(
-                                          () => preview.callx.setHeld(
+                                          () => callx.setHeld(
                                             call!.callId,
                                             call.state != CallState.held,
                                           ),
@@ -278,9 +527,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                     backgroundColor: const Color(0xffa94135),
                                   ),
                                   onPressed: live && !busy
-                                      ? () => run(
-                                          () => preview.callx.end(call.callId),
-                                        )
+                                      ? () => run(() => callx.end(call.callId))
                                       : null,
                                   child: Text(
                                     call?.state == CallState.incoming
@@ -296,50 +543,57 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       final controls = Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            '01 / Simulate the outside world',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
+                          if (mode == Mode.device)
+                            ...deviceControls(call, live)
+                          else ...[
+                            const Text(
+                              '01 / Simulate the outside world',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'These controls belong to the test harness, not your production app.',
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              button(
-                                'Incoming call',
-                                () => preview.simulator.incoming(nextInput()),
-                                enabled: !live,
-                              ),
-                              button(
-                                'Start outgoing',
-                                () => preview.callx.startCall(nextInput()),
-                                enabled: !live,
-                              ),
-                              button(
-                                'Remote answers',
-                                preview.simulator.remoteAnswered,
-                                enabled: call?.state == CallState.outgoing,
-                              ),
-                              button(
-                                'Connect media',
-                                preview.simulator.mediaConnected,
-                                enabled: call?.state == CallState.connecting,
-                              ),
-                              button(
-                                'Remote ends',
-                                preview.simulator.remoteEnded,
-                                enabled: live,
-                              ),
-                              button('Reset preview', preview.simulator.reset),
-                            ],
-                          ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'These controls belong to the test harness, not your production app.',
+                            ),
+                            const SizedBox(height: 16),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                button(
+                                  'Incoming call',
+                                  () => preview.simulator.incoming(nextInput()),
+                                  enabled: !live,
+                                ),
+                                button(
+                                  'Start outgoing',
+                                  () => preview.callx.startCall(nextInput()),
+                                  enabled: !live,
+                                ),
+                                button(
+                                  'Remote answers',
+                                  preview.simulator.remoteAnswered,
+                                  enabled: call?.state == CallState.outgoing,
+                                ),
+                                button(
+                                  'Connect media',
+                                  preview.simulator.mediaConnected,
+                                  enabled: call?.state == CallState.connecting,
+                                ),
+                                button(
+                                  'Remote ends',
+                                  preview.simulator.remoteEnded,
+                                  enabled: live,
+                                ),
+                                button(
+                                  'Reset preview',
+                                  preview.simulator.reset,
+                                ),
+                              ],
+                            ),
+                          ],
                           const SizedBox(height: 20),
                           const Text(
                             '02 / Observe the contract',
@@ -350,7 +604,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'sequence  ${snapshot.sequence}\nmuted  ${call?.muted ?? false}\nexecution  preview',
+                            'sequence  ${snapshot.sequence}\nmuted  ${call?.muted ?? false}\nexecution  ${mode == Mode.device ? 'native' : 'preview'}',
                             style: const TextStyle(
                               fontFamily: 'monospace',
                               height: 1.8,
@@ -363,9 +617,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               style: const TextStyle(color: Color(0xffa94135)),
                             ),
                           Text(
-                            ready
-                                ? 'SDK configured · memory only'
-                                : 'Configuring SDK…',
+                            !ready
+                                ? 'Configuring SDK…'
+                                : mode == Mode.device
+                                ? 'SDK configured · native runtime, durable journal'
+                                : 'SDK configured · memory only',
                           ),
                         ],
                       );
