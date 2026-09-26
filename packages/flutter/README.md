@@ -10,13 +10,14 @@ calls, complete these steps in order:
 
 1. Install this package into a Flutter iOS/Android app.
 2. Configure native permissions, platform reporting and an application-scoped runtime.
-3. Implement native signaling/media and PushKit/FCM receivers.
+3. Implement native signaling/media and forward FCM messages to Callx; Callx receives
+   VoIP pushes, rings the call and shows the Android call notification.
 4. Register device tokens with your backend and send a real call invitation.
 5. Use `Callx()`, check capabilities, and verify incoming → answer → audio → end.
 
-This package provides coordination and native adapter seams, not a signaling server,
-push sender/receiver or media engine. Neither `flutter pub get` nor Dart `setup`
-creates those integrations. Timing-critical incoming handling must work before the
+This package provides coordination, the native incoming-call path and adapter seams,
+not a signaling server, push sender or media engine. Neither `flutter pub get` nor
+Dart `setup` creates those integrations. Timing-critical incoming handling must work before the
 Dart engine attaches.
 
 | Integration question | Detailed guide |
@@ -133,7 +134,8 @@ Create one durable `CallCoordinator`, a platform executor backed by CallKit/Core
 your native media/signaling implementation, and a stable login-generation ID. Install it before
 the first Dart `setup` call. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) shows how
 `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and how to
-reconcile work left pending by a previous process. In Swift, `import callx`.
+reconcile work left pending by a previous process. In BYO signaling mode also create
+`CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift, `import callx`.
 
 ```kotlin
 val runtime = BridgeRuntime(coordinator, telecomExecutor,

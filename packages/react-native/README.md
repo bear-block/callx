@@ -10,12 +10,13 @@ calls, complete these steps in order:
 
 1. Install the package in a native app; choose RN CLI/manual setup or Expo/plugin setup.
 2. Configure native permissions, platform reporting and application-scoped runtime.
-3. Implement native signaling/media and PushKit/FCM receivers.
+3. Implement native signaling/media and forward FCM messages to Callx; Callx receives
+   VoIP pushes, rings the call and shows the Android call notification.
 4. Register device tokens with your backend and send a real call invitation.
 5. Use `new Callx()`, check setup capabilities, then verify incoming → answer → audio → end.
 
-The package supplies the coordinator and platform adapter seams. It does **not**
-supply a signaling server, push sender/receiver or media engine. `setup` cannot
+The package supplies the coordinator, the native incoming-call path and platform adapter
+seams. It does **not** supply a signaling server, push sender or media engine. `setup` cannot
 configure those services. The simulator deliberately works without them.
 
 | Integration question | Detailed guide |
@@ -54,7 +55,8 @@ rebuild with `npx expo run:ios` / `npx expo run:android`. The plugin merges iOS 
 VoIP background modes and microphone text, plus base Android permissions. Optional
 `apsEnvironment` explicitly sets APNs entitlement; match your signing environment.
 The plugin also raises Android `minSdkVersion` to 29 when it is lower.
-It does not generate PushKit/FCM receivers or authenticated runtime bootstrap.
+It does not generate the Firebase messaging service that forwards to Callx, or the
+authenticated runtime bootstrap.
 Preserve host code in committed native projects or a reproducible local integration
 package before using `prebuild --clean`. Expo Go cannot load Callx native code.
 
@@ -182,7 +184,9 @@ remain separate steps; autolinking does not replace them.
 Create one durable coordinator and a platform executor backed by native signaling/media, then
 install the runtime before JavaScript calls `setup`. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md)
 shows how `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and
-how to reconcile work left pending by a previous process. In Swift, `import callx_react_native`.
+how to reconcile work left pending by a previous process. In BYO signaling mode also create
+`CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift,
+`import callx_react_native`.
 
 ```kotlin
 val runtime = BridgeRuntime(coordinator, telecomExecutor,

@@ -7,7 +7,11 @@ and [host integration guide](../docs/guides/native-integration.md).
 ## Current implementation
 
 - `CallCoordinator`: two-phase commands, operation deduplication, terminal-state handling
-  and call milestones. Preparation does not optimistically apply a command.
+  and call milestones. Preparation does not optimistically apply a command. A terminal
+  ledger keeps ended call IDs (24 hours / 1,000 records) so they never ring again, and
+  incoming calls end as `unanswered` at their ring deadline.
+- `InvitationCodec` and `IncomingReportPolicy`: validate `call.invited` schema v1 and decide
+  whether an invitation rings, using shared fixtures under `contracts/invitation-v1`.
 - `CoordinatorFileStore`: versioned call, operation and journal checkpoints. Durable
   mutations restore the prior in-memory checkpoint when persistence fails.
 - `CommandDispatcher`: executes prepared operations through `PlatformCommandExecutor`.
@@ -17,6 +21,9 @@ and [host integration guide](../docs/guides/native-integration.md).
   needs neither: Core-Telecom returns the terminal result directly.
 - `BridgeRuntime`: validates requests, exposes snapshots/sessions and receives host ingress.
 - CallKit adapters and Android `telecom` module: connect platform actions to host behavior.
+- `CallKitIngress` and `TelecomIngress`: the library-owned incoming path in BYO mode
+  ([ADR-0007](../docs/adr/0007-library-owned-incoming-path.md)); `CallStylePresenter` is the
+  default Android call notification.
 
 Storage is optional in the coordinator constructor. Configure a file-backed store before
 advertising durable replay. Atomic replacement and rollback tests do not prove every
