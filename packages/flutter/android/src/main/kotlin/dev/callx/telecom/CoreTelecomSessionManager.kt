@@ -3,11 +3,13 @@ package dev.callx.telecom
 import android.net.Uri
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
+import androidx.core.telecom.CallEndpointCompat
 import androidx.core.telecom.CallsManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /** Handles actions initiated by Android's call surface. Completion must mean host work finished. */
@@ -19,6 +21,21 @@ interface TelecomSystemActionHandler {
 }
 
 /**
+ * Audio state Telecom reports for a live call, including changes other surfaces make, such as
+ * muting from a car or a headset. Route audio with [TelecomCallHandle.requestEndpoint], never AudioManager.
+ */
+interface TelecomCallAudioObserver {
+    /** Called in order for each change; the next change waits until this returns. */
+    suspend fun onMuteChanged(callId: String, muted: Boolean)
+    fun onEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>)
+}
+
+/** Telecom registration for incoming calls; [CoreTelecomSessionManager] implements it. */
+interface IncomingTelecomSessions : TelecomCallResolver {
+    suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult
+}
+
+/**
  * Application-scoped owner of Core-Telecom call sessions. CallsManager.addCall remains suspended
  * for the platform call lifetime, while start() returns once onCall publishes a usable scope.
  */
@@ -26,7 +43,8 @@ class CoreTelecomSessionManager(
     private val callsManager: CallsManager,
     private val systemActions: TelecomSystemActionHandler,
     private val applicationScope: CoroutineScope,
-) : TelecomCallResolver, OutgoingCallStarter {
+    private val audio: TelecomCallAudioObserver? = null,
+) : IncomingTelecomSessions, OutgoingCallStarter {
     private val sessions = ConcurrentHashMap<String, TelecomCallHandle>()
     private val starting = ConcurrentHashMap.newKeySet<String>()
 
@@ -35,7 +53,7 @@ class CoreTelecomSessionManager(
     override suspend fun start(callId: String, displayName: String, handle: String): TelecomActionResult =
         add(callId, displayName, handle, CallAttributesCompat.DIRECTION_OUTGOING)
 
-    suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult =
+    override suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult =
         add(callId, displayName, handle, CallAttributesCompat.DIRECTION_INCOMING)
 
     private suspend fun add(
@@ -68,6 +86,14 @@ class CoreTelecomSessionManager(
                     block = {
                         sessions[callId] = CoreTelecomCallHandle(this) {
                             incomingRinging.get()
+                        }
+                        // These collectors live in the call scope and stop when the call ends.
+                        audio?.let { observer ->
+                            launch { isMuted.collect { observer.onMuteChanged(callId, it) } }
+                            launch {
+                                combine(currentCallEndpoint, availableEndpoints) { current, available -> current to available }
+                                    .collect { (current, available) -> observer.onEndpointsChanged(callId, current, available) }
+                            }
                         }
                         ready.complete(TelecomActionResult.Applied)
                     },

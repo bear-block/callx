@@ -2,6 +2,7 @@ package dev.callx.telecom
 
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallAttributesCompat
+import androidx.core.telecom.CallEndpointCompat
 import androidx.core.telecom.CallControlResult
 import androidx.core.telecom.CallControlScope
 import dev.callx.core.CommandType
@@ -21,6 +22,10 @@ interface TelecomCallHandle {
     suspend fun answer(): TelecomActionResult
     suspend fun end(): TelecomActionResult
     suspend fun setHeld(held: Boolean): TelecomActionResult
+    /** Ends the call with an explicit `DisconnectCause` code, such as MISSED after the ring deadline. */
+    suspend fun disconnect(code: Int): TelecomActionResult = end()
+    /** Routes call audio to an endpoint Telecom reported, such as the speaker or a Bluetooth headset. */
+    suspend fun requestEndpoint(endpoint: CallEndpointCompat): TelecomActionResult = TelecomActionResult.Rejected()
 }
 
 sealed interface TelecomActionResult {
@@ -46,12 +51,14 @@ class CoreTelecomCallHandle internal constructor(
     private val disconnectCall: suspend (Int) -> TelecomActionResult,
     private val changeHold: suspend (Boolean) -> TelecomActionResult,
     private val isIncomingRinging: () -> Boolean,
+    private val changeEndpoint: suspend (CallEndpointCompat) -> TelecomActionResult = { TelecomActionResult.Rejected() },
 ) : TelecomCallHandle {
     constructor(control: CallControlScope, isIncomingRinging: () -> Boolean) : this(
         answerCall = { control.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL).toActionResult() },
         disconnectCall = { code -> control.disconnect(DisconnectCause(code)).toActionResult() },
         changeHold = { held -> (if (held) control.setInactive() else control.setActive()).toActionResult() },
         isIncomingRinging = isIncomingRinging,
+        changeEndpoint = { endpoint -> control.requestEndpointChange(endpoint).toActionResult() },
     )
 
     private val answered = AtomicBoolean(false)
@@ -68,6 +75,10 @@ class CoreTelecomCallHandle internal constructor(
     }
 
     override suspend fun setHeld(held: Boolean) = changeHold(held)
+
+    override suspend fun disconnect(code: Int) = disconnectCall(code)
+
+    override suspend fun requestEndpoint(endpoint: CallEndpointCompat) = changeEndpoint(endpoint)
 }
 
 private fun CallControlResult.toActionResult(): TelecomActionResult = when (this) {
