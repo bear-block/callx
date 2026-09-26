@@ -6,6 +6,7 @@ import Foundation
 public protocol CallKitUUIDResolving: Sendable {
     func uuid(for callID: String) throws -> UUID
 }
+extension CallUUIDMap: CallKitUUIDResolving {}
 
 @available(iOS 15.0, *)
 public final class CallKitTransactionSubmitter: PlatformTransactionSubmitter, @unchecked Sendable {
@@ -57,8 +58,14 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
     private let index: CallKitActionIndex
     private let registry: PlatformActionRegistry
     private let nowMs: @Sendable () -> Int64
+    private let observerLock = NSLock()
+    private var systemActionObserver: (@Sendable (CXAction) -> Void)?
     public init(index: CallKitActionIndex, registry: PlatformActionRegistry,
         nowMs: @escaping @Sendable () -> Int64) { self.index = index; self.registry = registry; self.nowMs = nowMs }
+    /// Receives actions the system started, such as an answer from the lock screen, after they are fulfilled.
+    public func observeSystemActions(_ observer: (@Sendable (CXAction) -> Void)?) {
+        observerLock.lock(); systemActionObserver = observer; observerLock.unlock()
+    }
     public func begin(_ action: CXAction) -> Bool {
         guard !action.isComplete, action.timeoutDate > Date() else {
             timedOut(action)
@@ -78,6 +85,9 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
         action.fulfill()
         if let operationID = completion.operationID {
             Task { await registry.complete(operationID, with: .applied(completedAtMs: atMs)) }
+        } else {
+            observerLock.lock(); let observer = systemActionObserver; observerLock.unlock()
+            observer?(action)
         }
     }
     public func rejected(_ action: CXAction, errorCode: String = "platformRejected") {
