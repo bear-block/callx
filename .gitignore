@@ -4,3 +4,9 @@ node_modules/
 
 # FVM Version Cache
 .fvm/
+
+# Device-trial credentials; keep them outside the repository.
+google-services.json
+GoogleService-Info.plist
+*.p8
+*service-account*.json

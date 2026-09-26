@@ -11,8 +11,9 @@
     "native:sync": "sh tool/sync_native_sources.sh",
     "native:ios:test": "cd native/ios && swift test",
     "native:android:test": "packages/flutter/example/android/gradlew -p native/android test",
-    "test": "node --test src/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "test": "node --test src/*.test.ts tool/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "push:test": "node tool/send-test-push.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
