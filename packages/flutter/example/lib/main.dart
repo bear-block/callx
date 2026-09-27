@@ -152,6 +152,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
     // Device mode needs the native host this example configures; tests and web have none.
     try {
+      // Native cold-process recovery must finish before installing/using the runtime.
+      await host.status();
       final capabilities = await device.setup(
         const CallxConfig(appName: 'Acme Support'),
       );
@@ -159,8 +161,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
         setState(() => deviceAvailable = true);
         switchMode(Mode.device);
       }
-    } on CallxException {
-      // nativeUnavailable: stay in the simulator.
+    } on MissingPluginException {
+      // Web/widget tests have no device-trial host.
+    } on PlatformException catch (e) {
+      if (mounted) setState(() => error = e.message);
+    } on CallxException catch (e) {
+      if (e.code != 'nativeUnavailable' && mounted) {
+        setState(() => error = e.toString());
+      }
     }
   }
 
@@ -439,7 +447,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               radius: 38,
                               backgroundColor: Color(0xffd7e9de),
                               child: Text(
-                                'LN',
+                                'HD',
                                 style: TextStyle(
                                   fontSize: 26,
                                   color: Color(0xff172c2a),

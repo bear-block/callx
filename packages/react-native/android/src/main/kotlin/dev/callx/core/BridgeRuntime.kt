@@ -107,6 +107,13 @@ class BridgeRuntime(
             "call" to visibleCall(capture.call)?.let(::callMap))
     }
 
+    /** Native lifecycle view including ended calls, without UI retention filtering. */
+    fun currentCall(): CallRecord? = coordinator.snapshot()
+
+    /** Invoke during cold-process bootstrap, before installing the runtime or accepting pushes. */
+    fun recoverAfterProcessDeath(): CallRecord? =
+        coordinator.durableRecoverAfterProcessDeath(nowMs()).also { publishNewEvents() }
+
     /** Records an invitation. Only [IncomingOutcome.Accepted] means the platform should ring. */
     fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs(),
         ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
@@ -152,8 +159,8 @@ class BridgeRuntime(
         return coordinator.durablePlatformHeld(callId, held, observedAtMs).also { publishNewEvents() }
     }
     /** Ends a ringing call whose deadline passed and returns its ID so the platform call can end too. */
-    fun expireRinging(observedAtMs: Long = nowMs()): String? =
-        coordinator.durableExpireRinging(observedAtMs).also { publishNewEvents() }
+    fun expireRinging(observedAtMs: Long = nowMs(), callId: String? = null): String? =
+        coordinator.durableExpireRinging(observedAtMs, callId).also { publishNewEvents() }
     /** Runs a call-control command that started in native UI, such as a notification button. */
     fun executeNative(type: CommandType, callId: String, value: Boolean? = null): CompletionStage<NativeOperation> {
         if (type == CommandType.startCall) invalid("startCall needs input.")

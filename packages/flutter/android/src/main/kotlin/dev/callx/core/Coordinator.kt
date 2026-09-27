@@ -123,10 +123,10 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         journal.append("callChanged", nowMs, callId, source = EventSource.platform); return true
     }
     /** Ends an incoming call whose ring deadline passed; returns its ID. */
-    @Synchronized fun expireRinging(nowMs: Long): String? {
+    @Synchronized fun expireRinging(nowMs: Long, callId: String? = null): String? {
         val current = call ?: return null
         val deadline = current.ringDeadlineAtMs ?: return null
-        if (current.state != CallState.incoming || deadline > nowMs) return null
+        if ((callId != null && current.callId != callId) || current.state != CallState.incoming || deadline > nowMs) return null
         end(current.callId, "unanswered", EventSource.local, nowMs); return current.callId
     }
     @Synchronized fun remoteAnswered(callId: String, nowMs: Long): Boolean {
@@ -290,8 +290,20 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     @Synchronized fun durablePlatformHeld(callId: String, held: Boolean, nowMs: Long): Boolean {
         val before = checkpoint(); val result = platformHeld(callId, held, nowMs); persistOrRestore(before); return result
     }
-    @Synchronized fun durableExpireRinging(nowMs: Long): String? {
-        val before = checkpoint(); val result = expireRinging(nowMs); persistOrRestore(before); return result
+    /** Cold-process recovery only; engine reattachment must retain the live call.
+     * Return an ended record too, so platform cleanup can be retried after a crash. */
+    @Synchronized fun durableRecoverAfterProcessDeath(nowMs: Long): CallRecord? {
+        val current = call ?: return null
+        if (current.state == CallState.ended) return current
+        val before = checkpoint()
+        val expired = current.state == CallState.incoming && current.ringDeadlineAtMs?.let { it <= nowMs } == true
+        end(current.callId, if (expired) "unanswered" else "failed", EventSource.recovery, nowMs)
+        persistOrRestore(before)
+        return call
+    }
+
+    @Synchronized fun durableExpireRinging(nowMs: Long, callId: String? = null): String? {
+        val before = checkpoint(); val result = expireRinging(nowMs, callId); persistOrRestore(before); return result
     }
     @Synchronized fun durableRemoteAnswered(callId: String, nowMs: Long): Boolean {
         val before = checkpoint(); val result = remoteAnswered(callId, nowMs); persistOrRestore(before); return result

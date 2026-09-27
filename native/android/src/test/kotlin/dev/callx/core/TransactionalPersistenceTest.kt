@@ -13,6 +13,17 @@ private class FaultStore : CoordinatorStore {
 }
 
 class TransactionalPersistenceTest {
+    @Test fun failedRecoveryWritePreservesTheCheckpointForRetry() {
+        val store = FaultStore(); val core = CallCoordinator(store)
+        core.durableReportIncoming("old-call", 1_000, ringDeadlineAtMs = 1_500)
+        val before = core.checkpoint()
+        store.failWrites = true
+        assertFailsWith<FaultStore.Failure> { core.durableRecoverAfterProcessDeath(2_000) }
+        assertEquals(before, core.checkpoint()); assertEquals(before, store.saved)
+        store.failWrites = false
+        assertEquals("unanswered", core.durableRecoverAfterProcessDeath(2_000)?.endReason)
+    }
+
     @Test fun mutationPersistsBeforeSuccessAndRollsBackOnWriteFailure() {
         val store = FaultStore(); val core = CallCoordinator(store)
         core.durableReportIncoming("call-1", 1_000); assertEquals(CallState.incoming, store.saved?.call?.state)

@@ -29,6 +29,7 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
   static let shared = CallHost()
   private let lock = NSLock()
   private let uuids = CallUUIDMap()
+  private var bootstrap: Task<Void, Error>?
   private var runtime: BridgeRuntime?
   private var ingress: CallKitIngress?
   private var provider: CXProvider?
@@ -65,10 +66,15 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
         providerManagedSignaling: false, hold: true, mute: true), nowMs: nowMs)
     let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids,
       lifecycle: lifecycle, listener: self, nowMs: nowMs)
-    ingress.startPushRegistry()
-    CallxPlugin.configure(runtime)
     self.provider = provider; self.delegate = delegate; self.runtime = runtime; self.ingress = ingress
-    record("runtime configured")
+    bootstrap = Task {
+      if let recovered = try await ingress.recoverAfterProcessDeath() {
+        self.record("recovered \(recovered.callID): \(recovered.endReason ?? "failed")")
+      }
+      CallxPlugin.configure(runtime)
+      ingress.startPushRegistry()
+      self.record("runtime configured")
+    }
   }
 
   func attachChannel(_ messenger: FlutterBinaryMessenger) {
@@ -78,6 +84,19 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
   }
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    // The example waits for this status channel before calling SDK setup.
+    let box = ResultBox(result)
+    Task { @MainActor in
+      do {
+        try await bootstrap?.value
+        handleReady(call, result: result)
+      } catch {
+        box.send(FlutterError(code: "recoveryFailed", message: "\(error)", details: nil))
+      }
+    }
+  }
+
+  private func handleReady(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let arguments = call.arguments as? [String: Any] ?? [:]
     let callID = arguments["callId"] as? String ?? ""
     guard let runtime, let ingress else {

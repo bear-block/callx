@@ -268,7 +268,7 @@ final class CallCommand {
   final bool? value;
 }
 
-/// Production implementation will delegate to native, not the preview simulator.
+/// The default backend delegates to the configured native runtime.
 abstract interface class CallxBackend {
   Future<CallxCapabilities> setup(CallxConfig config);
   Future<CommandResult> execute(CallCommand command);

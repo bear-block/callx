@@ -42,7 +42,10 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     private let ringTimeoutMs: Int64
     private let nowMs: @Sendable () -> Int64
     private let decode: @Sendable ([AnyHashable: Any]) throws -> Invitation?
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()
+    private enum RegistrationAction { case ringing, answered, ended(String?) }
+    // Only in-flight reports are tracked; the durable ledger remains the source of terminal history.
+    private var registrations: [String: RegistrationAction] = [:]
     private var registry: PKPushRegistry?
     private var ringTimers: [String: DispatchWorkItem] = [:]
 
@@ -92,8 +95,20 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     /// Ends the call for a remote terminal event, or records it so a late invitation cannot ring.
     public func remoteEnded(callID: String, reason: String = "remoteEnded") async throws {
         let ended = try await runtime.remoteEnded(callID: callID, reason: reason)
+        if ended { markRegistration(callID, action: .ended(reason)) }
         cancelRing(callID)
         if ended { reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: Self.endedReason(reason)) }
+    }
+
+    /// Cold-process bootstrap only: terminate checkpoint calls whose media session was lost.
+    /// Run before starting PushKit or installing the framework runtime, not on engine reattach.
+    @discardableResult
+    public func recoverAfterProcessDeath() async throws -> CallRecord? {
+        guard let call = try await runtime.recoverAfterProcessDeath() else { return nil }
+        cancelRing(call.callID)
+        reporter.reportCall(with: uuids.uuid(for: call.callID), endedAt: Date(),
+            reason: Self.endedReason(call.endReason ?? "failed"))
+        return call
     }
 
     /// Records that the remote party accepted an outgoing call and tells CallKit it connected.
@@ -133,17 +148,26 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         let update = Self.update(for: invitation)
         let decision = IncomingReportPolicy.decide(outcome, mustReport: mustReport)
         if decision == .ring {
+            beginRegistration(invitation.callID)
             do { try await reporter.reportNewIncomingCall(with: uuids.uuid(for: invitation.callID), update: update) }
             catch {
+                forgetRegistration(invitation.callID)
                 // CallKit refused (for example Do Not Disturb or a blocked handle): no call rang.
                 _ = try? await runtime.platformEnded(callID: invitation.callID, reason: "failed")
                 listener?.invitationRejected(invitation, outcome: nil)
                 return outcome
             }
-            let deadline = [now + ringTimeoutMs, invitation.expiresAtMs].compactMap { $0 }.min()!
-            scheduleRing(invitation.callID, deadline: deadline)
-            listener?.invitationAccepted(invitation)
-            return outcome
+            do {
+                // OS reporting suspends; cancel, answer or expiry may have won in the meantime.
+                _ = try await runtime.expireRinging(callID: invitation.callID)
+                let current = await runtime.currentCall()
+                return finishRegistration(invitation, current: current)
+            } catch {
+                forgetRegistration(invitation.callID)
+                reporter.reportCall(with: uuids.uuid(for: invitation.callID), endedAt: Date(), reason: .failed)
+                listener?.invitationRejected(invitation, outcome: nil)
+                return nil
+            }
         }
         await apply(decision, mustReport: mustReport, callID: invitation.callID, update: update)
         if let reason = IncomingReportPolicy.tombstoneReason(outcome) {
@@ -171,9 +195,11 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     private func systemActionApplied(_ action: CXAction) {
         guard let call = action as? CXCallAction, let callID = uuids.callID(for: call.callUUID) else { return }
         if action is CXAnswerCallAction {
+            markRegistration(callID, action: .answered)
             cancelRing(callID)
             Task { _ = try? await runtime.platformAnswered(callID: callID) }
         } else if action is CXEndCallAction {
+            markRegistration(callID, action: .ended(nil))
             cancelRing(callID)
             Task { _ = try? await runtime.platformEnded(callID: callID) }
         } else if let mute = action as? CXSetMutedCallAction {
@@ -183,6 +209,45 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
             let held = hold.isOnHold
             Task { _ = try? await runtime.platformHeld(callID: callID, held: held) }
         }
+    }
+
+    private func beginRegistration(_ callID: String) {
+        lock.lock(); defer { lock.unlock() }
+        registrations[callID] = .ringing
+    }
+    private func forgetRegistration(_ callID: String) {
+        lock.lock(); defer { lock.unlock() }
+        registrations.removeValue(forKey: callID)
+    }
+    private func markRegistration(_ callID: String, action: RegistrationAction) {
+        lock.lock(); defer { lock.unlock() }
+        guard let previous = registrations[callID] else { return }
+        if case .ended = previous { return }
+        registrations[callID] = action
+    }
+    private func finishRegistration(_ invitation: Invitation, current: CallRecord?) -> IncomingOutcome {
+        lock.lock(); defer { lock.unlock() }
+        let action = registrations.removeValue(forKey: invitation.callID)
+        let reason: String?
+        if current?.callID == invitation.callID, current?.state == .ended {
+            reason = current?.endReason ?? "failed"
+        } else if case .ended(let endedReason) = action {
+            reason = endedReason ?? (current?.state == .incoming ? "declined" : "localHangup")
+        } else if current?.callID != invitation.callID { reason = "failed" }
+        else { reason = nil }
+        if let reason {
+            reporter.reportCall(with: uuids.uuid(for: invitation.callID), endedAt: Date(), reason: Self.endedReason(reason))
+            let outcome = IncomingOutcome.ended(reason: reason)
+            listener?.invitationRejected(invitation, outcome: outcome)
+            return outcome
+        }
+        if case .answered = action {
+            // An answer callback may still be on its way to the coordinator; do not restart its timer.
+        } else if current?.state == .incoming, let deadline = current?.ringDeadlineAtMs {
+            scheduleRing(invitation.callID, deadline: deadline)
+        }
+        listener?.invitationAccepted(invitation)
+        return .accepted
     }
 
     private func scheduleRing(_ callID: String, deadline: Int64) {
@@ -202,7 +267,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     }
     private func ringExpired(_ callID: String) async {
         forgetRing(callID)
-        guard let ended = try? await runtime.expireRinging(), ended == callID else { return }
+        guard let ended = try? await runtime.expireRinging(callID: callID), ended == callID else { return }
         reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: .unanswered)
         listener?.ringTimedOut(callID: callID)
     }

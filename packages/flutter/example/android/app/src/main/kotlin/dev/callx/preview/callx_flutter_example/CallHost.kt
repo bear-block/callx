@@ -29,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 /**
@@ -60,6 +61,11 @@ object CallHost {
         runtime = BridgeRuntime(coordinator, executor, BridgeCapabilities("demo-account-1",
             durableReplay = true, providerManagedSignaling = false, hold = true, mute = true))
         ingress.attach(runtime, sessions)
+        // New process only. No session exists yet; persist termination and remove stale UI
+        // before FCM or Dart can create a new call.
+        runBlocking {
+            ingress.recoverAfterProcessDeath()?.let { record("recovered ${it.callId}: ${it.endReason}") }
+        }
         CallxPlugin.configure(runtime)
         record("runtime configured")
         // Without a backend nothing can confirm a pending operation, so report it unavailable.

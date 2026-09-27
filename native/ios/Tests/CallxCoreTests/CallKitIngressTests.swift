@@ -10,6 +10,7 @@ private final class FakeReporter: CallKitIncomingReporting, @unchecked Sendable 
     private var _reported: [UUID] = []
     private var _ended: [(UUID, CXCallEndedReason)] = []
     private var _connected: [UUID] = []
+    var beforeReport: (@Sendable () async -> Void)?
     var failReports = false
     var reported: [UUID] { lock.lock(); defer { lock.unlock() }; return _reported }
     var ended: [(UUID, CXCallEndedReason)] { lock.lock(); defer { lock.unlock() }; return _ended }
@@ -17,6 +18,7 @@ private final class FakeReporter: CallKitIncomingReporting, @unchecked Sendable 
     private func record(_ uuid: UUID) { lock.lock(); _reported.append(uuid); lock.unlock() }
     func reportNewIncomingCall(with uuid: UUID, update: CXCallUpdate) async throws {
         record(uuid)
+        await beforeReport?()
         if failReports { throw CXErrorCodeIncomingCallError(.filteredByDoNotDisturb) }
     }
     func reportCall(with uuid: UUID, endedAt: Date?, reason: CXCallEndedReason) {
@@ -90,6 +92,40 @@ private func eventually(_ condition: () async throws -> Bool) async rethrows -> 
         try? await Task.sleep(nanoseconds: 20_000_000)
     }
     return false
+}
+
+@Test func cancelDuringCallKitReportCleansUpItsLateCompletion() async throws {
+    let h = Harness()
+    h.reporter.beforeReport = { try? await h.ingress.remoteEnded(callID: "call-1", reason: "callerCancelled") }
+    await h.push("call-1")
+    #expect(h.listener.accepted.isEmpty)
+    #expect(h.listener.rejected.last?.1 == .ended(reason: "callerCancelled"))
+    #expect(h.reporter.ended.last?.0 == h.uuids.uuid(for: "call-1"))
+    #expect(h.reporter.ended.last?.1 == .remoteEnded)
+    #expect(try await h.callState() == .string("ended"))
+    h.reporter.beforeReport = nil
+}
+
+@Test func deadlineDuringCallKitReportDoesNotAcceptTheInvitation() async throws {
+    let h = Harness(ringTimeoutMs: 1)
+    h.reporter.beforeReport = { try? await Task.sleep(nanoseconds: 30_000_000) }
+    await h.push("call-1")
+    #expect(h.listener.accepted.isEmpty)
+    #expect(h.listener.rejected.last?.1 == .ended(reason: "unanswered"))
+    #expect(h.reporter.ended.last?.1 == .unanswered)
+}
+
+@Test func coldProcessRecoveryRetriesPlatformCleanupWithoutResurrecting() async throws {
+    let h = Harness()
+    try await h.runtime.reportIncoming(callID: "old-call", displayName: "hao.dev7", handle: "+84901")
+    let recovered = try await h.ingress.recoverAfterProcessDeath()
+    #expect(recovered?.endReason == "failed")
+    #expect(try await h.ingress.recoverAfterProcessDeath() == recovered)
+    #expect(h.reporter.ended.map(\.0) == [h.uuids.uuid(for: "old-call"), h.uuids.uuid(for: "old-call")])
+    await h.push("old-call", mustReport: false)
+    #expect(h.listener.accepted.isEmpty)
+    await h.push("new-call", mustReport: false)
+    #expect(h.listener.accepted == ["new-call"])
 }
 
 @Test func acceptedPushRingsWithTheMappedUUID() async throws {

@@ -9,6 +9,8 @@ import dev.callx.core.Invitation
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,11 +29,13 @@ private class FakeHandle : TelecomCallHandle {
 }
 
 private class FakeSessions : IncomingTelecomSessions {
+    var beforeRegister: (suspend () -> Unit)? = null
     var result: TelecomActionResult = TelecomActionResult.Applied
     val handles = ConcurrentHashMap<String, FakeHandle>()
     val registered = list<String>()
     override suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult {
         registered += callId
+        beforeRegister?.invoke()
         if (result == TelecomActionResult.Applied) handles[callId] = FakeHandle()
         return result
     }
@@ -99,6 +103,61 @@ private fun eventually(condition: () -> Boolean): Boolean {
 }
 
 class TelecomIngressTest {
+    @Test fun cancelDuringRegistrationCleansUpLatePlatformCall() = runBlocking {
+        val h = Harness()
+        try {
+            val started = CompletableDeferred<Unit>(); val release = CompletableDeferred<Unit>()
+            h.sessions.beforeRegister = { started.complete(Unit); release.await() }
+            val incoming = async { h.ingress.handleInvitation(h.invitation("call-1")) }
+            started.await()
+            h.ingress.remoteEnded("call-1", "callerCancelled")
+            release.complete(Unit)
+            assertEquals(IncomingOutcome.Ended("callerCancelled"), incoming.await())
+            assertTrue(h.presenter.incoming.isEmpty())
+            assertTrue(h.listener.accepted.isEmpty())
+            assertEquals(listOf(DisconnectCause.REMOTE), h.sessions.handles.getValue("call-1").disconnects)
+            assertEquals("callerCancelled", h.endReason())
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun deadlineDuringRegistrationDoesNotPostARingingNotification() = runBlocking {
+        val h = Harness(ringTimeoutMs = 1)
+        try {
+            h.sessions.beforeRegister = { kotlinx.coroutines.delay(30) }
+            assertEquals(IncomingOutcome.Ended("unanswered"), h.ingress.handleInvitation(h.invitation("call-1")))
+            assertTrue(h.presenter.incoming.isEmpty())
+            assertTrue(h.listener.accepted.isEmpty())
+            assertEquals(listOf(DisconnectCause.MISSED), h.sessions.handles.getValue("call-1").disconnects)
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun systemAnswerDuringRegistrationDoesNotRevertToIncomingPresentation() = runBlocking {
+        val h = Harness()
+        try {
+            h.sessions.beforeRegister = { h.ingress.systemActions(h.host()).answer("call-1", 1) }
+            assertEquals(IncomingOutcome.Accepted, h.ingress.handleInvitation(h.invitation("call-1")))
+            assertTrue(h.presenter.incoming.isEmpty())
+            assertEquals("connecting", h.state())
+            assertTrue(h.presenter.ongoing.contains("call-1"))
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun coldProcessRecoveryCleansUpAndCanBeRetried() = runBlocking {
+        val h = Harness()
+        try {
+            // Stand in for a checkpoint restored before any new invitations are allowed.
+            h.runtime.reportIncoming("old-call", "hao.dev7", "+84901")
+            h.sessions.handles["old-call"] = FakeHandle()
+            val recovered = h.ingress.recoverAfterProcessDeath()
+            assertEquals("failed", recovered?.endReason)
+            assertEquals(recovered, h.ingress.recoverAfterProcessDeath())
+            assertEquals(listOf("old-call", "old-call"), h.presenter.dismissed)
+            assertEquals(2, h.sessions.handles.getValue("old-call").disconnects.size)
+            assertEquals(IncomingOutcome.Ended("failed"), h.ingress.handleInvitation(h.invitation("old-call")))
+            assertEquals(IncomingOutcome.Accepted, h.ingress.handleInvitation(h.invitation("new-call")))
+        } finally { h.scope.cancel() }
+    }
+
     @Test fun pushRegistersTheCallAndShowsTheNotificationBeforeReturning() {
         val h = Harness()
         assertTrue(h.ingress.handlePush(mapOf("callx" to

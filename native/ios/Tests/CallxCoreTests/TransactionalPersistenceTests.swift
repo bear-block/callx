@@ -30,3 +30,18 @@ private final class FaultStore: CoordinatorStore, @unchecked Sendable {
     #expect(await recovered.snapshot()?.state == .incoming)
     #expect(await recovered.operation("answer") == nil)
 }
+
+@Test func failedRecoveryWritePreservesTheCheckpointForRetry() async throws {
+    let store = FaultStore()
+    let core = try CallCoordinator(store: store)
+    try await core.durableReportIncoming(callID: "old-call", nowMs: 1_000, ringDeadlineAtMs: 1_500)
+    let before = await core.checkpoint()
+    store.failWrites = true
+    await #expect(throws: FaultStore.Failure.injected) {
+        try await core.durableRecoverAfterProcessDeath(nowMs: 2_000)
+    }
+    #expect(await core.checkpoint() == before)
+    #expect(store.saved == before)
+    store.failWrites = false
+    #expect(try await core.durableRecoverAfterProcessDeath(nowMs: 2_000)?.endReason == "unanswered")
+}

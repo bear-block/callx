@@ -210,8 +210,9 @@ public actor CallCoordinator {
     }
 
     /// Ends an incoming call whose ring deadline passed; returns its ID.
-    @discardableResult public func expireRinging(nowMs: Int64) -> String? {
-        guard let current = call, current.state == .incoming, let deadline = current.ringDeadlineAtMs,
+    @discardableResult public func expireRinging(nowMs: Int64, callID: String? = nil) -> String? {
+        guard let current = call, callID == nil || current.callID == callID,
+            current.state == .incoming, let deadline = current.ringDeadlineAtMs,
               deadline <= nowMs else { return nil }
         end(callID: current.callID, reason: "unanswered", source: .local, nowMs: nowMs)
         return current.callID
@@ -420,6 +421,19 @@ public actor CallCoordinator {
         catch { restore(before); throw error }
     }
 
+    /// Cold-process recovery: media/platform sessions cannot be inferred from a checkpoint.
+    /// Call before accepting new work, never when only a framework engine reattaches.
+    /// Return even an already-ended record so platform cleanup can be retried after a crash.
+    public func durableRecoverAfterProcessDeath(nowMs: Int64) throws -> CallRecord? {
+        guard let current = call else { return nil }
+        if current.state == .ended { return current }
+        let before = checkpoint()
+        let expired = current.state == .incoming && current.ringDeadlineAtMs.map { $0 <= nowMs } == true
+        _ = end(callID: current.callID, reason: expired ? "unanswered" : "failed", source: .recovery, nowMs: nowMs)
+        try persist(orRestore: before)
+        return call
+    }
+
     public func durablePrepare(_ command: NativeCommand, nowMs: Int64) throws -> Preparation {
         let before = checkpoint(); let result = prepare(command, nowMs: nowMs)
         try persist(orRestore: before); return result
@@ -448,8 +462,8 @@ public actor CallCoordinator {
         let before = checkpoint(); let result = platformHeld(callID: callID, held: held, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
-    @discardableResult public func durableExpireRinging(nowMs: Int64) throws -> String? {
-        let before = checkpoint(); let result = expireRinging(nowMs: nowMs)
+    @discardableResult public func durableExpireRinging(nowMs: Int64, callID: String? = nil) throws -> String? {
+        let before = checkpoint(); let result = expireRinging(nowMs: nowMs, callID: callID)
         try persist(orRestore: before); return result
     }
     @discardableResult public func durableRemoteAnswered(callID: String, nowMs: Int64) throws -> Bool {

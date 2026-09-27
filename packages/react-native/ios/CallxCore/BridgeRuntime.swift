@@ -122,6 +122,16 @@ public actor BridgeRuntime {
         result["call"] = if let call = visibleCall(capture.call) { .object(try callMap(call)) } else { .null }
         return result
     }
+    /// Native lifecycle view, including ended calls; not subject to UI retention filtering.
+    public func currentCall() async -> CallRecord? { await coordinator.snapshot() }
+
+    /// Invoke during cold-process bootstrap, before installing the runtime or starting push ingress.
+    public func recoverAfterProcessDeath() async throws -> CallRecord? {
+        let call = try await coordinator.durableRecoverAfterProcessDeath(nowMs: nowMs())
+        await publishNewEvents()
+        return call
+    }
+
     /// Records an invitation. Only `.accepted` means the platform should ring.
     @discardableResult
     public func reportIncoming(callID: String, displayName: String, handle: String,
@@ -185,8 +195,8 @@ public actor BridgeRuntime {
     }
     /// Ends a ringing call whose deadline passed and returns its ID so the platform call can end too.
     @discardableResult
-    public func expireRinging(observedAtMs: Int64? = nil) async throws -> String? {
-        let result = try await coordinator.durableExpireRinging(nowMs: observedAtMs ?? nowMs())
+    public func expireRinging(observedAtMs: Int64? = nil, callID: String? = nil) async throws -> String? {
+        let result = try await coordinator.durableExpireRinging(nowMs: observedAtMs ?? nowMs(), callID: callID)
         await publishNewEvents(); return result
     }
     /// Runs a call-control command that started in native UI, such as a notification button.
