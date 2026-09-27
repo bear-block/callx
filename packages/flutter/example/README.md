@@ -50,8 +50,8 @@ fvm flutter test integration_test/device_trial_test.dart -d <device-id>
    Services plugin only when the file is present. The React Native example uses the
    same package, so installing one replaces the other.
 2. Rebuild and install. The Push section shows the FCM token; copy it.
-3. In Project settings → Service accounts, generate a private key. Keep the JSON file
-   outside this repository.
+3. In Project settings → Service accounts, generate a private key. Put the JSON file in
+   `packages/secrets/`, which Git ignores.
 4. From the repository root, send an invitation:
 
    ```sh
@@ -65,6 +65,17 @@ fvm flutter test integration_test/device_trial_test.dart -d <device-id>
    npm run push:test -- android ... --message end --call-id <id> --reason callerCancelled
    npm run push:test -- android ... --message accept --call-id <id>
    ```
+
+### Call console
+
+For a server-like view, run `npm run call:console` from the repository root and open
+http://127.0.0.1:8787. It uses the service account key in `packages/secrets/` (or
+`--service-account <file>`) and keeps `adb reverse tcp:8787 tcp:8787` set for connected
+devices. Debug builds of both examples report their FCM token and host log to it once a
+second, so the console lists the device without copying the token. From there, send an
+invitation, answer or end it as the remote side with any end reason, and follow each call's
+status and timeline (server sends, FCM results, device log). Status is inferred from the host
+log; it is a test harness, not a Callx server.
 
 Invitations expire after 30 seconds by default (`--expires-in`); the call then ends as
 missed. The host log reports when FCM deprioritized a message.

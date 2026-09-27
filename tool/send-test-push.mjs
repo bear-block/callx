@@ -82,7 +82,7 @@ export function apnsToken(keyPem, keyId, teamId, nowSeconds = Math.floor(Date.no
     (data) => sign('sha256', data, { key: createPrivateKey(keyPem), dsaEncoding: 'ieee-p1363' }));
 }
 
-async function sendAndroid(options) {
+export async function sendAndroid(options) {
   if (!options.serviceAccount) throw new Error('--service-account is required for android.');
   const account = JSON.parse(readFileSync(options.serviceAccount, 'utf8'));
   const payload = invitation(options);

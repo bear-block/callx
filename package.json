@@ -13,7 +13,8 @@
     "native:android:test": "packages/flutter/example/android/gradlew -p native/android test",
     "test": "node --test src/*.test.ts tool/*.test.mjs",
     "typecheck": "tsc --noEmit",
-    "push:test": "node tool/send-test-push.mjs"
+    "push:test": "node tool/send-test-push.mjs",
+    "call:console": "node tool/call-console.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
