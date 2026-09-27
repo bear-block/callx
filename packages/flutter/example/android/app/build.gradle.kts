@@ -5,8 +5,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Device trials need Firebase. Put your project's google-services.json in this directory;
-// without it the example still builds and runs, but it cannot receive FCM invitations.
+// Device trials need Firebase. The build takes google-services.json from packages/secrets/
+// (or this directory); without it the example still builds and runs, but it cannot receive
+// FCM invitations. Both locations are ignored by Git.
+val sharedGoogleServices = rootProject.file("../../../secrets/google-services.json")
+if (sharedGoogleServices.exists()) sharedGoogleServices.copyTo(file("google-services.json"), overwrite = true)
 if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
 
 android {
@@ -24,7 +27,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.callx.preview.callx_flutter_example"
+        // Must match the Android app registered in the Firebase project.
+        applicationId = "dev.bearblock.callx"
         minSdk = 29
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

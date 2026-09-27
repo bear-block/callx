@@ -5,7 +5,8 @@ node_modules/
 # FVM Version Cache
 .fvm/
 
-# Device-trial credentials; keep them outside the repository.
+# Device-trial credentials. packages/secrets/ is the local drop folder; nothing in it is tracked.
+packages/secrets/
 google-services.json
 GoogleService-Info.plist
 *.p8

@@ -10,6 +10,15 @@ The example has two modes.
   call notification are real. There is no signaling backend or media engine, so the
   example host stands in for the remote side and **media is simulated: there is no audio**.
 
+## Process recovery
+
+On a new native process, the host completes `recoverAfterProcessDeath()` before exposing
+the SDK or accepting invitations. An expired ringing checkpoint ends as `unanswered`;
+other lost live sessions end as `failed`. Existing terminal reasons are preserved, and
+cleanup is retryable. The example logs the recovered call; a production host must also
+reconcile it with its backend. A checkpoint write failure stops bootstrap and appears
+as a host error. Reloading Dart in the same process does not run this recovery.
+
 ## Device trial without push
 
 Install on a phone and open the app; it starts in Device mode. Android emulators run
@@ -35,10 +44,11 @@ fvm flutter test integration_test/device_trial_test.dart -d <device-id>
 
 ## Android push (FCM)
 
-1. In the Firebase console, add an Android app with package
-   `dev.callx.preview.callx_flutter_example`. Download `google-services.json` into
-   `android/app/`. Git ignores it; the build applies the Google Services plugin only
-   when it is present.
+1. In the Firebase console, add an Android app with package `dev.bearblock.callx` (the
+   example's `applicationId`). Put `google-services.json` in `packages/secrets/`; the
+   build copies it into `android/app/`. Git ignores both. The build applies the Google
+   Services plugin only when the file is present. The React Native example uses the
+   same package, so installing one replaces the other.
 2. Rebuild and install. The Push section shows the FCM token; copy it.
 3. In Project settings → Service accounts, generate a private key. Keep the JSON file
    outside this repository.
@@ -61,7 +71,8 @@ missed. The host log reports when FCM deprioritized a message.
 
 ## iOS push (PushKit)
 
-The Simulator cannot receive VoIP pushes; use a device.
+The Simulator cannot receive VoIP pushes; use a device. VoIP pushes go straight to APNs,
+not through Firebase, so iOS does not use `GoogleService-Info.plist`.
 
 1. In Xcode, open `ios/Runner.xcworkspace`, select your team for Runner, and add the
    **Push Notifications** capability. `Info.plist` already declares the `voip` and
