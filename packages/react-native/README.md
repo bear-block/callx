@@ -97,7 +97,10 @@ npm run web
 
 The example uses Expo 57 / React Native 0.86.3 / React 19.2.3, resolved from the official
 blank TypeScript template for this preview. Use `npm run ios` or `npm run android` with a
-compatible simulator/device to build a native host and explore the same simulated flow.
+compatible simulator/device to build the example's Device mode: real CallKit/Core-Telecom,
+local signaling controls, optional FCM test pushes on Android and simulated media (no audio). Its example-only Expo
+plugin installs native bootstrap; SDK setup waits for checkpoint recovery. See the
+[example guide](https://github.com/bear-block/callx/blob/main/packages/react-native/example/README.md).
 Web is a preview target, not a production calling support promise.
 
 Expo is the demo host, not a required dependency of the SDK. The native module requires a

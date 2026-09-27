@@ -2,10 +2,14 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {createCallxPreview} from '@bear-block/callx/preview';
 import type {CommandResult, Snapshot} from '@bear-block/callx';
+import {createDeviceDemo, hasDeviceHost, hostStatus, requestPermissions, selectEndpoint} from './DeviceHost';
+import type {HostStatus} from './DeviceHost';
 
 type Preview = ReturnType<typeof createCallxPreview>;
 export default function App() {
   const preview = useRef<Preview | null>(null);
+  const [mode, setMode] = useState<'simulator' | 'device'>(hasDeviceHost ? 'device' : 'simulator');
+  const [host, setHost] = useState<HostStatus | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot>({sequence:'0',call:null});
   const [timeline, setTimeline] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
@@ -16,20 +20,43 @@ export default function App() {
   const {width} = useWindowDimensions();
 
   useEffect(() => {
-    // Own one preview per mount. StrictMode re-mount creates a fresh simulator.
-    const current = createCallxPreview();
-    preview.current = current;
     let mounted = true;
-    const stop = current.callx.observe(value => {
-      setSnapshot(value);
-      setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaReady ? 'ready (simulated)' : 'not ready'}`, ...lines].slice(0,8));
-    });
-    current.callx.setup({appName:'Acme Support'}).then(
-      () => {if(mounted) setReady(true);},
-      cause => {if(mounted) setError(String(cause));},
-    );
-    return () => {mounted=false; stop(); current.callx.dispose(); preview.current=null;};
-  }, []);
+    let current: Preview | undefined;
+    let stop: (() => void) | undefined;
+    let statusTimer: ReturnType<typeof setInterval> | undefined;
+    setReady(false); setError(null); setSnapshot({sequence:'0', call:null}); setTimeline([]); setHost(null);
+    async function refreshHost() {
+      try { const value = await hostStatus(); if (mounted) setHost(value); }
+      catch (cause) { if (mounted) setError(String(cause)); }
+    }
+    async function initialize() {
+      try {
+        current = mode === 'device' ? await createDeviceDemo() : createCallxPreview();
+        if (!mounted) { current.callx.dispose(); return; }
+        preview.current = current;
+        const capabilities = await current.callx.setup({appName:'Acme Support'});
+        if (!mounted) return;
+        if (mode === 'device' && !capabilities.nativeCalling) throw new Error('Native host is not configured.');
+        stop = current.callx.observe(value => {
+          if (!mounted) return;
+          setSnapshot(value);
+          setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaReady ? 'ready (simulated)' : 'not ready'}`, ...lines].slice(0,8));
+        });
+        setReady(true);
+        if (mode === 'device') {
+          await refreshHost();
+          statusTimer = setInterval(() => void refreshHost(), 2000);
+          if (!mounted) clearInterval(statusTimer);
+        }
+      } catch (cause) { if (mounted) setError(String(cause)); }
+    }
+    void initialize();
+    return () => {
+      mounted = false; stop?.(); current?.callx.dispose();
+      if (statusTimer) clearInterval(statusTimer);
+      if (preview.current === current) preview.current = null;
+    };
+  }, [mode]);
 
   async function run(action: (current: Preview) => Promise<unknown>) {
     const current = preview.current;
@@ -38,7 +65,10 @@ export default function App() {
     try {
       const result = await action(current) as CommandResult | undefined;
       if(preview.current !== current) return;
-      if(result?.operationId) setTimeline(lines => [result.operationId+' · applied in preview',...lines].slice(0,8));
+      if(result?.operationId) {
+        setTimeline(lines => [result.operationId+' · '+result.status+' · '+result.execution,...lines].slice(0,8));
+        if(result.status !== 'applied') setError(result.error?.message ?? result.status);
+      }
     } catch(cause) {
       if(preview.current === current) setError(String(cause));
     } finally {
@@ -49,7 +79,7 @@ export default function App() {
   const call=snapshot.call;
   const live=!!call && call.state!=='ended';
   const media=call?.state==='active'||call?.state==='held';
-  const input=()=>({callId:'demo-'+ ++counter.current,displayName:'hao.dev7',handle:'sip:hao.dev7@example.invalid'});
+  const input=()=>({callId:'demo-'+Date.now()+'-'+ ++counter.current,displayName:'hao.dev7',handle:'sip:hao.dev7@example.invalid'});
   function button(label:string, action:(p:Preview)=>Promise<unknown>, enabled=true, variant='light') {
     const disabled=!enabled||!ready||busy;
     return <Pressable key={label} accessibilityRole="button" accessibilityLabel={label}
@@ -62,14 +92,28 @@ export default function App() {
     <View style={styles.container}>
       <Text style={styles.brand}>callx / playground</Text>
       <Text style={styles.title}>One call. Every state.</Text>
-      <Text style={styles.subtitle}>React Native SDK · Acme Support{ '\n' }Explore the integration before we build the native runtime.</Text>
-      <View style={styles.notice}><Text style={styles.noticeText}>PREVIEW ONLY · No real calls, microphone, push or system call UI.</Text></View>
+      <Text style={styles.subtitle}>React Native SDK · Acme Support{ '\n' }Explore native calling and the shared call contract.</Text>
+      <View style={styles.buttons}>
+        {(['simulator', 'device'] as const).map(next => <Pressable key={next} accessibilityRole="button"
+          disabled={live || busy || (next === 'device' && !hasDeviceHost)} onPress={() => setMode(next)}
+          style={[styles.button, mode === next && styles.darkButton,
+            (live || busy || (next === 'device' && !hasDeviceHost)) && styles.disabled]}>
+          <Text style={[styles.buttonText, mode === next && styles.white]}>{next === 'device' ? 'Device' : 'Simulator'}</Text>
+        </Pressable>)}
+      </View>
+      <View style={styles.notice}><Text style={styles.noticeText}>{mode === 'device'
+        ? 'DEVICE TRIAL · Real system call UI. Local signaling and Android FCM test pushes; media is simulated, no audio.'
+        : 'PREVIEW ONLY · No real calls, microphone, push or system call UI.'}</Text>
+        {host?.platform === 'ios' && host.simulator && <Text style={styles.noticeText}>
+          iOS Simulator may end CallKit calls immediately. Use an iPhone for call lifecycle trials.
+        </Text>}
+      </View>
       <View style={[styles.columns,width<800&&styles.stacked]}>
         <View style={styles.callPanel}>
           <Text style={styles.status}>{call?.state.toUpperCase()??'READY FOR A CALL'}</Text>
-          <View style={styles.avatar}><Text style={styles.initials}>LN</Text></View>
+          <View style={styles.avatar}><Text style={styles.initials}>HD</Text></View>
           <Text style={styles.caller}>{call?.displayName??'Your next conversation'}</Text>
-          <Text style={styles.callDetail}>{call ? call.callId+' · '+call.direction : 'Trigger an invitation from the simulator.'}</Text>
+          <Text style={styles.callDetail}>{call ? call.callId+' · '+call.direction : 'Trigger an invitation from the test controls.'}</Text>
           <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaReady?'● Media ready — simulated, no audio':'○ Media not connected'}</Text>
           {call?.endReason&&<Text style={styles.callDetail}>Reason: {call.endReason}</Text>}
           <View style={[styles.buttons,{marginTop:24,justifyContent:'center'}]}>
@@ -88,14 +132,24 @@ export default function App() {
             {button('Remote answers',p=>p.simulator.remoteAnswered(),call?.state==='outgoing')}
             {button('Connect media',p=>p.simulator.mediaConnected(),call?.state==='connecting')}
             {button('Remote ends',p=>p.simulator.remoteEnded(),live)}
-            {button('Reset preview',p=>p.simulator.reset())}
+            {mode === 'simulator' && button('Reset preview',p=>p.simulator.reset())}
+            {mode === 'device' && button('Permissions', () => requestPermissions())}
           </View>
           <Text style={[styles.sectionTitle,{marginTop:28}]}>02 / Observe the contract</Text>
-          <Text style={styles.code}>sequence  {snapshot.sequence}{'\n'}muted  {String(call?.muted??false)}{'\n'}execution  preview</Text>
+          <Text style={styles.code}>sequence  {snapshot.sequence}{'\n'}muted  {String(call?.muted??false)}{'\n'}execution  {mode === 'device' ? 'native' : 'preview'}</Text>
           {error&&<Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-          <Text style={styles.body}>{ready?'SDK configured · memory only':'Configuring SDK…'}</Text>
+          <Text style={styles.body}>{ready ? (mode === 'device' ? 'SDK configured · native runtime' : 'SDK configured · memory only') : 'Configuring SDK…'}</Text>
         </View>
       </View>
+      {mode === 'device' && host && <View>
+        <Text style={[styles.sectionTitle,{marginTop:24}]}>Native host</Text>
+        {host.platform === 'android' && <Text selectable style={styles.log}>{host.pushToken
+          ? 'FCM token  '+host.pushToken
+          : host.pushReady ? 'Waiting for FCM token…' : 'No FCM. Add packages/secrets/google-services.json and prebuild.'}</Text>}
+        <View style={styles.buttons}>{host.endpoints.map((endpoint, index) =>
+          button((endpoint.current ? '✓ ' : '') + endpoint.name, () => selectEndpoint(index), live))}</View>
+        {host.events.map((line, index) => <Text key={index+'-'+line} style={styles.log}>{line}</Text>)}
+      </View>}
       <Text style={[styles.sectionTitle,{marginTop:32}]}>Event timeline</Text>
       {timeline.map((line,i)=><Text key={i+'-'+line} style={styles.log}>{line}</Text>)}
       <Text style={styles.footer}>callx 0.0.0-preview.1 / React Native + shared contract / Not a native-call certification</Text>

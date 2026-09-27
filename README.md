@@ -34,8 +34,11 @@ Start with the [English documentation](docs/README.md):
 8. [Signaling, backend endpoints and push payloads](docs/guides/signaling-and-push.md).
 9. [RN CLI and Expo config plugin](docs/guides/react-native-and-expo.md).
 
-Both example apps show call controls and an event timeline using an explicit simulator,
-including when run on a phone. Web is a demo target, not a native calling platform.
+Both example apps include an explicit simulator with call controls and an event timeline.
+Both also have a Device mode wired to native CallKit/Core-Telecom, with optional test pushes
+(FCM on Android for both; PushKit on iOS for Flutter only) and a local call console
+(`npm run call:console`). Media is still simulated, so neither produces audio. Web is a demo
+target, not a native calling platform.
 
 ## Repository development
 

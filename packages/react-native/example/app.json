@@ -1,23 +1,27 @@
 {
   "expo": {
-    "name": "Callx · RN Preview",
+    "name": "Callx \u00b7 RN Preview",
     "slug": "callx-rn-preview",
     "version": "0.0.1",
     "scheme": "callx-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
-      ["@bear-block/callx/app.plugin", {
-        "microphonePermission": "Allow Callx to use your microphone for voice calls.",
-        "iosVoip": false,
-        "androidNotifications": false
-      }]
+      [
+        "@bear-block/callx/app.plugin",
+        {
+          "microphonePermission": "Allow Callx to use your microphone for voice calls.",
+          "iosVoip": false,
+          "androidNotifications": true
+        }
+      ],
+      "./device-host/app.plugin.cjs"
     ],
     "ios": {
       "bundleIdentifier": "dev.callx.preview.rn"
     },
     "android": {
-      "package": "dev.callx.preview.rn"
+      "package": "dev.bearblock.callx"
     },
     "web": {
       "bundler": "metro"

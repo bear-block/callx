@@ -33,7 +33,10 @@ export class NativeCallxBackend implements CallxBackend {
   }
   private async native(): Promise<{module: NativeModule; rn: ReactNativeShape}> {
     try {
-      const rn = await import('react-native') as unknown as ReactNativeShape;
+      const imported = await import('react-native') as unknown as ReactNativeShape & {default?: ReactNativeShape};
+      // Metro may wrap React Native's CommonJS exports under `default` for dynamic imports.
+      const rn = imported.NativeModules ? imported : imported.default;
+      if (!rn?.NativeModules) throw new CallxError('nativeUnavailable', 'React Native bindings are unavailable.');
       const module = rn.NativeModules.Callx as NativeModule | undefined;
       if (!module) throw new CallxError('nativeUnavailable', 'Callx native module is not linked.');
       return {module, rn};
