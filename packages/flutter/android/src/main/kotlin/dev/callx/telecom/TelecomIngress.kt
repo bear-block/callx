@@ -30,7 +30,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 interface IncomingCallPresenter {
     fun showIncoming(invitation: Invitation)
     fun showOutgoing(callId: String, displayName: String)
-    fun showOngoing(callId: String)
+    /** [answeredAtMs] is when the call was answered on either side; null while an outgoing call still rings. */
+    fun showOngoing(callId: String, answeredAtMs: Long?)
     fun dismiss(callId: String)
 }
 
@@ -99,14 +100,14 @@ class TelecomIngress(
             withinBudget("answer") { host.answer(callId, callType) }
             synchronized(presentationLock) {
                 if (runtime.platformAnswered(callId)) {
-                    cancelRing(callId); presenter.showOngoing(callId)
+                    cancelRing(callId); presenter.showOngoing(callId, answeredAt(callId))
                 }
             }
         }
         override suspend fun disconnect(callId: String, cause: DisconnectCause) {
             // A hangup from another surface always succeeds; the host cleans up afterwards.
             synchronized(presentationLock) {
-                cancelRing(callId); runtime.platformEnded(callId, reasonFor(cause.code)); presenter.dismiss(callId)
+                cancelRing(callId); runtime.platformEnded(callId, reasonFor(cause.code)); dismissCall(callId)
             }
             scope.launch { host.disconnect(callId, cause) }
         }
@@ -164,7 +165,7 @@ class TelecomIngress(
     suspend fun remoteEnded(callId: String, reason: String = "remoteEnded") {
         val ended = synchronized(presentationLock) {
             runtime.remoteEnded(callId, reason).also {
-                cancelRing(callId); presenter.dismiss(callId)
+                cancelRing(callId); dismissCall(callId)
             }
         }
         if (ended) sessions.resolve(callId)?.disconnect(causeFor(reason))
@@ -175,7 +176,7 @@ class TelecomIngress(
     suspend fun recoverAfterProcessDeath(): CallRecord? {
         val recovered = synchronized(presentationLock) {
             runtime.recoverAfterProcessDeath()?.also {
-                cancelRing(it.callId); presenter.dismiss(it.callId)
+                cancelRing(it.callId); dismissCall(it.callId)
             }
         }
         if (recovered != null) sessions.resolve(recovered.callId)?.disconnect(causeFor(recovered.endReason ?: "failed"))
@@ -184,13 +185,24 @@ class TelecomIngress(
 
     /** Records that the remote party accepted an outgoing call and makes the Telecom call active. */
     suspend fun remoteAnswered(callId: String) {
+        val answered = synchronized(presentationLock) {
+            runtime.remoteAnswered(callId).also { if (it) presenter.showOngoing(callId, answeredAt(callId)) }
+        }
         // setHeld(false) is CallControlScope.setActive for a Core-Telecom call.
-        if (runtime.remoteAnswered(callId)) sessions.resolve(callId)?.setHeld(false)
+        if (answered) sessions.resolve(callId)?.setHeld(false)
     }
 
     /** Routes call audio to an endpoint reported by [TelecomIngressListener.onAudioEndpointsChanged]. */
     suspend fun requestAudioEndpoint(callId: String, endpoint: CallEndpointCompat): Boolean =
         sessions.resolve(callId)?.requestEndpoint(endpoint) == TelecomActionResult.Applied
+
+    /** True while [callId] is the call that is ringing; the incoming call screen closes otherwise. */
+    internal fun isRinging(callId: String): Boolean =
+        runtime.currentCall()?.let { it.callId == callId && it.state == CallState.incoming } == true
+
+    /** True while [callId] has not ended. */
+    internal fun isLive(callId: String): Boolean =
+        runtime.currentCall()?.let { it.callId == callId && it.state != CallState.ended } == true
 
     internal fun onNotificationAction(callId: String, action: String) {
         scope.launch {
@@ -211,12 +223,13 @@ class TelecomIngress(
         when (command.type) {
             CommandType.answer -> {
                 registrations[command.callId]?.answered = true
-                cancelRing(command.callId); presenter.showOngoing(command.callId)
+                // The coordinator commits acceptedAtMs after the executor reports Applied, i.e. right now.
+                cancelRing(command.callId); presenter.showOngoing(command.callId, answeredAt(command.callId) ?: nowMs())
             }
             CommandType.end -> {
                 registrations[command.callId]?.endedReason =
                     if (runtime.currentCall()?.state == CallState.incoming) "declined" else "localHangup"
-                cancelRing(command.callId); presenter.dismiss(command.callId)
+                cancelRing(command.callId); dismissCall(command.callId)
             }
             // Core-Telecom requires a notification within five seconds of adding any call.
             CommandType.startCall -> presenter.showOutgoing(command.callId, command.displayName ?: command.callId)
@@ -255,7 +268,7 @@ class TelecomIngress(
             if (latest?.callId != invitation.callId || latest.state == CallState.ended || registration?.endedReason != null) {
                 val reason = latest?.takeIf { it.callId == invitation.callId }?.endReason
                     ?: registration?.endedReason ?: "failed"
-                cancelRing(invitation.callId); presenter.dismiss(invitation.callId)
+                cancelRing(invitation.callId); dismissCall(invitation.callId)
                 IncomingOutcome.Ended(reason)
             } else {
                 if (latest.state == CallState.incoming && registration?.answered != true) {
@@ -263,7 +276,7 @@ class TelecomIngress(
                     scheduleRing(invitation.callId, requireNotNull(latest.ringDeadlineAtMs))
                 } else {
                     // The system answered while registration was completing.
-                    presenter.showOngoing(invitation.callId)
+                    presenter.showOngoing(invitation.callId, answeredAt(invitation.callId))
                 }
                 listener?.onInvitationAccepted(invitation)
                 null
@@ -296,7 +309,7 @@ class TelecomIngress(
                 else (runtime.expireRinging(callId = callId) == callId).also { ended ->
                     if (ended) {
                         ringJobs.remove(callId)
-                        presenter.dismiss(callId); listener?.onRingTimedOut(callId)
+                        dismissCall(callId); listener?.onRingTimedOut(callId)
                     }
                 }
             }
@@ -305,6 +318,11 @@ class TelecomIngress(
         ringJobs.put(callId, job)?.cancel()
     }
     private fun cancelRing(callId: String) { ringJobs.remove(callId)?.cancel() }
+    /** Every terminal path ends here, whichever presenter the host uses. */
+    private fun dismissCall(callId: String) {
+        presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
+    }
+    private fun answeredAt(callId: String) = runtime.currentCall()?.takeIf { it.callId == callId }?.acceptedAtMs
 
     private fun reasonFor(code: Int): String? = when (code) {
         DisconnectCause.REJECTED -> "declined"

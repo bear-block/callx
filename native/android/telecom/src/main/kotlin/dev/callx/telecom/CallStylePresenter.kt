@@ -11,25 +11,34 @@ import androidx.core.app.Person
 import dev.callx.core.Invitation
 import java.util.concurrent.ConcurrentHashMap
 
-/** Button labels for the fallback notification; CallStyle notifications use the system's own labels. */
+/**
+ * Labels for [CallxIncomingCallActivity] and the fallback notification; CallStyle notifications use
+ * the system's own labels.
+ */
 data class CallNotificationLabels(
     val answer: CharSequence = "Answer",
     val decline: CharSequence = "Decline",
     val hangUp: CharSequence = "Hang up",
+    /** Shown on the lock-screen call screen when answering requires unlocking. */
+    val openApp: CharSequence = "Open app",
 )
 
 /**
  * Default call notification: CallStyle with answer and decline buttons while ringing, and a hang-up
- * button for outgoing and answered calls.
+ * button and a running call timer once the call is answered.
  *
  * Android 12+ rejects a CallStyle notification that has neither a foreground service nor a
- * full-screen intent, so every notification carries one: [fullScreenIntent], or by default an
- * intent for the app's launcher Activity with [TelecomIngress.EXTRA_CALL_ID]. To present the call
- * over the lock screen, that Activity must call `setShowWhenLocked(true)` and `setTurnScreenOn(true)`.
- * On Android 14+ the system may deny full-screen intents; the call then shows as a heads-up
- * notification. If the system still rejects CallStyle, a plain notification with the same buttons
- * is posted instead. While the call is registered with Telecom, Android shows it even when the
- * user blocked the app's notifications.
+ * full-screen intent, so every notification carries one: [fullScreenIntent] when given; otherwise
+ * [CallxIncomingCallActivity] while ringing, and the app's launcher Activity with
+ * [TelecomIngress.EXTRA_CALL_ID] afterwards. Android only opens it full screen while the device is
+ * locked or the screen is off; in use, it shows a heads-up notification. Android 14+ may also deny
+ * full-screen intents, with the same heads-up result. The answer button always goes through
+ * [CallxIncomingCallActivity], which then opens the launcher Activity; while the device is locked,
+ * [lockedAnswer] decides whether that waits for the user to unlock (the default, as on iOS) or opens
+ * above the lock screen.
+ * If the system still rejects CallStyle, a plain notification with the same buttons is posted
+ * instead. While the call is registered with Telecom, Android shows it even when the user blocked
+ * the app's notifications.
  */
 class CallStylePresenter(
     private val context: Context,
@@ -39,6 +48,7 @@ class CallStylePresenter(
     private val fullScreenIntent: ((callId: String) -> PendingIntent?)? = null,
     private val contentIntent: ((callId: String) -> PendingIntent?)? = null,
     private val labels: CallNotificationLabels = CallNotificationLabels(),
+    private val lockedAnswer: LockedAnswer = LockedAnswer.RequireUnlock,
 ) : IncomingCallPresenter {
     private val manager = NotificationManagerCompat.from(context)
     private val names = ConcurrentHashMap<String, String>()
@@ -53,30 +63,37 @@ class CallStylePresenter(
         names[callId] = invitation.displayName
         val caller = Person.Builder().setName(invitation.displayName).setImportant(true).build()
         val decline = action(callId, TelecomIngress.ACTION_DECLINE)
-        val answer = action(callId, TelecomIngress.ACTION_ANSWER)
+        val answer = incomingScreen(callId, answer = true)
+        val screen = fullScreenIntent?.invoke(callId) ?: incomingScreen(callId, answer = false)
         post(callId,
-            styled = base(callId).setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer)),
-            plain = { base(callId).addAction(0, labels.decline, decline).addAction(0, labels.answer, answer) })
+            styled = base(callId, screen).setStyle(NotificationCompat.CallStyle.forIncomingCall(caller, decline, answer)),
+            plain = { base(callId, screen).addAction(0, labels.decline, decline).addAction(0, labels.answer, answer) })
     }
 
     override fun showOutgoing(callId: String, displayName: String) {
         names[callId] = displayName
-        showOngoing(callId)
+        showOngoing(callId, answeredAtMs = null)
     }
 
-    override fun showOngoing(callId: String) {
+    override fun showOngoing(callId: String, answeredAtMs: Long?) {
+        CallxIncomingCallActivity.callAnswered(callId)
         val caller = Person.Builder().setName(names[callId] ?: callId).build()
         val hangUp = action(callId, TelecomIngress.ACTION_HANG_UP)
+        val screen = fullScreenIntent?.invoke(callId) ?: launcherIntent(callId)
+        // The system renders the elapsed time from `when`, so it keeps counting without updates.
+        fun timed(builder: NotificationCompat.Builder) = if (answeredAtMs == null) builder
+            else builder.setWhen(answeredAtMs).setShowWhen(true).setUsesChronometer(true)
         post(callId,
-            styled = base(callId).setStyle(NotificationCompat.CallStyle.forOngoingCall(caller, hangUp)),
-            plain = { base(callId).addAction(0, labels.hangUp, hangUp) })
+            styled = timed(base(callId, screen)).setStyle(NotificationCompat.CallStyle.forOngoingCall(caller, hangUp)),
+            plain = { timed(base(callId, screen)).addAction(0, labels.hangUp, hangUp) })
     }
 
     override fun dismiss(callId: String) {
+        CallxIncomingCallActivity.callEnded(callId)
         names.remove(callId); manager.cancel(TAG, callId.hashCode())
     }
 
-    private fun base(callId: String) = NotificationCompat.Builder(context, channelId)
+    private fun base(callId: String, screen: PendingIntent?) = NotificationCompat.Builder(context, channelId)
         .setSmallIcon(smallIcon)
         .setContentTitle(names[callId] ?: callId)
         .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -85,8 +102,8 @@ class CallStylePresenter(
         .setOnlyAlertOnce(true)
         .apply {
             // Always set it: on Android 14+ a denied full-screen intent still satisfies CallStyle.
-            (fullScreenIntent?.invoke(callId) ?: launcherIntent(callId))?.let { setFullScreenIntent(it, true) }
-            contentIntent?.invoke(callId)?.let(::setContentIntent)
+            screen?.let { setFullScreenIntent(it, true) }
+            (contentIntent?.invoke(callId) ?: screen)?.let(::setContentIntent)
         }
 
     private fun post(callId: String, styled: NotificationCompat.Builder, plain: () -> NotificationCompat.Builder) {
@@ -107,6 +124,11 @@ class CallStylePresenter(
         return PendingIntent.getActivity(context, callId.hashCode(), intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
+
+    private fun incomingScreen(callId: String, answer: Boolean): PendingIntent = PendingIntent.getActivity(context,
+        (callId + if (answer) TelecomIngress.ACTION_ANSWER else "screen").hashCode(),
+        CallxIncomingCallActivity.intent(context, callId, names[callId] ?: callId, answer, labels, lockedAnswer),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
     private fun action(callId: String, action: String): PendingIntent = PendingIntent.getBroadcast(context,
         (callId + action).hashCode(),

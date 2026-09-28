@@ -44,9 +44,12 @@ private class FakeSessions : IncomingTelecomSessions {
 
 private class FakePresenter : IncomingCallPresenter {
     val incoming = list<String>(); val outgoing = list<String>(); val ongoing = list<String>(); val dismissed = list<String>()
+    val answeredAt = ConcurrentHashMap<String, Long>()
     override fun showIncoming(invitation: Invitation) { incoming += invitation.callId }
     override fun showOutgoing(callId: String, displayName: String) { outgoing += "$callId:$displayName" }
-    override fun showOngoing(callId: String) { ongoing += callId }
+    override fun showOngoing(callId: String, answeredAtMs: Long?) {
+        ongoing += callId; answeredAtMs?.let { answeredAt[callId] = it }
+    }
     override fun dismiss(callId: String) { dismissed += callId }
 }
 
@@ -272,6 +275,40 @@ class TelecomIngressTest {
         h.ingress.remoteAnswered("call-out")
         assertEquals(listOf("active"), h.sessions.handles.getValue("call-out").actions)
         assertEquals("connecting", h.state())
+        h.scope.cancel()
+    }
+
+    @Test fun lockScreenPresenceFollowsTheCallLifetime() = runBlocking {
+        val h = Harness()
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        assertTrue(h.ingress.isRinging("call-1")); assertTrue(h.ingress.isLive("call-1"))
+        assertEquals("applied", h.command("answer", "call-1")["status"])
+        assertFalse(h.ingress.isRinging("call-1")); assertTrue(h.ingress.isLive("call-1"))
+        h.ingress.remoteEnded("call-1")
+        assertFalse(h.ingress.isLive("call-1")); assertFalse(h.ingress.isLive("other-call"))
+        h.scope.cancel()
+    }
+
+    @Test fun answeredCallsCarryTheAnswerTimeForTheCallTimer() = runBlocking {
+        val h = Harness()
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        val before = System.currentTimeMillis()
+        h.ingress.onNotificationAction("call-1", TelecomIngress.ACTION_ANSWER)
+        assertTrue(eventually { h.presenter.answeredAt.containsKey("call-1") })
+        assertTrue(h.presenter.answeredAt.getValue("call-1") in before..System.currentTimeMillis())
+        h.scope.cancel()
+    }
+
+    @Test fun outgoingCallTimerStartsWhenTheRemoteAnswers() = runBlocking {
+        val h = Harness()
+        h.runtime.execute(mapOf("contractVersion" to "0.1.0", "operationId" to "start", "type" to "startCall",
+            "input" to mapOf("callId" to "call-out", "displayName" to "hao.dev7", "handle" to "+84901")))
+            .toCompletableFuture().join()
+        assertTrue(eventually { h.presenter.outgoing.isNotEmpty() })
+        assertFalse(h.presenter.answeredAt.containsKey("call-out"))
+        h.ingress.remoteAnswered("call-out")
+        val acceptedAt = (h.runtime.getSnapshot()["call"] as Map<*, *>)["acceptedAtMs"]
+        assertEquals(acceptedAt, h.presenter.answeredAt["call-out"])
         h.scope.cancel()
     }
 

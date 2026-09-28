@@ -7,9 +7,19 @@
   `mustReport`) and ends unanswered calls; `TelecomIngress` takes forwarded FCM data,
   registers the Telecom call and shows a CallStyle notification with answer and decline.
   Invitations use the `call.invited` schema v1 decoder.
-- Android call notification: always carries a full-screen intent (the launcher Activity
-  by default), falls back to a plain notification when the system rejects CallStyle,
-  follows answers and hangups from Dart/JS, and covers outgoing calls.
+- Android call notification: always carries a full-screen intent, falls back to a plain
+  notification when the system rejects CallStyle, follows answers and hangups from
+  Dart/JS, and covers outgoing calls.
+- Android `CallxIncomingCallActivity`: the default full-screen incoming-call screen, in
+  plain Android views so it shows over the lock screen without waiting for the Dart/JS
+  engine. The notification's answer button opens it instead of a broadcast receiver, so
+  answering can open the app on Android 12+. The ongoing call notification shows a
+  running timer from the answer time. The library manifest declares
+  `USE_FULL_SCREEN_INTENT` and `MANAGE_OWN_CALLS`, so hosts no longer need to.
+- Android `LockedAnswer`: answering while locked either requires unlocking before the app
+  opens (the default, as on iOS, with a native call screen on the lock screen meanwhile)
+  or opens the app above the lock screen until the call ends (`CallxLockScreen.onIntent`).
+  `CallxFullScreenIntent` reports whether Android 14+ denied full-screen intents.
 - `TelecomIngress.handlePush` returns only after the call rings or is rejected, inside
   FCM's processing window, and reports delivered and original FCM priority.
 - Telecom system callbacks get a four-second budget; mute and hold from other surfaces

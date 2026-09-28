@@ -1,7 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The call notification's full-screen intent opens the incoming call screen while the device
+         is locked. Without this permission Android shows a notification instead. Play allows it for
+         calling apps; remove it with tools:node="remove" to opt out. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Self-managed calls registered through Core-Telecom. -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <application>
         <receiver
             android:name="dev.callx.telecom.CallxNotificationActionReceiver"
             android:exported="false" />
+        <!-- Full-screen incoming call screen; its own task keeps the app's task out of the way. -->
+        <activity
+            android:name="dev.callx.telecom.CallxIncomingCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:taskAffinity="dev.callx.incoming"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:turnScreenOn="true" />
     </application>
 </manifest>

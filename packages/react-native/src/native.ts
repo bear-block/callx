@@ -42,7 +42,8 @@ export class NativeCallxBackend implements CallxBackend {
       return {module, rn};
     } catch (error) {
       if (error instanceof CallxError) throw error;
-      throw new CallxError('nativeUnavailable', 'React Native or the Callx native module is unavailable.');
+      const cause = error instanceof Error ? error.message : String(error);
+      throw new CallxError('nativeUnavailable', `React Native or the Callx native module is unavailable: ${cause}`);
     }
   }
   private binding() { return this.loaded ??= this.native(); }
