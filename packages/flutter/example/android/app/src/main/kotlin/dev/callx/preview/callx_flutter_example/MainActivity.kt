@@ -9,7 +9,7 @@ import android.os.Looper
 import androidx.core.app.ActivityCompat
 import com.google.firebase.FirebaseApp
 import dev.callx.core.Invitation
-import dev.callx.telecom.TelecomIngress
+import dev.callx.telecom.CallxLockScreen
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -19,16 +19,11 @@ class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); showOverLockScreen(intent)
+        super.onCreate(savedInstanceState); CallxLockScreen.onIntent(this, intent)
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent); showOverLockScreen(intent)
-    }
-
-    /** The call notification's full-screen intent opens this Activity with the call ID. */
-    private fun showOverLockScreen(intent: Intent?) {
-        if (intent?.hasExtra(TelecomIngress.EXTRA_CALL_ID) == true) { setShowWhenLocked(true); setTurnScreenOn(true) }
+        super.onNewIntent(intent); CallxLockScreen.onIntent(this, intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

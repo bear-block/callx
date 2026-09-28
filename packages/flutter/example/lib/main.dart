@@ -471,6 +471,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                   : '${call.callId} · ${call.direction.name}',
                               style: const TextStyle(color: Color(0xffb7c9c4)),
                             ),
+                            if (call?.acceptedAtMs != null &&
+                                call?.state != CallState.ended)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: CallTimer(
+                                  startedAtMs: call!.acceptedAtMs!,
+                                ),
+                              ),
                             const SizedBox(height: 24),
                             Text(
                               call?.mediaReady == true
@@ -679,6 +687,52 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Elapsed time since the call was answered, like the Android call notification's timer.
+class CallTimer extends StatefulWidget {
+  const CallTimer({super.key, required this.startedAtMs});
+
+  final int startedAtMs;
+
+  @override
+  State<CallTimer> createState() => _CallTimerState();
+}
+
+class _CallTimerState extends State<CallTimer> {
+  late final Timer ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    ticker = Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    ticker.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = Duration(
+      milliseconds: max(
+        0,
+        DateTime.now().millisecondsSinceEpoch - widget.startedAtMs,
+      ),
+    );
+    final minutes = elapsed.inMinutes.toString().padLeft(2, '0');
+    final seconds = (elapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return Text(
+      '$minutes:$seconds',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 20,
+        fontFeatures: [FontFeature.tabularFigures()],
       ),
     );
   }

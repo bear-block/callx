@@ -1,7 +1,7 @@
 // Example-only native host. Keep bootstrap out of JS so React reloads retain the native call.
 const fs = require('node:fs');
 const path = require('node:path');
-const {withMainApplication, withAppDelegate, withAppBuildGradle, withDangerousMod,
+const {withMainApplication, withMainActivity, withAppDelegate, withAppBuildGradle, withDangerousMod,
   withXcodeProject, withAndroidManifest, IOSConfig} = require('@expo/config-plugins');
 
 function insertOnce(source, marker, anchor, replacement) {
@@ -37,11 +37,21 @@ module.exports = config => {
       '    implementation("com.google.firebase:firebase-messaging")');
     return mod;
   });
+  config = withMainActivity(config, mod => {
+    if (mod.modResults.language !== 'kt') throw new Error('Callx example requires a Kotlin MainActivity.');
+    const show = 'dev.callx.telecom.CallxLockScreen.onIntent(this, intent)';
+    let source = insertOnce(mod.modResults.contents, show, 'super.onCreate(null)', `super.onCreate(null)\n    ${show}`);
+    source = insertOnce(source, 'override fun onNewIntent', '  override fun getMainComponentName()',
+      `  override fun onNewIntent(intent: android.content.Intent) {\n    super.onNewIntent(intent)\n    setIntent(intent)\n    ${show}\n  }\n\n  override fun getMainComponentName()`);
+    mod.modResults.contents = source;
+    return mod;
+  });
   config = withAndroidManifest(config, mod => {
     const main = mod.modResults.manifest.application?.[0]?.activity?.find(a => a.$['android:name'] === '.MainActivity');
     if (!main) throw new Error('Callx example requires MainActivity.');
-    main.$['android:showWhenLocked'] = 'true';
-    main.$['android:turnScreenOn'] = 'true';
+    // Lock-screen presence is set per call by CallxLockScreen, never statically.
+    delete main.$['android:showWhenLocked'];
+    delete main.$['android:turnScreenOn'];
     const application = mod.modResults.manifest.application[0];
     const service = 'dev.callx.preview.rn.device.DeviceHostMessagingService';
     application.service = (application.service ?? []).filter(s => s.$['android:name'] !== service);

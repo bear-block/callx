@@ -21,6 +21,8 @@ test('host log lines map to call statuses', () => {
   assert.equal(statusFrom('answered from notification: call-1'), 'answered');
   assert.equal(statusFrom('system surface ended call-1: 2'), 'ended');
   assert.equal(statusFrom('media connected (simulated) for call-1'), 'active');
+  assert.equal(statusFrom('remote ended call-1: callerCancelled'), 'ended');
+  assert.equal(statusFrom('remote answered call-1'), 'answered');
   assert.equal(statusFrom('FCM token ready'), null);
 });
 

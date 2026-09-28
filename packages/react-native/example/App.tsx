@@ -6,6 +6,19 @@ import {createDeviceDemo, hasDeviceHost, hostStatus, requestPermissions, selectE
 import type {HostStatus} from './DeviceHost';
 
 type Preview = ReturnType<typeof createCallxPreview>;
+
+/** Elapsed time since the call was answered, like the Android call notification's timer. */
+function CallTimer({startedAtMs}: {startedAtMs: number}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const ticker = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(ticker);
+  }, []);
+  const seconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return <Text style={styles.timer}>{pad(Math.floor(seconds / 60))}:{pad(seconds % 60)}</Text>;
+}
+
 export default function App() {
   const preview = useRef<Preview | null>(null);
   const [mode, setMode] = useState<'simulator' | 'device'>(hasDeviceHost ? 'device' : 'simulator');
@@ -114,6 +127,7 @@ export default function App() {
           <View style={styles.avatar}><Text style={styles.initials}>HD</Text></View>
           <Text style={styles.caller}>{call?.displayName??'Your next conversation'}</Text>
           <Text style={styles.callDetail}>{call ? call.callId+' · '+call.direction : 'Trigger an invitation from the test controls.'}</Text>
+          {call?.acceptedAtMs!==undefined&&call.state!=='ended'&&<CallTimer startedAtMs={call.acceptedAtMs}/>}
           <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaReady?'● Media ready — simulated, no audio':'○ Media not connected'}</Text>
           {call?.endReason&&<Text style={styles.callDetail}>Reason: {call.endReason}</Text>}
           <View style={[styles.buttons,{marginTop:24,justifyContent:'center'}]}>
@@ -157,6 +171,7 @@ export default function App() {
   </ScrollView>;
 }
 const styles=StyleSheet.create({
+  timer:{color:'#fff',fontSize:20,marginTop:16,fontVariant:['tabular-nums']},
   page:{flex:1,backgroundColor:'#f5f4ef'},pageContent:{padding:24,paddingTop:48},
   container:{width:'100%',maxWidth:1120,alignSelf:'center'},
   brand:{fontSize:18,fontWeight:'800',color:'#172c2a'},

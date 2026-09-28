@@ -16,6 +16,7 @@ import dev.callx.core.ReconciliationOutcome
 import dev.callx.core.RecoveredOperationReconciler
 import dev.callx.flutter.CallxPlugin
 import dev.callx.telecom.CallStylePresenter
+import dev.callx.telecom.CallxFullScreenIntent
 import dev.callx.telecom.CoreTelecomSessionManager
 import dev.callx.telecom.MediaMuteController
 import dev.callx.telecom.TelecomIngress
@@ -68,6 +69,8 @@ object CallHost {
         }
         CallxPlugin.configure(runtime)
         record("runtime configured")
+        // Without it a locked device shows the call as a notification, not the full-screen call screen.
+        if (!CallxFullScreenIntent.isAllowed(context)) record("full-screen intents denied: allow them in Settings")
         // Without a backend nothing can confirm a pending operation, so report it unavailable.
         scope.launch(Dispatchers.IO) {
             RecoveredOperationReconciler(coordinator, OperationReconciliationProbe {
@@ -82,8 +85,10 @@ object CallHost {
         val callId = signal.optString("callId").takeIf { it.isNotEmpty() } ?: return
         scope.launch {
             when (signal.optString("type")) {
-                "call.ended" -> ingress.remoteEnded(callId, signal.optString("reason", "remoteEnded"))
-                "call.accepted" -> ingress.remoteAnswered(callId)
+                "call.ended" -> signal.optString("reason", "remoteEnded").let { reason ->
+                    ingress.remoteEnded(callId, reason); record("remote ended $callId: $reason")
+                }
+                "call.accepted" -> { ingress.remoteAnswered(callId); record("remote answered $callId") }
                 else -> record("ignored test signal ${signal.optString("type")}")
             }
         }
