@@ -29,6 +29,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 /** Shows and removes the system notification for a call. */
 interface IncomingCallPresenter {
     fun showIncoming(invitation: Invitation)
+    /** Stop the ringtone while leaving the incoming notification visible. */
+    fun silenceIncoming(callId: String) {}
     fun showOutgoing(callId: String, displayName: String)
     /** [answeredAtMs] is when the call was answered on either side; null while an outgoing call still rings. */
     fun showOngoing(callId: String, answeredAtMs: Long?)
@@ -199,6 +201,11 @@ class TelecomIngress(
     /** True while [callId] is the call that is ringing; the incoming call screen closes otherwise. */
     internal fun isRinging(callId: String): Boolean =
         runtime.currentCall()?.let { it.callId == callId && it.state == CallState.incoming } == true
+
+    /** A volume-down event in the native incoming screen silences this call's ringtone. */
+    fun silenceIncoming(callId: String) = synchronized(presentationLock) {
+        if (isRinging(callId)) presenter.silenceIncoming(callId)
+    }
 
     /** True while [callId] has not ended. */
     internal fun isLive(callId: String): Boolean =

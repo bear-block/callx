@@ -29,6 +29,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "callx_example/host").setMethodCallHandler { call, result ->
+            CallHost.bootstrapError?.let {
+                result.error(if (it is UnsupportedOperationException) "telecomUnavailable" else "hostUnavailable", it.message, null)
+                return@setMethodCallHandler
+            }
             fun reply(block: suspend () -> Any?) = CallHost.scope.launch {
                 val value = try { block() } catch (error: Exception) { main.post { result.error("host", error.message, null) }; return@launch }
                 main.post { result.success(value.takeUnless { it == Unit }) }

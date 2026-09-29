@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Android incoming calls use a versioned ringtone channel and repeat ringing until
+  answered, ended or silenced; ongoing calls use a silent channel. Native incoming UI
+  forwards volume-down to `TelecomIngress.silenceIncoming`.
+- `CallStylePresenter` drops its `channelName` parameter: channel names are
+  `CallNotificationLabels.incomingChannel` and `ongoingChannel`. The old `callx_calls`
+  channel is deleted.
+- Expose `CallxTelecomAvailability` so hosts can reject unsupported devices before
+  registering with Telecom.
+
 - Own the incoming path in BYO signaling mode ([ADR-0007](https://github.com/bear-block/callx/blob/main/docs/adr/0007-library-owned-incoming-path.md)):
   `CallKitIngress` receives VoIP pushes, reports calls to CallKit (honouring iOS 26.4
   `mustReport`) and ends unanswered calls; `TelecomIngress` takes forwarded FCM data,

@@ -7,8 +7,11 @@ import com.google.firebase.messaging.FirebaseMessaging
 class ExampleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        CallHost.start(this)
         ConsoleReporter.start("flutter", { CallHost.pushToken }, CallHost::events)
+        try { CallHost.start(this) } catch (error: Exception) {
+            CallHost.bootstrapFailed(error)
+            return
+        }
         // FirebaseApp exists only when google-services.json was present at build time.
         if (FirebaseApp.getApps(this).isEmpty()) {
             CallHost.record("Firebase not configured: add android/app/google-services.json")

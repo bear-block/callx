@@ -19,6 +19,7 @@ import dev.callx.core.RecoveredOperationReconciler
 import dev.callx.reactnative.CallxModule
 import dev.callx.telecom.CallStylePresenter
 import dev.callx.telecom.CallxFullScreenIntent
+import dev.callx.telecom.CallxTelecomAvailability
 import dev.callx.telecom.CoreTelecomSessionManager
 import dev.callx.telecom.MediaMuteController
 import dev.callx.telecom.TelecomIngress
@@ -74,6 +75,7 @@ object DeviceHost {
     /** One native runtime per process; a JS reload does not repeat recovery. */
     private fun start(context: Context) {
         if (::runtime.isInitialized) return
+        CallxTelecomAvailability.requireSupported(context)
         val callsManager = CallsManager(context)
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
         val media = MediaMuteController { callId, muted -> record("media: mute=$muted for $callId (simulated)"); true }

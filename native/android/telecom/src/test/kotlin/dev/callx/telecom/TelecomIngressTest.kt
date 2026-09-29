@@ -44,8 +44,10 @@ private class FakeSessions : IncomingTelecomSessions {
 
 private class FakePresenter : IncomingCallPresenter {
     val incoming = list<String>(); val outgoing = list<String>(); val ongoing = list<String>(); val dismissed = list<String>()
+    val silenced = list<String>()
     val answeredAt = ConcurrentHashMap<String, Long>()
     override fun showIncoming(invitation: Invitation) { incoming += invitation.callId }
+    override fun silenceIncoming(callId: String) { silenced += callId }
     override fun showOutgoing(callId: String, displayName: String) { outgoing += "$callId:$displayName" }
     override fun showOngoing(callId: String, answeredAtMs: Long?) {
         ongoing += callId; answeredAtMs?.let { answeredAt[callId] = it }
@@ -231,6 +233,18 @@ class TelecomIngressTest {
         assertEquals(listOf("answer"), h.sessions.handles.getValue("call-1").actions)
         assertEquals(listOf("call-1"), h.presenter.ongoing)
         assertEquals("connecting", h.state())
+        h.scope.cancel()
+    }
+
+    @Test fun silenceOnlyAffectsTheCurrentlyRingingCall() = runBlocking {
+        val h = Harness()
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        h.ingress.silenceIncoming("stale-call")
+        h.ingress.silenceIncoming("call-1")
+        assertEquals(listOf("call-1"), h.presenter.silenced)
+        h.ingress.remoteEnded("call-1")
+        h.ingress.silenceIncoming("call-1")
+        assertEquals(listOf("call-1"), h.presenter.silenced)
         h.scope.cancel()
     }
 

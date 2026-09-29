@@ -17,6 +17,7 @@ import dev.callx.core.RecoveredOperationReconciler
 import dev.callx.flutter.CallxPlugin
 import dev.callx.telecom.CallStylePresenter
 import dev.callx.telecom.CallxFullScreenIntent
+import dev.callx.telecom.CallxTelecomAvailability
 import dev.callx.telecom.CoreTelecomSessionManager
 import dev.callx.telecom.MediaMuteController
 import dev.callx.telecom.TelecomIngress
@@ -43,15 +44,22 @@ object CallHost {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     lateinit var ingress: TelecomIngress; private set
     lateinit var runtime: BridgeRuntime; private set
+    @Volatile var bootstrapError: Exception? = null; private set
     @Volatile var pushToken: String? = null
     @Volatile var endpoints: List<CallEndpointCompat> = emptyList(); private set
     @Volatile var currentEndpoint: CallEndpointCompat? = null; private set
     @Volatile var activeCallId: String? = null; private set
     private val events = ConcurrentLinkedDeque<String>()
 
+    fun bootstrapFailed(error: Exception) {
+        bootstrapError = error
+        record("bootstrap failed: ${error.message}")
+    }
+
     /** Runs from Application.onCreate, before FCM can deliver a push to this process. */
     fun start(context: Context) {
         if (::runtime.isInitialized) return
+        CallxTelecomAvailability.requireSupported(context)
         val callsManager = CallsManager(context)
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
         val media = MediaMuteController { callId, muted -> record("media: mute=$muted for $callId (simulated)"); true }

@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.widget.Chronometer
 import android.widget.LinearLayout
@@ -78,6 +79,13 @@ class CallxIncomingCallActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); setIntent(intent); handle(intent)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && !inCall) {
+            callId?.let { TelecomIngress.active?.silenceIncoming(it) }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {

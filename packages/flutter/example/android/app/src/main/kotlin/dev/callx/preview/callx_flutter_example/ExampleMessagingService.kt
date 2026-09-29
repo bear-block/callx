@@ -9,6 +9,7 @@ class ExampleMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        if (CallHost.bootstrapError != null) return
         if (CallHost.ingress.handlePush(message.data, message.priority, message.originalPriority)) return
         message.data["callxTest"]?.let(CallHost::handleTestSignal)
     }

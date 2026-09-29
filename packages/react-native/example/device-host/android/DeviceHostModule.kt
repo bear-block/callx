@@ -12,7 +12,10 @@ class DeviceHostModule(context: ReactApplicationContext) : ReactContextBaseJavaM
     override fun getName() = "CallxDeviceHost"
 
     @ReactMethod fun invoke(method: String, arguments: ReadableMap, promise: Promise) {
-        DeviceHost.bootstrapError?.let { promise.reject("recoveryFailed", it); return }
+        DeviceHost.bootstrapError?.let {
+            promise.reject(if (it is UnsupportedOperationException) "telecomUnavailable" else "recoveryFailed", it)
+            return
+        }
         DeviceHost.scope.launch {
             try {
                 fun callId() = requireNotNull(arguments.getString("callId"))
