@@ -84,6 +84,13 @@ function prepareAndroid(serial, framework) {
   }
 }
 
+/** `expo run:android --device` takes a name, not a serial: the AVD name or the device model. */
+function expoDeviceName(serial) {
+  if (serial.startsWith('emulator-')) return capture('adb', ['-s', serial, 'emu', 'avd', 'name']).trim().split(/[\r\n]+/)[0];
+  const line = capture('adb', ['devices', '-l']).split('\n').find((entry) => entry.startsWith(`${serial} `)) ?? '';
+  return line.match(/model:(\S+)/)?.[1] ?? `Device ${serial}`;
+}
+
 function iosTarget(options) {
   if (options.device) return options.device;
   const { devices } = JSON.parse(execFileSync('xcrun', ['simctl', 'list', 'devices', 'available', '--json'], { encoding: 'utf8' }));
@@ -116,7 +123,7 @@ async function main(options) {
     if (options.framework === 'flutter') {
       const [command, prefix] = flutter(); return run(command, [...prefix, 'run', '-d', serial, `--${mode}`], dir);
     }
-    return run('npx', ['expo', 'run:android', '--device', serial, ...(options.release ? ['--variant', 'release'] : [])], dir);
+    return run('npx', ['expo', 'run:android', '--device', expoDeviceName(serial), ...(options.release ? ['--variant', 'release'] : [])], dir);
   }
   if (options.buildOnly) {
     log(`Building the ${options.framework} example for the iOS simulator (${mode})`);
