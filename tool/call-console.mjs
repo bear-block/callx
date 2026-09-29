@@ -33,6 +33,7 @@ const TRANSITIONS = [
   [/ended|ring deadline passed|^recovered /, 'ended'],
   [/answered/, 'answered'],
   [/^media connected/, 'active'],
+  [/^media interrupted/, 'reconnecting'],
   [/^system surface held/, 'held'],
   [/^system surface resumed/, 'active'],
 ];

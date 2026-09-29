@@ -67,7 +67,7 @@ object CallHost {
         val callsManager = CallsManager(context)
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
         media = LiveKitCallMedia(context, scope, ::mediaCredentials,
-            onConnected = { runtime.mediaConnected(it) }, log = ::record)
+            onConnected = { runtime.mediaConnected(it) }, onInterrupted = { runtime.mediaInterrupted(it) }, log = ::record)
         ingress = TelecomIngress(scope, CallStylePresenter(context), Listener, media)
         val sessions = CoreTelecomSessionManager(callsManager, ingress.systemActions(SystemActions), scope, ingress.audioObserver)
         val executor = ingress.executor(TelecomPlatformExecutor(scope, sessions, media, outgoing = sessions))

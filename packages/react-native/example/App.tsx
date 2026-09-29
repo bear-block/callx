@@ -53,7 +53,7 @@ export default function App() {
         stop = current.callx.observe(value => {
           if (!mounted) return;
           setSnapshot(value);
-          setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaReady ? 'ready' : 'not ready'}`, ...lines].slice(0,8));
+          setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaInterrupted ? 'interrupted' : value.call?.mediaReady ? 'ready' : 'not ready'}`, ...lines].slice(0,8));
         });
         setReady(true);
         if (mode === 'device') {
@@ -128,7 +128,7 @@ export default function App() {
           <Text style={styles.caller}>{call?.displayName??'Your next conversation'}</Text>
           <Text style={styles.callDetail}>{call ? call.callId+' · '+call.direction : 'Trigger an invitation from the test controls.'}</Text>
           {call?.acceptedAtMs!==undefined&&call.state!=='ended'&&<CallTimer startedAtMs={call.acceptedAtMs}/>}
-          <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaReady?'● Media ready':'○ Media not connected'}</Text>
+          <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaInterrupted?'◌ Media interrupted — reconnecting':call?.mediaReady?'● Media ready':'○ Media not connected'}</Text>
           {call?.endReason&&<Text style={styles.callDetail}>Reason: {call.endReason}</Text>}
           <View style={[styles.buttons,{marginTop:24,justifyContent:'center'}]}>
             {button('Answer',p=>p.callx.answer(call!.callId),call?.state==='incoming','dark')}

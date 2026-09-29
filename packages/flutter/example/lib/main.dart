@@ -136,7 +136,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         journal.insert(
           0,
           '#${value.sequence}  ${value.call?.state.name ?? "idle"}'
-          '  · media ${value.call?.mediaReady == true ? "ready" : "not ready"}',
+          '  · media ${value.call?.mediaInterrupted == true ? "interrupted" : value.call?.mediaReady == true ? "ready" : "not ready"}',
         );
         if (journal.length > 8) journal.removeLast();
       });
@@ -481,7 +481,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                               ),
                             const SizedBox(height: 24),
                             Text(
-                              call?.mediaReady == true
+                              call?.mediaInterrupted == true
+                                  ? '◌ Media interrupted — reconnecting'
+                                  : call?.mediaReady == true
                                   ? '● Media ready'
                                   : '○ Media not connected',
                               style: const TextStyle(color: Color(0xffb7c9c4)),

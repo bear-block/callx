@@ -29,7 +29,7 @@ export const page = `<!doctype html>
   .head { display:flex; gap:8px; align-items:center; flex-wrap:wrap } .name { font-weight:600 } .id { font:11px var(--mono); color:var(--muted) }
   .badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; border:1px solid currentColor; color:var(--accent) }
   .badge.ended, .badge.notRung, .badge.failed, .badge.expired { color:var(--muted) } .badge.failed { color:var(--danger) }
-  .badge.sent, .badge.delivered { color:var(--warn) }
+  .badge.sent, .badge.delivered, .badge.reconnecting { color:var(--warn) }
   .actions { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 } .actions select { width:auto }
   ol { list-style:none; padding:0; margin:0; font:12px var(--mono) } li { padding:1px 0 } .src { display:inline-block; width:56px; color:var(--muted) }
   .src.server { color:var(--accent) } .src.fcm { color:var(--warn) } .empty { color:var(--muted) }
@@ -61,7 +61,7 @@ export const page = `<!doctype html>
 </main>
 <script>
 const REASONS = ['remoteEnded','callerCancelled','answeredElsewhere','declinedElsewhere','busy','unanswered','failed'];
-const LIVE = new Set(['sent','delivered','ringing','answered','active','held']);
+const LIVE = new Set(['sent','delivered','ringing','answered','active','held','reconnecting']);
 let selected = null; let state = null;
 const reasons = {}; // Picked end reasons survive re-rendering.
 const callers = {}; // callId -> { room, status, error }: this browser as the caller in the call's LiveKit room.

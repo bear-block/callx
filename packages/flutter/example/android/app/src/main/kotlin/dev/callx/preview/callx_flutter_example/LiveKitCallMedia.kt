@@ -10,6 +10,7 @@ import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
 import io.livekit.android.room.track.AudioTrack
+import io.livekit.android.room.track.Track
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -24,7 +25,8 @@ data class MediaCredentials(val url: String, val token: String)
  * Example media adapter: one LiveKit room per call, joined when the call is answered and left when
  * it ends. It follows ADR-0004: Telecom owns routing, so LiveKit's own route manager
  * (AudioSwitch) is replaced with [NoAudioHandler], and LiveKit plays on the voice-call stream.
- * Media never decides the call's state; it only reports readiness through [onConnected].
+ * Media never decides the call's state: it reports readiness through [onConnected] and drops
+ * through [onInterrupted] (LiveKit reconnecting, or no remote audio left), never a call end.
  */
 class LiveKitCallMedia(
     context: Context,
@@ -32,12 +34,16 @@ class LiveKitCallMedia(
     private val credentials: suspend (callId: String) -> MediaCredentials,
     /** The remote party's audio is subscribed: report `mediaConnected`. */
     private val onConnected: (callId: String) -> Unit,
+    /** Connected media dropped: report `mediaInterrupted`. [onConnected] follows when it is back. */
+    private val onInterrupted: (callId: String) -> Unit,
     private val log: (String) -> Unit,
 ) : MediaMuteController {
     private val context = context.applicationContext
     private class Session(val job: Job) {
         @Volatile var room: Room? = null
         @Volatile var muted = false
+        /** Remote audio tracks this device currently hears. */
+        val hearing: MutableSet<Track> = ConcurrentHashMap.newKeySet()
     }
     private val sessions = ConcurrentHashMap<String, Session>()
 
@@ -57,12 +63,30 @@ class LiveKitCallMedia(
                     room.events.collect { event ->
                         when (event) {
                             is RoomEvent.TrackSubscribed -> if (event.track is AudioTrack) {
+                                session.hearing += event.track
                                 log("media connected (LiveKit) for $callId: hearing ${event.participant.identity?.value}")
                                 onConnected(callId)
                             }
+                            is RoomEvent.TrackUnsubscribed -> if (event.track is AudioTrack) {
+                                session.hearing -= event.track
+                                if (session.hearing.isEmpty()) {
+                                    log("media interrupted for $callId: ${event.participant.identity?.value} is no longer heard")
+                                    onInterrupted(callId)
+                                }
+                            }
+                            is RoomEvent.Reconnecting -> {
+                                log("media interrupted for $callId: LiveKit is reconnecting"); onInterrupted(callId)
+                            }
+                            is RoomEvent.Reconnected -> if (session.hearing.isNotEmpty()) {
+                                log("media connected (LiveKit) for $callId: reconnected"); onConnected(callId)
+                            }
                             is RoomEvent.ParticipantDisconnected ->
                                 log("media: ${event.participant.identity?.value} left the room of $callId")
-                            is RoomEvent.Disconnected -> log("media: left the room of $callId (${event.reason})")
+                            is RoomEvent.Disconnected -> {
+                                // stop() also disconnects; only a drop while the call is live counts.
+                                log("media: left the room of $callId (${event.reason})")
+                                if (sessions[callId] === session) onInterrupted(callId)
+                            }
                             else -> Unit
                         }
                     }
