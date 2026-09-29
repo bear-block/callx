@@ -136,7 +136,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         journal.insert(
           0,
           '#${value.sequence}  ${value.call?.state.name ?? "idle"}'
-          '  · media ${value.call?.mediaReady == true ? "ready (simulated)" : "not ready"}',
+          '  · media ${value.call?.mediaReady == true ? "ready" : "not ready"}',
         );
         if (journal.length > 8) journal.removeLast();
       });
@@ -416,7 +416,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     child: Text(
                       mode == Mode.device
                           ? 'DEVICE TRIAL  ·  Real push, CallKit/Telecom and notifications. '
-                                'Media is simulated: no audio.'
+                                'Android audio is real with the media server (LiveKit); otherwise simulated.'
                           : 'PREVIEW ONLY  ·  No real calls, microphone, push or system call UI.',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
@@ -482,7 +482,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                             const SizedBox(height: 24),
                             Text(
                               call?.mediaReady == true
-                                  ? '● Media ready — simulated, no audio'
+                                  ? '● Media ready'
                                   : '○ Media not connected',
                               style: const TextStyle(color: Color(0xffb7c9c4)),
                             ),

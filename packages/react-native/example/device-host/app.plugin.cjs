@@ -34,7 +34,8 @@ module.exports = config => {
       '    implementation("androidx.core:core-telecom:1.0.1")\n' +
       '    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")\n' +
       '    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))\n' +
-      '    implementation("com.google.firebase:firebase-messaging")');
+      '    implementation("com.google.firebase:firebase-messaging")\n' +
+      '    implementation("io.livekit:livekit-android:2.29.0")');
     return mod;
   });
   config = withMainActivity(config, mod => {
@@ -62,7 +63,8 @@ module.exports = config => {
   config = withDangerousMod(config, ['android', mod => {
     const destination = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/java/dev/callx/preview/rn/device');
     fs.mkdirSync(destination, {recursive: true});
-    for (const file of ['DeviceHost.kt', 'DeviceHostModule.kt', 'DeviceHostMessagingService.kt', 'ConsoleReporter.kt']) {
+    for (const file of ['DeviceHost.kt', 'DeviceHostModule.kt', 'DeviceHostMessagingService.kt', 'ConsoleReporter.kt',
+      'LiveKitCallMedia.kt']) {
       fs.copyFileSync(path.join(__dirname, 'android', file), path.join(destination, file));
     }
     return mod;

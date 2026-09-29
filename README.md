@@ -37,7 +37,9 @@ Start with the [English documentation](docs/README.md):
 Both example apps include an explicit simulator with call controls and an event timeline.
 Both also have a Device mode wired to native CallKit/Core-Telecom, with optional test pushes
 (FCM on Android for both; PushKit on iOS for Flutter only) and a local call console
-(`npm run call:console`). Media is still simulated, so neither produces audio. Web is a demo
+(`npm run call:console`). On Android, with `npm run media:server` (a local LiveKit server in
+Docker), answered calls carry real two-way audio between the device and the console page;
+without it media is simulated. iOS media is still simulated. Web is a demo
 target, not a native calling platform.
 
 ## Repository development

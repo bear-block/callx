@@ -1,6 +1,7 @@
 package dev.callx.preview.callx_flutter_example
 
 import android.content.Context
+import android.os.Build
 import android.telecom.DisconnectCause
 import android.util.Log
 import androidx.core.telecom.CallEndpointCompat
@@ -19,12 +20,13 @@ import dev.callx.telecom.CallStylePresenter
 import dev.callx.telecom.CallxFullScreenIntent
 import dev.callx.telecom.CallxTelecomAvailability
 import dev.callx.telecom.CoreTelecomSessionManager
-import dev.callx.telecom.MediaMuteController
 import dev.callx.telecom.TelecomIngress
 import dev.callx.telecom.TelecomIngressListener
 import dev.callx.telecom.TelecomPlatformExecutor
 import dev.callx.telecom.TelecomSystemActionHandler
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlinx.coroutines.CoroutineScope
@@ -35,9 +37,10 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 /**
- * Device-trial host. A real app connects its signaling client and media engine here; this one
- * has neither, so it records every callback and lets the example UI stand in for the remote side
- * and for media. Nothing in it produces audio.
+ * Device-trial host. A real app connects its signaling client and media engine here. This one has
+ * no signaling client: it records every callback and lets the example UI and the call console
+ * stand in for the remote side. Media is real when the console and `npm run media:server` run:
+ * [LiveKitCallMedia] joins the call's LiveKit room on answer. Otherwise the UI simulates it.
  */
 object CallHost {
     private const val TAG = "CallxExample"
@@ -49,6 +52,7 @@ object CallHost {
     @Volatile var endpoints: List<CallEndpointCompat> = emptyList(); private set
     @Volatile var currentEndpoint: CallEndpointCompat? = null; private set
     @Volatile var activeCallId: String? = null; private set
+    private lateinit var media: LiveKitCallMedia
     private val events = ConcurrentLinkedDeque<String>()
 
     fun bootstrapFailed(error: Exception) {
@@ -62,7 +66,8 @@ object CallHost {
         CallxTelecomAvailability.requireSupported(context)
         val callsManager = CallsManager(context)
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
-        val media = MediaMuteController { callId, muted -> record("media: mute=$muted for $callId (simulated)"); true }
+        media = LiveKitCallMedia(context, scope, ::mediaCredentials,
+            onConnected = { runtime.mediaConnected(it) }, log = ::record)
         ingress = TelecomIngress(scope, CallStylePresenter(context), Listener, media)
         val sessions = CoreTelecomSessionManager(callsManager, ingress.systemActions(SystemActions), scope, ingress.audioObserver)
         val executor = ingress.executor(TelecomPlatformExecutor(scope, sessions, media, outgoing = sessions))
@@ -85,6 +90,22 @@ object CallHost {
                 CompletableFuture.completedFuture(ReconciliationOutcome.Unavailable(System.currentTimeMillis()))
             }).reconcile(System.currentTimeMillis()).thenAccept { if (it.isNotEmpty()) record("reconciled ${it.size} operations") }
         }
+    }
+
+    /** Test harness only: the call console issues LiveKit tokens as a backend would. */
+    private fun mediaCredentials(callId: String): MediaCredentials {
+        val body = JSONObject().put("callId", callId).put("identity", "callee").put("name", Build.MODEL).toString()
+        val connection = URL("http://127.0.0.1:8787/api/media-token").openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = 2000; connection.readTimeout = 2000; connection.requestMethod = "POST"
+            connection.doOutput = true; connection.setRequestProperty("content-type", "application/json")
+            connection.outputStream.use { it.write(body.toByteArray()) }
+            if (connection.responseCode != 200) error("console answered ${connection.responseCode}")
+            val reply = JSONObject(connection.inputStream.bufferedReader().readText())
+            MediaCredentials(reply.getString("url"), reply.getString("token"))
+        } catch (error: java.io.IOException) {
+            throw IllegalStateException("no media server; use \"Media connected (simulated)\" (${error.message})")
+        } finally { connection.disconnect() }
     }
 
     /** Test harness only: stands in for the signaling socket a real app would use. */
@@ -124,6 +145,8 @@ object CallHost {
         override fun onUserAnswered(callId: String) { record("answered from notification: $callId") }
         override fun onUserEnded(callId: String) { record("ended from notification: $callId") }
         override fun onRingTimedOut(callId: String) { record("ring deadline passed: $callId") }
+        override fun onCallAnswered(callId: String) { media.start(callId) }
+        override fun onCallEnded(callId: String) { media.stop(callId) }
         override fun onAudioEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>) {
             activeCallId = callId; currentEndpoint = current; endpoints = available
             record("audio: ${current.name} of ${available.joinToString { it.name }}")

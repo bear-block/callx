@@ -80,6 +80,18 @@ log; it is a test harness, not a Callx server.
 Invitations expire after 30 seconds by default (`--expires-in`); the call then ends as
 missed. The host log reports when FCM deprioritized a message.
 
+### Real audio (LiveKit)
+
+Run `npm run media:server` (Docker; a LiveKit server with the `--dev` keys on ports
+7880–7882) next to the console. The console then keeps `adb reverse` for 7880 and 7881 too,
+issues LiveKit tokens, and by default joins each invitation's room as the caller with the
+browser's microphone. When the call is answered on the device, from any surface, the host's
+`LiveKitCallMedia` joins the same room, and the host log shows `media connected (LiveKit)`
+once it hears the caller. The call card shows whether the browser hears the device. Media
+from an emulator travels over TCP through `adb reverse`; allow the emulator's virtual
+microphone to use host audio input to speak from it. Without the media server, answering
+logs `media failed` and the **Media connected (simulated)** button still works.
+
 ## iOS push (PushKit)
 
 The Simulator cannot receive VoIP pushes; use a device. VoIP pushes go straight to APNs,

@@ -1,0 +1,98 @@
+package dev.callx.preview.rn.device
+
+import android.content.Context
+import dev.callx.telecom.MediaMuteController
+import io.livekit.android.AudioOptions
+import io.livekit.android.LiveKit
+import io.livekit.android.LiveKitOverrides
+import io.livekit.android.audio.NoAudioHandler
+import io.livekit.android.events.RoomEvent
+import io.livekit.android.events.collect
+import io.livekit.android.room.Room
+import io.livekit.android.room.track.AudioTrack
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
+
+/** Where and as whom a call's media connects. A real app gets this from its backend. */
+data class MediaCredentials(val url: String, val token: String)
+
+/**
+ * Example media adapter: one LiveKit room per call, joined when the call is answered and left when
+ * it ends. It follows ADR-0004: Telecom owns routing, so LiveKit's own route manager
+ * (AudioSwitch) is replaced with [NoAudioHandler], and LiveKit plays on the voice-call stream.
+ * Media never decides the call's state; it only reports readiness through [onConnected].
+ */
+class LiveKitCallMedia(
+    context: Context,
+    private val scope: CoroutineScope,
+    private val credentials: suspend (callId: String) -> MediaCredentials,
+    /** The remote party's audio is subscribed: report `mediaConnected`. */
+    private val onConnected: (callId: String) -> Unit,
+    private val log: (String) -> Unit,
+) : MediaMuteController {
+    private val context = context.applicationContext
+    private class Session(val job: Job) {
+        @Volatile var room: Room? = null
+        @Volatile var muted = false
+    }
+    private val sessions = ConcurrentHashMap<String, Session>()
+
+    /** Joins the call's room. Returns at once; idempotent per call. */
+    fun start(callId: String) {
+        if (sessions.containsKey(callId)) return
+        lateinit var session: Session
+        session = Session(scope.launch(start = CoroutineStart.LAZY) {
+            val room = LiveKit.create(context, overrides = LiveKitOverrides(
+                audioOptions = AudioOptions(audioHandler = NoAudioHandler())))
+            session.room = room
+            // The job lives until stop() cancels it (the event collector never returns).
+            coroutineContext.job.invokeOnCompletion { room.release() }
+            try {
+                val (url, token) = credentials(callId)
+                launch {
+                    room.events.collect { event ->
+                        when (event) {
+                            is RoomEvent.TrackSubscribed -> if (event.track is AudioTrack) {
+                                log("media connected (LiveKit) for $callId: hearing ${event.participant.identity?.value}")
+                                onConnected(callId)
+                            }
+                            is RoomEvent.ParticipantDisconnected ->
+                                log("media: ${event.participant.identity?.value} left the room of $callId")
+                            is RoomEvent.Disconnected -> log("media: left the room of $callId (${event.reason})")
+                            else -> Unit
+                        }
+                    }
+                }
+                room.connect(url, token)
+                room.localParticipant.setMicrophoneEnabled(!session.muted)
+                log("media: joined the room of $callId, microphone ${if (session.muted) "muted" else "on"}")
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                log("media failed for $callId: ${error.message}")
+            }
+        })
+        if (sessions.putIfAbsent(callId, session) == null) session.job.start()
+    }
+
+    /** Leaves the call's room and releases LiveKit's resources. */
+    fun stop(callId: String) {
+        val session = sessions.remove(callId) ?: return
+        session.job.cancel()
+    }
+
+    /** Mute from the app or from another Telecom surface. Before joining, applies on join. */
+    override suspend fun setMuted(callId: String, muted: Boolean): Boolean {
+        val session = sessions[callId] ?: return false
+        session.muted = muted
+        val room = session.room ?: return true
+        return try {
+            room.localParticipant.setMicrophoneEnabled(!muted); true
+        } catch (error: Exception) {
+            log("media: mute failed for $callId: ${error.message}"); false
+        }
+    }
+}

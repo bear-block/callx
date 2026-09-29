@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // LiveKit's AudioSwitch fork, used by the example's LiveKitCallMedia.
+        maven("https://jitpack.io") { content { includeGroup("com.github.davidliu") } }
     }
 }
 

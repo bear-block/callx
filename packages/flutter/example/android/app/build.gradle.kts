@@ -54,4 +54,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
+    // Real call audio for device trials (see LiveKitCallMedia). Its AudioSwitch dependency comes from JitPack.
+    implementation("io.livekit:livekit-android:2.29.0")
 }

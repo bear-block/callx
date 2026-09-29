@@ -53,7 +53,7 @@ export default function App() {
         stop = current.callx.observe(value => {
           if (!mounted) return;
           setSnapshot(value);
-          setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaReady ? 'ready (simulated)' : 'not ready'}`, ...lines].slice(0,8));
+          setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaReady ? 'ready' : 'not ready'}`, ...lines].slice(0,8));
         });
         setReady(true);
         if (mode === 'device') {
@@ -115,7 +115,7 @@ export default function App() {
         </Pressable>)}
       </View>
       <View style={styles.notice}><Text style={styles.noticeText}>{mode === 'device'
-        ? 'DEVICE TRIAL · Real system call UI. Local signaling and Android FCM test pushes; media is simulated, no audio.'
+        ? 'DEVICE TRIAL · Real system call UI. Local signaling and Android FCM test pushes; Android audio is real with the media server (LiveKit), otherwise simulated.'
         : 'PREVIEW ONLY · No real calls, microphone, push or system call UI.'}</Text>
         {host?.platform === 'ios' && host.simulator && <Text style={styles.noticeText}>
           iOS Simulator may end CallKit calls immediately. Use an iPhone for call lifecycle trials.
@@ -128,7 +128,7 @@ export default function App() {
           <Text style={styles.caller}>{call?.displayName??'Your next conversation'}</Text>
           <Text style={styles.callDetail}>{call ? call.callId+' · '+call.direction : 'Trigger an invitation from the test controls.'}</Text>
           {call?.acceptedAtMs!==undefined&&call.state!=='ended'&&<CallTimer startedAtMs={call.acceptedAtMs}/>}
-          <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaReady?'● Media ready — simulated, no audio':'○ Media not connected'}</Text>
+          <Text style={[styles.callDetail,{marginTop:24}]}>{call?.mediaReady?'● Media ready':'○ Media not connected'}</Text>
           {call?.endReason&&<Text style={styles.callDetail}>Reason: {call.endReason}</Text>}
           <View style={[styles.buttons,{marginTop:24,justifyContent:'center'}]}>
             {button('Answer',p=>p.callx.answer(call!.callId),call?.state==='incoming','dark')}
