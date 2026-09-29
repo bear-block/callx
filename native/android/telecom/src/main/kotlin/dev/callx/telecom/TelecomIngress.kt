@@ -56,6 +56,13 @@ interface TelecomIngressListener {
     /** The user declined or hung up from the notification. */
     fun onUserEnded(callId: String) {}
     fun onRingTimedOut(callId: String) {}
+    /**
+     * The call was answered, from any surface or by the remote side of an outgoing call. Start media
+     * here. Runs under the ingress lock: return quickly and connect asynchronously.
+     */
+    fun onCallAnswered(callId: String) {}
+    /** The call ended for any reason, including one that never rang. Stop media; also runs under the lock. */
+    fun onCallEnded(callId: String) {}
     /** Audio routes changed; offer them in your call UI and switch with [TelecomIngress.requestAudioEndpoint]. */
     fun onAudioEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>) {}
 }
@@ -102,7 +109,7 @@ class TelecomIngress(
             withinBudget("answer") { host.answer(callId, callType) }
             synchronized(presentationLock) {
                 if (runtime.platformAnswered(callId)) {
-                    cancelRing(callId); presenter.showOngoing(callId, answeredAt(callId))
+                    cancelRing(callId); presentAnswered(callId, answeredAt(callId))
                 }
             }
         }
@@ -188,7 +195,7 @@ class TelecomIngress(
     /** Records that the remote party accepted an outgoing call and makes the Telecom call active. */
     suspend fun remoteAnswered(callId: String) {
         val answered = synchronized(presentationLock) {
-            runtime.remoteAnswered(callId).also { if (it) presenter.showOngoing(callId, answeredAt(callId)) }
+            runtime.remoteAnswered(callId).also { if (it) presentAnswered(callId, answeredAt(callId)) }
         }
         // setHeld(false) is CallControlScope.setActive for a Core-Telecom call.
         if (answered) sessions.resolve(callId)?.setHeld(false)
@@ -231,7 +238,7 @@ class TelecomIngress(
             CommandType.answer -> {
                 registrations[command.callId]?.answered = true
                 // The coordinator commits acceptedAtMs after the executor reports Applied, i.e. right now.
-                cancelRing(command.callId); presenter.showOngoing(command.callId, answeredAt(command.callId) ?: nowMs())
+                cancelRing(command.callId); presentAnswered(command.callId, answeredAt(command.callId) ?: nowMs())
             }
             CommandType.end -> {
                 registrations[command.callId]?.endedReason =
@@ -282,7 +289,8 @@ class TelecomIngress(
                     presenter.showIncoming(invitation)
                     scheduleRing(invitation.callId, requireNotNull(latest.ringDeadlineAtMs))
                 } else {
-                    // The system answered while registration was completing.
+                    // The system answered while registration was completing; that path already
+                    // told the listener.
                     presenter.showOngoing(invitation.callId, answeredAt(invitation.callId))
                 }
                 listener?.onInvitationAccepted(invitation)
@@ -328,6 +336,10 @@ class TelecomIngress(
     /** Every terminal path ends here, whichever presenter the host uses. */
     private fun dismissCall(callId: String) {
         presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
+        listener?.onCallEnded(callId)
+    }
+    private fun presentAnswered(callId: String, answeredAtMs: Long?) {
+        presenter.showOngoing(callId, answeredAtMs); listener?.onCallAnswered(callId)
     }
     private fun answeredAt(callId: String) = runtime.currentCall()?.takeIf { it.callId == callId }?.acceptedAtMs
 

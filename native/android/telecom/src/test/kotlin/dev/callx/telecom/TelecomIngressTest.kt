@@ -65,6 +65,9 @@ private class RecordingListener : TelecomIngressListener {
     override fun onUserAnswered(callId: String) { answered += callId }
     override fun onUserEnded(callId: String) { ended += callId }
     override fun onRingTimedOut(callId: String) { timedOut += callId }
+    val media = list<String>()
+    override fun onCallAnswered(callId: String) { media += "answered:$callId" }
+    override fun onCallEnded(callId: String) { media += "ended:$callId" }
 }
 
 private class FakeMedia(var accept: Boolean = true) : MediaMuteController {
@@ -144,6 +147,30 @@ class TelecomIngressTest {
             assertTrue(h.presenter.incoming.isEmpty())
             assertEquals("connecting", h.state())
             assertTrue(h.presenter.ongoing.contains("call-1"))
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun mediaHearsEveryAnswerAndEndOnce() = runBlocking {
+        val h = Harness()
+        try {
+            // Answer from Dart/JS, then a remote end.
+            h.ingress.handleInvitation(h.invitation("call-1"))
+            h.command("answer", "call-1")
+            assertTrue(eventually { h.listener.media.contains("answered:call-1") })
+            h.ingress.remoteEnded("call-1")
+            // Answer from another Telecom surface, then a hangup from the app.
+            h.ingress.handleInvitation(h.invitation("call-2"))
+            h.ingress.systemActions(h.host()).answer("call-2", 1)
+            h.command("end", "call-2")
+            assertTrue(eventually { h.listener.media.contains("ended:call-2") })
+            // An outgoing call starts media when the remote side answers.
+            h.runtime.execute(mapOf("contractVersion" to "0.1.0", "operationId" to "start-3", "type" to "startCall",
+                "input" to mapOf("callId" to "call-3", "displayName" to "hao.dev7", "handle" to "+84902")))
+                .toCompletableFuture().join()
+            assertFalse(h.listener.media.contains("answered:call-3"))
+            h.ingress.remoteAnswered("call-3")
+            assertEquals(listOf("answered:call-1", "ended:call-1", "answered:call-2", "ended:call-2", "answered:call-3"),
+                h.listener.media)
         } finally { h.scope.cancel() }
     }
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `TelecomIngressListener.onCallAnswered` and `onCallEnded` tell the host to start and
+  stop media once per call, whichever surface answered or ended it.
+- The example host joins a LiveKit room per call for real audio in device trials
+  ([ADR-0008](https://github.com/bear-block/callx/blob/main/docs/adr/0008-first-media-adapter-livekit.md)).
 - Android incoming calls use a versioned ringtone channel and repeat ringing until
   answered, ended or silenced; ongoing calls use a silent channel. Native incoming UI
   forwards volume-down to `TelecomIngress.silenceIncoming`.
