@@ -49,11 +49,23 @@ The root package is a private TypeScript prototype. Publishable packages live un
 
 ```sh
 npm ci
-npm test
-npm run typecheck
-npm run contract:test
-./tool/check_native_sources.sh
+npm run test:all      # every suite: tools, contract, typecheck, parity, Kotlin, Swift, Flutter, RN
+npm run test:quick    # the same without the native Kotlin and Swift suites
 ```
+
+Build and run an example straight on a device:
+
+```sh
+npm run android:flutter   # or android:rn, ios:flutter, ios:rn
+npm run app -- rn ios --device <udid> --release   # any example/platform, with options
+npm run build:android     # build both examples without a device (also build:ios)
+```
+
+Android uses the first connected device or boots the first emulator (`--avd <name>`), and
+uninstalls the other example first because both share the package `dev.bearblock.callx`.
+iOS uses the booted simulator or boots an iPhone simulator (`--simulator <name>`); pass
+`--device <udid>` for a physical iPhone. Unlock a freshly booted device once: until then
+Android does not start the app.
 
 Edit canonical native sources under `native/`, then run
 `./tool/sync_native_sources.sh` and verify parity again. Each distributed package
