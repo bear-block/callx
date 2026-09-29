@@ -8,6 +8,12 @@
 // packages/secrets/. The example apps post their FCM token and host log to
 // http://127.0.0.1:8787 once a second; the console keeps `adb reverse` set up so that address
 // reaches this machine from every connected device. Test harness only: no auth, localhost only.
+//
+// Real audio: start a local LiveKit server with `npm run media:server`. The console then issues
+// LiveKit tokens to the app (/api/media-token) and lets this page join each call as the caller.
+// Options: --livekit-url (default ws://127.0.0.1:7880), --livekit-key, --livekit-secret
+// (default devkey/secret, the `livekit-server --dev` credentials).
+import { createHmac } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -35,6 +41,16 @@ const TRANSITIONS = [
 export function statusFrom(message) {
   for (const [pattern, status] of TRANSITIONS) if (pattern.test(message)) return status;
   return null;
+}
+
+/** A LiveKit access token (HS256 JWT) that lets [identity] join room [room] with audio. */
+export function liveKitToken({ key, secret, room, identity, name, nowSeconds = Math.floor(Date.now() / 1000), ttlSeconds = 3600 }) {
+  const part = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const unsigned = `${part({ alg: 'HS256', typ: 'JWT' })}.${part({
+    iss: key, sub: identity, name: name ?? identity, nbf: nowSeconds, exp: nowSeconds + ttlSeconds,
+    video: { room, roomJoin: true, canPublish: true, canSubscribe: true },
+  })}`;
+  return `${unsigned}.${createHmac('sha256', secret).update(unsigned).digest('base64url')}`;
 }
 
 /** Host log lines start with "HH:mm:ss  ". */
@@ -116,11 +132,12 @@ function findServiceAccount(directory) {
 }
 
 const run = promisify(execFile);
-async function reverse(port) {
+async function reverse(ports) {
   try {
     const { stdout } = await run('adb', ['devices']);
     const serials = stdout.split('\n').slice(1).map((line) => line.split('\t')).filter(([, state]) => state === 'device').map(([serial]) => serial);
-    await Promise.all(serials.map((serial) => run('adb', ['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`])));
+    await Promise.all(serials.flatMap((serial) => ports.map((port) =>
+      run('adb', ['-s', serial, 'reverse', `tcp:${port}`, `tcp:${port}`]))));
     return serials.length ? `adb reverse on ${serials.join(', ')}` : 'no device connected over adb';
   } catch (error) {
     return `adb unavailable: ${error.code === 'ENOENT' ? 'not on PATH' : error.message.split('\n')[0]}`;
@@ -144,12 +161,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (!serviceAccount) throw new Error('No service account. Put the Firebase private key JSON in packages/secrets/ or pass --service-account.');
     return sendAndroid({ ...options, serviceAccount });
   } });
-  let adb = await reverse(port);
-  setInterval(async () => { adb = await reverse(port); }, 5000).unref();
+  const liveKit = { url: option('livekit-url') ?? 'ws://127.0.0.1:7880',
+    key: option('livekit-key') ?? 'devkey', secret: option('livekit-secret') ?? 'secret' };
+  // 7880 is LiveKit signaling and 7881 its ICE/TCP port: media from a device reaches it over adb.
+  const reversed = [port, ...(/^wss?:\/\/127\.0\.0\.1:7880$/.test(liveKit.url) ? [7880, 7881] : [])];
+  let adb = await reverse(reversed);
+  setInterval(async () => { adb = await reverse(reversed); }, 5000).unref();
 
   const routes = {
     'GET /': (_, response) => response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(page),
-    'GET /api/state': () => ({ ...console_.snapshot(), serviceAccount: serviceAccount ?? null, adb }),
+    'GET /api/state': () => ({ ...console_.snapshot(), serviceAccount: serviceAccount ?? null, adb, liveKitUrl: liveKit.url }),
+    // A real backend issues these after authenticating the user and checking call membership.
+    'POST /api/media-token': ({ callId, identity, name }) => {
+      if (!callId || !identity) throw new Error('callId and identity are required.');
+      return { url: liveKit.url, token: liveKitToken({ ...liveKit, room: `call-${callId}`, identity, name }) };
+    },
     'POST /api/device': (payload) => { console_.report(payload); return {}; },
     'POST /api/invite': (payload) => console_.invite(payload),
     'POST /api/signal': (payload) => console_.signal(payload),

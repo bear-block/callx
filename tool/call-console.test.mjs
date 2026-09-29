@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createConsole, statusFrom } from './call-console.mjs';
+import { createHmac } from 'node:crypto';
+import { createConsole, liveKitToken, statusFrom } from './call-console.mjs';
 
 function harness() {
   let clock = 1_000;
@@ -57,4 +58,13 @@ test('signals reach the invited device and undelivered invitations expire', asyn
 test('invites need a device with a token', async () => {
   const { console_ } = harness();
   await assert.rejects(console_.invite({ device: 'missing' }), /FCM token/);
+});
+
+test('LiveKit tokens admit one identity to the call room', () => {
+  const token = liveKitToken({ key: 'devkey', secret: 'secret', room: 'call-c1', identity: 'callee', nowSeconds: 100 });
+  const [header, claims, signature] = token.split('.');
+  assert.equal(signature, createHmac('sha256', 'secret').update(`${header}.${claims}`).digest('base64url'));
+  const decoded = JSON.parse(Buffer.from(claims, 'base64url'));
+  assert.deepEqual({ iss: decoded.iss, sub: decoded.sub, exp: decoded.exp }, { iss: 'devkey', sub: 'callee', exp: 3700 });
+  assert.deepEqual(decoded.video, { room: 'call-c1', roomJoin: true, canPublish: true, canSubscribe: true });
 });

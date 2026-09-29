@@ -14,7 +14,8 @@
     "test": "node --test src/*.test.ts tool/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "push:test": "node tool/send-test-push.mjs",
-    "call:console": "node tool/call-console.mjs"
+    "call:console": "node tool/call-console.mjs",
+    "media:server": "docker run --rm --name callx-livekit -p 7880:7880 -p 7881:7881 -p 7882:7882/udp livekit/livekit-server:v1.13.7 --dev --bind 0.0.0.0 --node-ip 127.0.0.1"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
