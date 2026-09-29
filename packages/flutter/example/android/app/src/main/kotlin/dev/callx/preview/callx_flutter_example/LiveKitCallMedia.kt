@@ -1,6 +1,8 @@
 package dev.callx.preview.callx_flutter_example
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import dev.callx.telecom.MediaMuteController
 import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
@@ -92,11 +94,12 @@ class LiveKitCallMedia(
                     }
                 }
                 room.connect(url, token)
-                room.localParticipant.setMicrophoneEnabled(!session.muted)
-                log("media: joined the room of $callId, microphone ${if (session.muted) "muted" else "on"}")
-            } catch (error: Exception) {
+                log("media: joined the room of $callId")
+                enableMicrophone(callId, room, !session.muted)
+            } catch (error: Throwable) {
+                // WebRTC reports some device failures as Errors; media must never crash the app.
                 if (error is kotlinx.coroutines.CancellationException) throw error
-                log("media failed for $callId: ${error.message}")
+                log("media failed for $callId: $error")
             }
         })
         if (sessions.putIfAbsent(callId, session) == null) session.job.start()
@@ -113,10 +116,24 @@ class LiveKitCallMedia(
         val session = sessions[callId] ?: return false
         session.muted = muted
         val room = session.room ?: return true
+        return enableMicrophone(callId, room, !muted)
+    }
+
+    /**
+     * Without RECORD_AUDIO Android refuses the microphone and WebRTC throws an AssertionError, so
+     * check first: the call stays connected and this device only listens.
+     */
+    private suspend fun enableMicrophone(callId: String, room: Room, enabled: Boolean): Boolean {
+        if (enabled && context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            log("media: no microphone permission for $callId; listening only. Grant it before the next call.")
+            return false
+        }
         return try {
-            room.localParticipant.setMicrophoneEnabled(!muted); true
-        } catch (error: Exception) {
-            log("media: mute failed for $callId: ${error.message}"); false
+            room.localParticipant.setMicrophoneEnabled(enabled)
+            log("media: microphone ${if (enabled) "on" else "muted"} for $callId"); true
+        } catch (error: Throwable) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            log("media: microphone failed for $callId: $error"); false
         }
     }
 }

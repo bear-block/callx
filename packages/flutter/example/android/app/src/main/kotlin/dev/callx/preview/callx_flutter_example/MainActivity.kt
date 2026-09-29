@@ -2,6 +2,7 @@ package dev.callx.preview.callx_flutter_example
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -20,7 +21,13 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); CallxLockScreen.onIntent(this, intent)
+        // Ask while the app is in use: the prompt cannot appear once a call rings on the lock screen.
+        val missing = runtimePermissions().filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+        if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
     }
+
+    private fun runtimePermissions() = listOfNotNull(Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.POST_NOTIFICATIONS.takeIf { Build.VERSION.SDK_INT >= 33 })
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); CallxLockScreen.onIntent(this, intent)
@@ -48,9 +55,7 @@ class MainActivity : FlutterActivity() {
                         "current" to (it == CallHost.currentEndpoint)) },
                 ))
                 "requestPermissions" -> {
-                    val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
-                    if (Build.VERSION.SDK_INT >= 33) permissions += Manifest.permission.POST_NOTIFICATIONS
-                    ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1)
+                    ActivityCompat.requestPermissions(this, runtimePermissions().toTypedArray(), 1)
                     result.success(null)
                 }
                 "incoming" -> reply {

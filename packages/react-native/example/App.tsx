@@ -22,6 +22,8 @@ function CallTimer({startedAtMs}: {startedAtMs: number}) {
 export default function App() {
   const preview = useRef<Preview | null>(null);
   const [mode, setMode] = useState<'simulator' | 'device'>(hasDeviceHost ? 'device' : 'simulator');
+  // Ask while the app is in use: the prompt cannot appear once a call rings on the lock screen.
+  useEffect(() => { if (mode === 'device') requestPermissions().catch(() => {}); }, [mode]);
   const [host, setHost] = useState<HostStatus | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot>({sequence:'0',call:null});
   const [timeline, setTimeline] = useState<string[]>([]);
