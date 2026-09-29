@@ -73,8 +73,9 @@ export function fcmMessage(options, payload) {
       ? { type: 'call.ended', callId: options.callId, reason: options.reason ?? 'remoteEnded' }
       : { type: 'call.accepted', callId: options.callId }) };
   } else throw new Error('--message must be invite, end or accept.');
-  // Zero TTL drops an invitation that cannot be delivered now instead of ringing late.
-  return { message: { token: options.token, android: { priority: 'HIGH', ttl: '0s' }, data } };
+  // Only a visible invitation warrants high priority. Test-only signals make no notification.
+  return { message: { token: options.token,
+    android: { priority: message === 'invite' ? 'HIGH' : 'NORMAL', ttl: '0s' }, data } };
 }
 
 export function apnsToken(keyPem, keyId, teamId, nowSeconds = Math.floor(Date.now() / 1000)) {

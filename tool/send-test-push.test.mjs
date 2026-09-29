@@ -29,7 +29,9 @@ test('FCM invitation is data-only, high priority and zero TTL', () => {
 test('FCM test signals need a call ID', () => {
   assert.throws(() => fcmMessage({ token: 't', message: 'end' }, invitation({})), /--call-id/);
   const { message } = fcmMessage({ token: 't', message: 'end', callId: 'c1', reason: 'callerCancelled' }, invitation({}));
+  assert.deepEqual(message.android, { priority: 'NORMAL', ttl: '0s' });
   assert.deepEqual(JSON.parse(message.data.callxTest), { type: 'call.ended', callId: 'c1', reason: 'callerCancelled' });
+  assert.equal(fcmMessage({ token: 't', message: 'accept', callId: 'c1' }, invitation({})).message.android.priority, 'NORMAL');
   assert.throws(() => fcmMessage({ token: 't', message: 'ring' }, invitation({})), /must be invite/);
 });
 
