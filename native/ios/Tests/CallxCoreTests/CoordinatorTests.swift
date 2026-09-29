@@ -35,6 +35,44 @@ import Foundation
     #expect(await core.snapshot()?.mediaReady == false)
 }
 
+@Test func mediaInterruptionIsAnObservationThatNeverChangesTheCall() async {
+    let core = CallCoordinator()
+    await core.reportIncoming(callID: "call-1", displayName: "hao.dev7", handle: "+84901", nowMs: 900)
+    // Media that never connected cannot be interrupted.
+    #expect(await core.mediaInterrupted(callID: "call-1", nowMs: 950) == false)
+    await core.platformAnswered(callID: "call-1", nowMs: 1_000)
+    #expect(await core.mediaInterrupted(callID: "call-1", nowMs: 1_050) == false)
+    await core.mediaConnected(callID: "call-1", nowMs: 1_100)
+    #expect(await core.mediaInterrupted(callID: "other-call", nowMs: 1_150) == false)
+    #expect(await core.mediaInterrupted(callID: "call-1", nowMs: 1_200))
+    #expect(await core.mediaInterrupted(callID: "call-1", nowMs: 1_250) == false)
+    #expect(await core.snapshot()?.state == .active)
+    #expect(await core.snapshot()?.mediaReady == true)
+    #expect(await core.snapshot()?.mediaInterrupted == true)
+    // Hold and resume keep the observation; only media clears it.
+    await core.platformHeld(callID: "call-1", held: true, nowMs: 1_300)
+    await core.platformHeld(callID: "call-1", held: false, nowMs: 1_400)
+    #expect(await core.snapshot()?.mediaInterrupted == true)
+    await core.mediaConnected(callID: "call-1", nowMs: 1_500)
+    #expect(await core.snapshot()?.mediaInterrupted == false)
+    #expect(await core.snapshot()?.mediaConnectedAtMs == 1_100)
+    #expect(await core.snapshot()?.state == .active)
+    // Ending clears it, and an ended call cannot be interrupted.
+    await core.mediaInterrupted(callID: "call-1", nowMs: 1_600)
+    await core.remoteEnded(callID: "call-1", nowMs: 1_700)
+    #expect(await core.snapshot()?.mediaInterrupted == false)
+    #expect(await core.mediaInterrupted(callID: "call-1", nowMs: 1_800) == false)
+}
+
+@Test func mediaInterruptionSurvivesACheckpointAndOldCheckpointsStillLoad() throws {
+    var record = CallRecord(callID: "call-1", state: .active, mediaReady: true, direction: .incoming)
+    let old = try JSONEncoder().encode(record)
+    #expect(try JSONDecoder().decode(CallRecord.self, from: old).mediaInterrupted == false)
+    record.mediaInterrupted = true
+    let saved = try JSONDecoder().decode(CallRecord.self, from: try JSONEncoder().encode(record))
+    #expect(saved.mediaInterrupted == true)
+}
+
 @Test func checkpointRecoversPendingAndCompletedOperations() async throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }

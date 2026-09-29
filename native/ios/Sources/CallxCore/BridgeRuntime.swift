@@ -155,6 +155,14 @@ public actor BridgeRuntime {
         try await coordinator.durableMediaConnected(callID: callID, nowMs: observedAtMs ?? nowMs())
         await publishNewEvents()
     }
+    /// Media that had connected dropped; call ``mediaConnected(callID:observedAtMs:)`` when it is
+    /// back. It never ends or holds the call: end it through signaling if media does not return.
+    @discardableResult
+    public func mediaInterrupted(callID: String, observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let changed = try await coordinator.durableMediaInterrupted(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return changed
+    }
     /// Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later.
     @discardableResult
     public func remoteEnded(callID: String, reason: String = "remoteEnded", observedAtMs: Int64? = nil) async throws -> Bool {
@@ -277,7 +285,8 @@ public actor BridgeRuntime {
         }
         var result: BridgeObject = ["callId": .string(value.callID), "displayName": .string(displayName),
             "direction": .string(direction.rawValue), "state": .string(value.state.rawValue),
-            "muted": .bool(value.muted), "mediaReady": .bool(value.mediaReady)]
+            "muted": .bool(value.muted), "mediaReady": .bool(value.mediaReady),
+            "mediaInterrupted": .bool(value.mediaInterrupted)]
         if let item = value.endReason { result["endReason"] = .string(item) }
         if let item = value.createdAtMs { result["createdAtMs"] = .integer(item) }
         if let item = value.acceptedAtMs { result["acceptedAtMs"] = .integer(item) }

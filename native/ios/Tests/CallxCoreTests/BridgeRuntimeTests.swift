@@ -42,6 +42,12 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
     }
     #expect(try await bridge.execute(command("answer", "answer"))["status"] == .string("applied"))
     try await bridge.mediaConnected(callID: "call-1", observedAtMs: 1_200)
+    #expect(try await bridge.mediaInterrupted(callID: "call-1", observedAtMs: 1_250))
+    guard case .object(let interrupted) = try await bridge.getSnapshot()["call"] else { Issue.record("missing call"); return }
+    #expect(interrupted["mediaInterrupted"] == .bool(true))
+    try await bridge.mediaConnected(callID: "call-1", observedAtMs: 1_280)
+    guard case .object(let resumed) = try await bridge.getSnapshot()["call"] else { Issue.record("missing call"); return }
+    #expect(resumed["mediaInterrupted"] == .bool(false))
     #expect(try await bridge.execute(command("mute", "setMuted", value: true))["status"] == .string("applied"))
     #expect(try await bridge.execute(command("hold", "setHeld", value: true))["status"] == .string("applied"))
     guard case .object(let held) = try await bridge.getSnapshot()["call"] else { Issue.record("missing call"); return }

@@ -60,6 +60,7 @@ object CoordinatorCheckpointCodec {
         value.createdAtMs?.let { put("createdAtMs", it) }; value.acceptedAtMs?.let { put("acceptedAtMs", it) }
         value.mediaConnectedAtMs?.let { put("mediaConnectedAtMs", it) }; value.endedAtMs?.let { put("endedAtMs", it) }
         value.ringDeadlineAtMs?.let { put("ringDeadlineAtMs", it) }
+        if (value.mediaInterrupted) put("mediaInterrupted", true)
     }
     private fun decodeCall(value: JsonObject) = CallRecord(value.text("callId"), CallState.valueOf(value.text("state")),
         value.getValue("muted").jsonPrimitive.boolean, value.getValue("mediaReady").jsonPrimitive.boolean,
@@ -68,7 +69,8 @@ object CoordinatorCheckpointCodec {
         value["direction"]?.jsonPrimitive?.contentOrNull?.let(CallDirection::valueOf),
         value["createdAtMs"]?.jsonPrimitive?.longOrNull, value["acceptedAtMs"]?.jsonPrimitive?.longOrNull,
         value["mediaConnectedAtMs"]?.jsonPrimitive?.longOrNull, value["endedAtMs"]?.jsonPrimitive?.longOrNull,
-        value["ringDeadlineAtMs"]?.jsonPrimitive?.longOrNull)
+        value["ringDeadlineAtMs"]?.jsonPrimitive?.longOrNull,
+        value["mediaInterrupted"]?.jsonPrimitive?.booleanOrNull ?: false)
     private fun encodeCommand(value: NativeCommand) = buildJsonObject {
         put("operationId", value.operationId); put("type", value.type.name); put("callId", value.callId)
         value.value?.let { put("value", it) }; value.displayName?.let { put("displayName", it) }

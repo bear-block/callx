@@ -69,6 +69,8 @@ class ContractValidator(private val manifest: JsonObject) {
         boolean(value["muted"], "$path.muted"); boolean(value["mediaReady"], "$path.mediaReady")
         val state = value.string("state"); if (state == "active") { require(value["mediaReady"]?.jsonPrimitive?.boolean == true, "active media"); require(value["mediaConnectedAtMs"] != null, "active milestone") }
         if (state == "ended") member(value["endReason"], reasons, "$path.endReason") else require(value["endReason"] == null, "live reason")
+        value["mediaInterrupted"]?.let { boolean(it, "$path.mediaInterrupted")
+            if (it.jsonPrimitive.boolean) require(state in setOf("active", "held") && value["mediaReady"]?.jsonPrimitive?.boolean == true, "interrupted media") }
         listOf("createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs").forEach { field -> value[field]?.let { timestamp(it, "$path.$field") } }
     }
     private fun snapshot(value: JsonObject) {

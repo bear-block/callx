@@ -8,7 +8,9 @@ data class CallRecord(val callId: String, val state: CallState, val muted: Boole
     val mediaReady: Boolean = false, val endReason: String? = null,
     val displayName: String? = null, val handle: String? = null, val direction: CallDirection? = null,
     val createdAtMs: Long? = null, val acceptedAtMs: Long? = null,
-    val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null, val ringDeadlineAtMs: Long? = null)
+    val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null, val ringDeadlineAtMs: Long? = null,
+    /** Media connected once and has since dropped; the call itself is unaffected. */
+    val mediaInterrupted: Boolean = false)
 /** A call that ended; its ID is never used again while the record is retained. */
 data class TerminalRecord(val callId: String, val reason: String, val endedAtMs: Long)
 /** Why an incoming invitation did or did not create a call. */
@@ -137,10 +139,27 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun mediaConnected(callId: String, nowMs: Long) {
         val current = call ?: return
-        if (current.callId != callId || current.state !in setOf(CallState.connecting, CallState.held)) return
-        call = current.copy(state = if (current.state == CallState.held) CallState.held else CallState.active,
-            mediaReady = true, mediaConnectedAtMs = nowMs)
+        if (current.callId != callId) return
+        call = when {
+            // Media came back after an interruption; the first connection time stays.
+            current.mediaInterrupted -> current.copy(mediaInterrupted = false)
+            current.state in setOf(CallState.connecting, CallState.held) ->
+                current.copy(state = if (current.state == CallState.held) CallState.held else CallState.active,
+                    mediaReady = true, mediaConnectedAtMs = nowMs)
+            else -> return
+        }
         journal.append("callChanged", nowMs, callId, source = EventSource.media)
+    }
+    /**
+     * Media that had connected dropped, for example while the media SDK reconnects. Only an
+     * observation: it never ends or holds the call. True when state changed.
+     */
+    @Synchronized fun mediaInterrupted(callId: String, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId || current.mediaInterrupted || !current.mediaReady ||
+            current.state !in setOf(CallState.active, CallState.held)) return false
+        call = current.copy(mediaInterrupted = true)
+        journal.append("callChanged", nowMs, callId, source = EventSource.media); return true
     }
     /** Ends the live call, or records a tombstone so a later invitation for this ID cannot ring. */
     @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0): Boolean {
@@ -150,8 +169,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     private fun end(callId: String, reason: String, source: EventSource, nowMs: Long): Boolean {
         val current = call ?: return false; if (current.callId != callId || current.state == CallState.ended) return false
-        call = current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs,
-            ringDeadlineAtMs = null)
+        call = current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
+            endedAtMs = nowMs, ringDeadlineAtMs = null)
         recordTerminal(callId, reason, nowMs)
         journal.append("callChanged", nowMs, callId, source = source)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
@@ -234,8 +253,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             CommandType.end -> {
                 val reason = if (current.state == CallState.incoming) "declined" else "localHangup"
                 recordTerminal(current.callId, reason, nowMs)
-                current.copy(state = CallState.ended, mediaReady = false, endReason = reason, endedAtMs = nowMs,
-                    ringDeadlineAtMs = null)
+                current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
+                    endedAtMs = nowMs, ringDeadlineAtMs = null)
             }
             CommandType.setMuted -> current.copy(muted = command.value!!)
             CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
@@ -310,6 +329,9 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableMediaConnected(callId: String, nowMs: Long) {
         val before = checkpoint(); mediaConnected(callId, nowMs); persistOrRestore(before)
+    }
+    @Synchronized fun durableMediaInterrupted(callId: String, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = mediaInterrupted(callId, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long): Boolean {
         val before = checkpoint(); val result = remoteEnded(callId, reason, nowMs); persistOrRestore(before); return result

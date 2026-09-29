@@ -73,6 +73,7 @@ final class Call {
     required this.state,
     this.muted = false,
     this.mediaReady = false,
+    this.mediaInterrupted = false,
     this.endReason,
     this.createdAtMs,
     this.acceptedAtMs,
@@ -85,6 +86,10 @@ final class Call {
   final CallState state;
   final bool muted;
   final bool mediaReady;
+
+  /// Media connected once and has since dropped, for example while the media SDK
+  /// reconnects. The call is still live; show a reconnecting state.
+  final bool mediaInterrupted;
   final EndReason? endReason;
   final int? createdAtMs;
   final int? acceptedAtMs;
@@ -94,6 +99,7 @@ final class Call {
     CallState? state,
     bool? muted,
     bool? mediaReady,
+    bool? mediaInterrupted,
     EndReason? endReason,
     int? createdAtMs,
     int? acceptedAtMs,
@@ -106,6 +112,7 @@ final class Call {
     state: state ?? this.state,
     muted: muted ?? this.muted,
     mediaReady: mediaReady ?? this.mediaReady,
+    mediaInterrupted: mediaInterrupted ?? this.mediaInterrupted,
     endReason: endReason ?? this.endReason,
     createdAtMs: createdAtMs ?? this.createdAtMs,
     acceptedAtMs: acceptedAtMs ?? this.acceptedAtMs,

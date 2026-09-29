@@ -24,6 +24,11 @@ export interface Call {
   readonly state: CallState;
   readonly muted: boolean;
   readonly mediaReady: boolean;
+  /**
+   * Media connected once and has since dropped, for example while the media SDK reconnects.
+   * The call is still live; show a reconnecting state. Absent means false.
+   */
+  readonly mediaInterrupted?: boolean;
   readonly endReason?: EndReason;
   readonly createdAtMs?: number;
   readonly acceptedAtMs?: number;

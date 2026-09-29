@@ -23,6 +23,37 @@ class CoordinatorTest {
         assertEquals(CallState.active, core.snapshot()?.state); assertTrue(core.snapshot()!!.mediaReady)
         assertEquals(1_300, core.snapshot()?.mediaConnectedAtMs)
     }
+    @Test fun mediaInterruptionIsAnObservationThatNeverChangesTheCall() {
+        val core = CallCoordinator(); core.reportIncoming("call-1", 900, "hao.dev7", "+84901")
+        // Media that never connected cannot be interrupted.
+        assertFalse(core.mediaInterrupted("call-1", 950))
+        core.prepare(NativeCommand("answer", CommandType.answer, "call-1", deadlineAtMs = 5_000), 1_000)
+        core.completeApplied("answer", 1_000); assertFalse(core.mediaInterrupted("call-1", 1_050))
+        core.mediaConnected("call-1", 1_100)
+        assertFalse(core.mediaInterrupted("other-call", 1_150))
+        assertTrue(core.mediaInterrupted("call-1", 1_200)); assertFalse(core.mediaInterrupted("call-1", 1_250))
+        val interrupted = core.snapshot()!!
+        assertEquals(CallState.active, interrupted.state); assertTrue(interrupted.mediaReady); assertTrue(interrupted.mediaInterrupted)
+        // Hold and resume keep the observation; only media clears it.
+        core.platformHeld("call-1", true, 1_300); core.platformHeld("call-1", false, 1_400)
+        assertTrue(core.snapshot()!!.mediaInterrupted)
+        core.mediaConnected("call-1", 1_500)
+        assertFalse(core.snapshot()!!.mediaInterrupted); assertEquals(1_100, core.snapshot()?.mediaConnectedAtMs)
+        assertEquals(CallState.active, core.snapshot()?.state)
+        // Ending clears it, and an ended call cannot be interrupted.
+        core.mediaInterrupted("call-1", 1_600); core.remoteEnded("call-1", nowMs = 1_700)
+        assertFalse(core.snapshot()!!.mediaInterrupted); assertFalse(core.mediaInterrupted("call-1", 1_800))
+    }
+    @Test fun mediaInterruptionSurvivesACheckpoint() {
+        val directory = createTempDirectory("callx-core-")
+        try {
+            val store = CoordinatorFileStore(directory.resolve("coordinator.json"))
+            val core = CallCoordinator(); core.reportIncoming("call-1", 900, "hao.dev7", "+84901")
+            core.platformAnswered("call-1", 1_000); core.mediaConnected("call-1", 1_100); core.mediaInterrupted("call-1", 1_200)
+            store.save(core.checkpoint())
+            assertTrue(CallCoordinator(requireNotNull(store.load())).snapshot()!!.mediaInterrupted)
+        } finally { directory.toFile().deleteRecursively() }
+    }
     @Test fun checkpointRecoversPendingAndCompletedOperations() {
         val directory = createTempDirectory("callx-core-")
         try {

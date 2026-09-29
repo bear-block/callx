@@ -260,6 +260,7 @@ final class NativeCallxBackend implements CallxBackend {
     state: _enum(CallState.values, _string(map, 'state')),
     muted: map['muted'] == true,
     mediaReady: map['mediaReady'] == true,
+    mediaInterrupted: map['mediaInterrupted'] == true,
     endReason: map['endReason'] == null
         ? null
         : _enum(EndReason.values, _string(map, 'endReason')),

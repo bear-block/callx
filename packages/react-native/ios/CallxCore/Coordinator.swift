@@ -19,15 +19,23 @@ public struct CallRecord: Codable, Equatable, Sendable {
     public var mediaConnectedAtMs: Int64?
     public var endedAtMs: Int64?
     public var ringDeadlineAtMs: Int64?
+    /// Media connected once and has since dropped; the call itself is unaffected.
+    public var mediaInterrupted: Bool {
+        get { mediaInterruptedFlag ?? false }
+        set { mediaInterruptedFlag = newValue ? true : nil }
+    }
+    // Optional so checkpoints written before this field existed still decode.
+    private var mediaInterruptedFlag: Bool?
     public init(callID: String, state: CallState, muted: Bool = false, mediaReady: Bool = false,
         endReason: String? = nil, displayName: String? = nil, handle: String? = nil,
         direction: CallDirection? = nil, createdAtMs: Int64? = nil, acceptedAtMs: Int64? = nil,
-        mediaConnectedAtMs: Int64? = nil, endedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil) {
+        mediaConnectedAtMs: Int64? = nil, endedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil,
+        mediaInterrupted: Bool = false) {
         self.callID = callID; self.state = state; self.muted = muted
         self.mediaReady = mediaReady; self.endReason = endReason; self.displayName = displayName
         self.handle = handle; self.direction = direction; self.createdAtMs = createdAtMs
         self.acceptedAtMs = acceptedAtMs; self.mediaConnectedAtMs = mediaConnectedAtMs; self.endedAtMs = endedAtMs
-        self.ringDeadlineAtMs = ringDeadlineAtMs
+        self.ringDeadlineAtMs = ringDeadlineAtMs; self.mediaInterrupted = mediaInterrupted
     }
 }
 
@@ -226,11 +234,26 @@ public actor CallCoordinator {
     }
 
     public func mediaConnected(callID: String, nowMs: Int64) {
-        guard var current = call, current.callID == callID,
-              current.state == .connecting || current.state == .held else { return }
-        if current.state != .held { current.state = .active }
-        current.mediaReady = true; current.mediaConnectedAtMs = nowMs; call = current
+        guard var current = call, current.callID == callID else { return }
+        if current.mediaInterrupted {
+            // Media came back after an interruption; the first connection time stays.
+            current.mediaInterrupted = false
+        } else if current.state == .connecting || current.state == .held {
+            if current.state != .held { current.state = .active }
+            current.mediaReady = true; current.mediaConnectedAtMs = nowMs
+        } else { return }
+        call = current
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .media)
+    }
+
+    /// Media that had connected dropped, for example while the media SDK reconnects. Only an
+    /// observation: it never ends or holds the call. True when state changed.
+    @discardableResult public func mediaInterrupted(callID: String, nowMs: Int64) -> Bool {
+        guard var current = call, current.callID == callID, !current.mediaInterrupted, current.mediaReady,
+              current.state == .active || current.state == .held else { return false }
+        current.mediaInterrupted = true; call = current
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .media)
+        return true
     }
 
     /// Ends the live call, or records a tombstone so a later invitation for this ID cannot ring.
@@ -246,7 +269,7 @@ public actor CallCoordinator {
     @discardableResult
     private func end(callID: String, reason: String, source: EventSource, nowMs: Int64) -> Bool {
         guard var current = call, current.callID == callID, current.state != .ended else { return false }
-        current.state = .ended; current.mediaReady = false; current.endReason = reason
+        current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false; current.endReason = reason
         current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; call = current
         recordTerminal(callID: callID, reason: reason, nowMs: nowMs)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: source)
@@ -388,7 +411,7 @@ public actor CallCoordinator {
         case .end:
             let reason = current.state == .incoming ? "declined" : "localHangup"
             recordTerminal(callID: current.callID, reason: reason, nowMs: nowMs)
-            current.state = .ended; current.mediaReady = false
+            current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false
             current.endReason = reason
             current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil
         case .setMuted: current.muted = command.value!
@@ -472,6 +495,10 @@ public actor CallCoordinator {
     }
     public func durableMediaConnected(callID: String, nowMs: Int64) throws {
         let before = checkpoint(); mediaConnected(callID: callID, nowMs: nowMs); try persist(orRestore: before)
+    }
+    @discardableResult public func durableMediaInterrupted(callID: String, nowMs: Int64) throws -> Bool {
+        let before = checkpoint(); let result = mediaInterrupted(callID: callID, nowMs: nowMs)
+        try persist(orRestore: before); return result
     }
     @discardableResult
     public func durableRemoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64) throws -> Bool {

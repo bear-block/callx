@@ -131,6 +131,14 @@ class BridgeRuntime(
         requiredId(mapOf("callId" to callId), "callId")
         coordinator.durableMediaConnected(callId, observedAtMs); publishNewEvents()
     }
+    /**
+     * Media that had connected dropped; call [mediaConnected] when it is back. It never ends or holds
+     * the call: end it through signaling if media does not return. Returns true when state changed.
+     */
+    fun mediaInterrupted(callId: String, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durableMediaInterrupted(callId, observedAtMs).also { publishNewEvents() }
+    }
     /** Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later. */
     fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()): Boolean {
         requiredId(mapOf("callId" to callId), "callId")
@@ -237,6 +245,7 @@ class BridgeRuntime(
         return mutableMapOf<String, Any?>(
             "callId" to value.callId, "displayName" to displayName, "direction" to direction.name,
             "state" to value.state.name, "muted" to value.muted, "mediaReady" to value.mediaReady,
+            "mediaInterrupted" to value.mediaInterrupted,
         ).apply {
             value.endReason?.let { put("endReason", it) }; value.createdAtMs?.let { put("createdAtMs", it) }
             value.acceptedAtMs?.let { put("acceptedAtMs", it) }

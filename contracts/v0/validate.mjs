@@ -111,6 +111,12 @@ export function validateCall(value, path = 'call') {
   if (call.state === 'ended' && call.mediaReady !== false) throw new Error('ended cannot be mediaReady');
   if (call.state === 'ended') member(call.endReason, manifest.endReasons, `${path}.endReason`);
   if (call.state !== 'ended' && call.endReason !== undefined) throw new Error('live call cannot have endReason');
+  if (call.mediaInterrupted !== undefined) {
+    if (typeof call.mediaInterrupted !== 'boolean') throw new Error(`${path}.mediaInterrupted must be boolean`);
+    if (call.mediaInterrupted && !(['active', 'held'].includes(call.state) && call.mediaReady)) {
+      throw new Error('only connected media can be interrupted');
+    }
+  }
   for (const field of ['createdAtMs', 'acceptedAtMs', 'mediaConnectedAtMs', 'endedAtMs']) {
     if (call[field] !== undefined) timestamp(call[field], `${path}.${field}`);
   }

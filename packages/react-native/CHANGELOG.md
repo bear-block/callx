@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `Call.mediaInterrupted` and native `BridgeRuntime.mediaInterrupted`: report that connected
+  media dropped (for example while the media SDK reconnects) without changing the call;
+  `mediaConnected` clears it.
 - `TelecomIngressListener.onCallAnswered` and `onCallEnded` tell the host to start and
   stop media once per call, whichever surface answered or ended it.
 - The example host joins a LiveKit room per call for real audio in device trials

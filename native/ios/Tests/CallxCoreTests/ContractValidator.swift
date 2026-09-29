@@ -137,6 +137,12 @@ public struct ContractValidator: Sendable {
         if state == "active", value["mediaConnectedAtMs"] == nil { throw ContractViolation("active requires milestone") }
         if state == "ended" { try member(value["endReason"], manifest.endReasons, "\(path).endReason") }
         else if value["endReason"] != nil { throw ContractViolation("live endReason") }
+        if let interrupted = value["mediaInterrupted"] {
+            try boolean(interrupted, "\(path).mediaInterrupted")
+            if (interrupted as? NSNumber)?.boolValue == true, !(state == "active" || state == "held") || ready != true {
+                throw ContractViolation("only connected media can be interrupted")
+            }
+        }
         for field in ["createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs"] {
             if let timestampValue = value[field] { try timestamp(timestampValue, "\(path).\(field)") }
         }
