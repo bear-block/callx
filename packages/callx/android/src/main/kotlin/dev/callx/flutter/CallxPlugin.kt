@@ -68,6 +68,8 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
                 "acknowledge" -> { runtime.acknowledge(arguments); result.success(null) }
                 "closeSession" -> { runtime.closeSession(arguments); result.success(null) }
                 "getSnapshot" -> result.success(runtime.getSnapshot())
+                "getPushToken" -> result.success(dev.callx.telecom.CallxPushTokens.current
+                    ?.let { mapOf("type" to it.type, "token" to it.token) })
                 else -> result.notImplemented()
             }
         } catch (error: Throwable) { failure(result, error) }

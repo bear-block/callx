@@ -51,6 +51,8 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                     case "acknowledge": try await runtime.acknowledge(arguments); value = NSNull()
                     case "closeSession": try await runtime.closeSession(arguments); value = NSNull()
                     case "getSnapshot": value = bridgeAny(try await runtime.getSnapshot())
+                    case "getPushToken":
+                        value = CallxPushTokens.current.map { ["type": $0.type, "token": $0.token] as Any } ?? NSNull()
                     default: callback.complete(FlutterMethodNotImplemented); return
                     }
                     callback.complete(value)

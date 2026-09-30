@@ -99,6 +99,11 @@ export interface Capabilities {
   readonly mute: boolean;
 }
 export interface CommandOptions { readonly operationId?: string; readonly deadlineAtMs?: number }
+/**
+ * The device's push token for Callx invitations: `voip` (APNs PushKit) on iOS, `fcm` on Android.
+ * Register it with your backend for the signed-in account; null until the platform issued one.
+ */
+export interface PushToken { readonly type: 'voip' | 'fcm'; readonly token: string }
 export type Command =
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'startCall'; input: CallInput }
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'answer' | 'end'; callId: string }
@@ -119,6 +124,7 @@ export interface CallxBackend {
   acknowledge(sessionId: string, throughSequence: string): Promise<void>;
   closeSession(sessionId: string): Promise<void>;
   getSnapshot(): Promise<Snapshot>;
+  getPushToken(): Promise<PushToken | null>;
   observe(listener: (snapshot: Snapshot) => void): () => void;
   dispose(): void;
 }
@@ -150,6 +156,8 @@ export class Callx {
   async setHeld(callId: string, value: boolean, options?: CommandOptions): Promise<CommandResult> {
     return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setHeld', callId, value});
   }
+  /** The push token to register with your backend after sign-in and on each launch. */
+  async getPushToken(): Promise<PushToken | null> { return this.backend.getPushToken(); }
   async queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup> {
     return this.backend.queryOperation(operationId, accountGeneration);
   }

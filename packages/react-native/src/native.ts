@@ -1,6 +1,6 @@
 import {CallxError, CONTRACT_VERSION} from './index.js';
 import type {CallEvent, CallxBackend, CallxConfig, Capabilities, Command, CommandResult,
-  ObservationSession, OperationLookup, Snapshot} from './index.js';
+  ObservationSession, OperationLookup, PushToken, Snapshot} from './index.js';
 
 export interface NativeModule {
   setup(value: object): Promise<Capabilities>;
@@ -10,6 +10,7 @@ export interface NativeModule {
   acknowledge(value: object): Promise<void>;
   closeSession(value: object): Promise<void>;
   getSnapshot(): Promise<Snapshot>;
+  getPushToken(): Promise<PushToken | null>;
   dispose(): void;
 }
 
@@ -95,6 +96,7 @@ export class NativeCallxBackend implements CallxBackend {
     await this.closeSession(sessionId).catch(() => {});
   }
   async getSnapshot() { return (await this.binding()).module.getSnapshot(); }
+  async getPushToken() { return (await this.binding()).module.getPushToken(); }
   observe(listener: (snapshot: Snapshot) => void): () => void {
     let active = true;
     let refreshing = Promise.resolve();

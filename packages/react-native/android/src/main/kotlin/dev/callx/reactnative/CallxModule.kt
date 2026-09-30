@@ -54,6 +54,10 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
         val runtime = hostRuntime ?: return unavailable(promise)
         try { promise.resolve(Arguments.makeNativeMap(runtime.getSnapshot())) } catch (error: Throwable) { reject(promise, error) }
     }
+    @ReactMethod fun getPushToken(promise: Promise) {
+        val token = dev.callx.telecom.CallxPushTokens.current
+        promise.resolve(token?.let { Arguments.makeNativeMap(mapOf("type" to it.type, "token" to it.token)) })
+    }
     @ReactMethod fun dispose() = Unit
 
     private var listenerCount = 0

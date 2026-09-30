@@ -60,6 +60,14 @@ final class CallInput {
   final String handle;
 }
 
+/// The device's push token for Callx invitations: `voip` (APNs PushKit) on iOS, `fcm` on
+/// Android. Null until the platform issued one.
+final class PushToken {
+  const PushToken({required this.type, required this.token});
+  final String type;
+  final String token;
+}
+
 final class CallxConfig {
   const CallxConfig({required this.appName});
   final String appName;
@@ -288,6 +296,7 @@ abstract interface class CallxBackend {
   Future<void> acknowledge(String sessionId, String throughSequence);
   Future<void> closeSession(String sessionId);
   Future<CallSnapshot> getSnapshot();
+  Future<PushToken?> pushToken();
   Stream<CallSnapshot> get snapshots;
   Future<void> dispose();
 }
@@ -375,6 +384,9 @@ final class Callx {
   }
 
   Future<CallSnapshot> getSnapshot() async => _backend.getSnapshot();
+
+  /// The push token to register with your backend after sign-in and on each launch.
+  Future<PushToken?> pushToken() => _backend.pushToken();
 
   Future<OperationLookup> queryOperation(
     String operationId,

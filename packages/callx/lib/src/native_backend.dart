@@ -147,6 +147,14 @@ final class NativeCallxBackend implements CallxBackend {
   }
 
   @override
+  Future<PushToken?> pushToken() async {
+    final value = await _invokeRaw('getPushToken', null);
+    if (value is! Map) return null;
+    final map = value.cast<Object?, Object?>();
+    return PushToken(type: _string(map, 'type'), token: _string(map, 'token'));
+  }
+
+  @override
   Future<CallSnapshot> getSnapshot() async {
     final map = await _invoke('getSnapshot');
     return CallSnapshot(

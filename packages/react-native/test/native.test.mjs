@@ -92,3 +92,15 @@ test('observers open, reopen and release their own session', async () => {
   await settle();
   assert.deepEqual(calls.at(-1), ['closeSession', {sessionId:'session-3'}]);
 });
+
+test('the push token comes from native code and the preview has none', async () => {
+  let token = null;
+  const module = {async getPushToken() { return token; }, dispose() {}};
+  class Emitter { addListener() { return {remove() {}}; } }
+  const callx = new Callx(new NativeCallxBackend({module, rn:{NativeModules:{Callx:module}, NativeEventEmitter:Emitter}}));
+  assert.equal(await callx.getPushToken(), null);
+  token = {type:'fcm', token:'fcm-token-1'};
+  assert.deepEqual(await callx.getPushToken(), {type:'fcm', token:'fcm-token-1'});
+  const {createCallxPreview} = await import('../lib/preview.js');
+  assert.equal(await createCallxPreview().callx.getPushToken(), null);
+});

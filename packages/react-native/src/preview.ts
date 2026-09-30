@@ -162,6 +162,8 @@ class PreviewBackend implements CallxBackend {
     this.activeSession = undefined; this.eventListeners.clear(); this.pendingSessionEvents = [];
   }
   async getSnapshot(): Promise<Snapshot> { this.guard(false); return this.snapshot; }
+  /** The preview has no push transport. */
+  async getPushToken(): Promise<null> { return null; }
   observe(listener: (snapshot: Snapshot) => void): () => void {
     this.guard(false);
     this.listeners.add(listener);

@@ -352,6 +352,10 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
     return _snapshot;
   }
 
+  /// The preview has no push transport.
+  @override
+  Future<PushToken?> pushToken() async => null;
+
   @override
   Stream<CallSnapshot> get snapshots {
     _guard(requireSetup: false);

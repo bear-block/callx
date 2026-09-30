@@ -59,6 +59,7 @@ public final class CallxBootstrap: @unchecked Sendable {
     /// ended; tell your backend). Wait for it before letting Dart or JavaScript call setup.
     public let ready: Task<CallRecord?, Error>
     private let delegate: CallKitProviderDelegateAdapter
+    private let tokenRecorder: PushTokenRecorder
 
     nonisolated(unsafe) public private(set) static var started: CallxBootstrap?
     private static let lock = NSLock()
@@ -99,12 +100,14 @@ public final class CallxBootstrap: @unchecked Sendable {
             capabilities: .init(accountGeneration: config.accountGeneration, durableReplay: true,
                 providerManagedSignaling: false, hold: true, mute: adapter != nil || config.audio != nil),
             nowMs: nowMs)
+        // The ingress holds its listener weakly; this bootstrap retains the recorder.
+        let recorder = PushTokenRecorder(forwardingTo: config.listener)
         let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids, lifecycle: lifecycle,
-            listener: config.listener, media: adapter, nowMs: nowMs)
+            listener: recorder, media: adapter, nowMs: nowMs)
         let probe = config.reconciliationProbe ?? UnavailableProbe(nowMs: nowMs)
         let startPush = config.startPushRegistry
         self.runtime = runtime; self.ingress = ingress; self.provider = provider; self.uuids = uuids
-        self.media = status; self.delegate = delegate
+        self.media = status; self.delegate = delegate; self.tokenRecorder = recorder
         ready = Task {
             // New process only: persist termination and clean up CallKit before a push can ring.
             let recovered = try await ingress.recoverAfterProcessDeath()
@@ -142,6 +145,19 @@ public final class CallxBootstrap: @unchecked Sendable {
         configuration.supportedHandleTypes = [.generic]
         return configuration
     }
+}
+
+/// Records the PushKit token in `CallxPushTokens` and forwards every callback to the host listener.
+private final class PushTokenRecorder: CallKitIngressListener, @unchecked Sendable {
+    private let host: (any CallKitIngressListener)?
+    init(forwardingTo host: (any CallKitIngressListener)?) { self.host = host }
+    func pushTokenUpdated(_ token: Data) { CallxPushTokens.updateVoIP(token); host?.pushTokenUpdated(token) }
+    func pushTokenInvalidated() { CallxPushTokens.clear(); host?.pushTokenInvalidated() }
+    func invitationAccepted(_ invitation: Invitation) { host?.invitationAccepted(invitation) }
+    func invitationRejected(_ invitation: Invitation?, outcome: IncomingOutcome?) { host?.invitationRejected(invitation, outcome: outcome) }
+    func ringTimedOut(callID: String) { host?.ringTimedOut(callID: callID) }
+    func callAnswered(callID: String) { host?.callAnswered(callID: callID) }
+    func callEnded(callID: String) { host?.callEnded(callID: callID) }
 }
 
 private struct AcceptingPerformer: CallKitActionPerforming {

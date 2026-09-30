@@ -42,6 +42,9 @@ final class CallxModule: RCTEventEmitter {
     @objc func closeSession(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { runtime, object in try await runtime.closeSession(object); return [:] }
     }
+    @objc func getPushToken(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        resolve(CallxPushTokens.current.map { ["type": $0.type, "token": $0.token] })
+    }
     @objc func getSnapshot(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
         guard let runtime = Self.hostRuntime else { reject("notConfigured", "Native Callx host has not been configured.", nil); return }
         let callback = ReactPromiseBox(resolve, reject)
