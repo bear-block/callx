@@ -5,37 +5,25 @@ import android.os.Build
 import android.telecom.DisconnectCause
 import android.util.Log
 import androidx.core.telecom.CallEndpointCompat
-import androidx.core.telecom.CallsManager
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
-import dev.callx.core.BridgeCapabilities
 import dev.callx.core.BridgeRuntime
-import dev.callx.core.CallCoordinator
-import dev.callx.core.CoordinatorFileStore
 import dev.callx.core.IncomingOutcome
 import dev.callx.core.Invitation
-import dev.callx.core.OperationReconciliationProbe
-import dev.callx.core.ReconciliationOutcome
-import dev.callx.core.RecoveredOperationReconciler
 import dev.callx.reactnative.CallxModule
-import dev.callx.telecom.CallStylePresenter
+import dev.callx.telecom.CallxBootstrapConfig
 import dev.callx.telecom.CallxFullScreenIntent
-import dev.callx.telecom.CallxTelecomAvailability
-import dev.callx.telecom.CoreTelecomSessionManager
 import dev.callx.telecom.TelecomIngress
 import dev.callx.telecom.TelecomIngressListener
-import dev.callx.telecom.TelecomPlatformExecutor
 import dev.callx.telecom.TelecomSystemActionHandler
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
 /**
@@ -53,7 +41,6 @@ object DeviceHost {
     @Volatile var endpoints: List<CallEndpointCompat> = emptyList(); private set
     @Volatile var currentEndpoint: CallEndpointCompat? = null; private set
     @Volatile var activeCallId: String? = null; private set
-    private lateinit var media: LiveKitCallMedia
     private val events = ConcurrentLinkedDeque<String>()
 
     @Volatile var bootstrapError: Throwable? = null; private set
@@ -79,33 +66,21 @@ object DeviceHost {
     /** One native runtime per process; a JS reload does not repeat recovery. */
     private fun start(context: Context) {
         if (::runtime.isInitialized) return
-        CallxTelecomAvailability.requireSupported(context)
-        val callsManager = CallsManager(context)
-        callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
-        // A CallxMediaAdapter: the ingress starts and stops it with each call (ADR-0009).
-        media = LiveKitCallMedia(context, scope, ::mediaCredentials, log = ::record)
-        ingress = TelecomIngress(scope, CallStylePresenter(context), Listener, media)
-        val sessions = CoreTelecomSessionManager(callsManager, ingress.systemActions(SystemActions), scope, ingress.audioObserver)
-        val executor = ingress.executor(TelecomPlatformExecutor(scope, sessions, media, outgoing = sessions))
-        val coordinator = CallCoordinator(CoordinatorFileStore(File(context.filesDir, "callx/demo-account/coordinator.json").toPath()))
-        runtime = BridgeRuntime(coordinator, executor, BridgeCapabilities("demo-account-1",
-            durableReplay = true, providerManagedSignaling = false, hold = true, mute = true))
-        ingress.attach(runtime, sessions)
-        // New process only. No session exists yet; persist termination and remove stale UI
-        // before FCM or Dart can create a new call.
-        runBlocking {
-            ingress.recoverAfterProcessDeath()?.let { record("recovered ${it.callId}: ${it.endReason}") }
-        }
-        CallxModule.configure(runtime)
-        record("runtime configured")
+        // The whole native pipeline in one call (ADR-0009). The example passes its media adapter
+        // explicitly; an adapter package would be discovered from its manifest instead.
+        val started = CallxModule.bootstrap(context, CallxBootstrapConfig(
+            accountGeneration = "demo-account-1",
+            checkpointPath = File(context.filesDir, "callx/demo-account/coordinator.json").toPath(),
+            listener = Listener,
+            systemActions = SystemActions,
+            media = LiveKitCallMedia(context, scope, ::mediaCredentials, log = ::record),
+            log = ::record,
+        ))
+        ingress = started.ingress; runtime = started.runtime
+        started.recoveredCall?.let { record("recovered ${it.callId}: ${it.endReason}") }
+        record("runtime configured, media: ${started.media}")
         // Without it a locked device shows the call as a notification, not the full-screen call screen.
         if (!CallxFullScreenIntent.isAllowed(context)) record("full-screen intents denied: allow them in Settings")
-        // Without a backend nothing can confirm a pending operation, so report it unavailable.
-        scope.launch(Dispatchers.IO) {
-            RecoveredOperationReconciler(coordinator, OperationReconciliationProbe {
-                CompletableFuture.completedFuture(ReconciliationOutcome.Unavailable(System.currentTimeMillis()))
-            }).reconcile(System.currentTimeMillis()).thenAccept { if (it.isNotEmpty()) record("reconciled ${it.size} operations") }
-        }
     }
 
     /** Test harness only: the call console issues LiveKit tokens as a backend would. */

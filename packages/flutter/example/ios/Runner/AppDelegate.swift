@@ -31,12 +31,10 @@ import callx
 final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming, @unchecked Sendable {
   static let shared = CallHost()
   private let lock = NSLock()
-  private let uuids = CallUUIDMap()
+  private var uuids = CallUUIDMap()
   private var bootstrap: Task<Void, Error>?
   private var runtime: BridgeRuntime?
   private var ingress: CallKitIngress?
-  private var provider: CXProvider?
-  private var delegate: CallKitProviderDelegateAdapter?
   private var channel: FlutterMethodChannel?
   private var pushToken: String?
   private var events: [String] = []
@@ -49,46 +47,29 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
 
   func start() {
     guard runtime == nil else { return }
-    let nowMs: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
-    let configuration = CXProviderConfiguration()
-    configuration.supportsVideo = false
-    configuration.maximumCallGroups = 1
-    configuration.maximumCallsPerCallGroup = 1
-    configuration.supportedHandleTypes = [.generic]
-    let provider = CXProvider(configuration: configuration)
-    let actionIndex = CallKitActionIndex()
-    let actionRegistry = PlatformActionRegistry()
-    let lifecycle = CallKitActionLifecycle(index: actionIndex, registry: actionRegistry, nowMs: nowMs)
-    let executor = RegistryBackedPlatformExecutor(
-      submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs),
-      registry: actionRegistry)
-    // CallKit mutes reach the media first; the action is fulfilled only when media followed.
-    let delegate = CallKitProviderDelegateAdapter(
-      performer: MediaRoutingPerformer(performer: self, media: media, uuids: uuids), lifecycle: lifecycle, audio: media)
-    provider.setDelegate(delegate, queue: nil)
-    let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    // The whole native pipeline in one call (ADR-0009). The example passes its media adapter
+    // explicitly; an adapter package would be discovered from Info.plist instead.
+    var config = CallxBootstrapConfig()
+    config.accountGeneration = "demo-account-1"
+    config.checkpointURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("callx/demo-account/coordinator.json")
-    let coordinator: CallCoordinator
-    do { coordinator = try CallCoordinator(store: CoordinatorFileStore(url: url)) } catch {
-      record("checkpoint unreadable: \(error)"); return
-    }
-    let runtime = BridgeRuntime(coordinator: coordinator, executor: executor,
-      capabilities: .init(accountGeneration: "demo-account-1", durableReplay: true,
-        providerManagedSignaling: false, hold: true, mute: true), nowMs: nowMs)
-    let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids,
-      lifecycle: lifecycle, listener: self, media: media, nowMs: nowMs)
-    self.provider = provider; self.delegate = delegate; self.runtime = runtime; self.ingress = ingress
+    config.listener = self
+    config.performer = self
+    config.media = media
+    config.startPushRegistry = true
+    config.log = { CallHost.shared.record($0) }
+    let started: CallxBootstrap
+    do { started = try CallxPlugin.bootstrap(config) } catch { record("bootstrap failed: \(error)"); return }
+    runtime = started.runtime; ingress = started.ingress; uuids = started.uuids
     ConsoleReporter.start(consoleURL: Self.consoleURL, app: "flutter") { [weak self] in
       guard let self else { return (nil, []) }
       self.lock.lock(); defer { self.lock.unlock() }; return (self.pushToken, self.events)
     }
     bootstrap = Task {
-      if let recovered = try await ingress.recoverAfterProcessDeath() {
+      if let recovered = try await started.ready.value {
         self.record("recovered \(recovered.callID): \(recovered.endReason ?? "failed")")
       }
-      CallxPlugin.configure(runtime)
-      ingress.startPushRegistry()
-      self.record("runtime configured")
+      self.record("runtime configured, media: \(started.media)")
     }
   }
 
