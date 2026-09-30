@@ -9,6 +9,9 @@ environment:
 dependencies:
   callx:
     path: ../
+  # The LiveKit media adapter: installing it is the whole integration (ADR-0009).
+  callx_livekit:
+    path: ../../flutter-livekit
   flutter:
     sdk: flutter
 
@@ -27,3 +30,8 @@ flutter:
   # depend on callx are unaffected and use Swift Package Manager by default.
   config:
     enable-swift-package-manager: false
+
+# callx_livekit depends on callx by version; the monorepo uses the local package.
+dependency_overrides:
+  callx:
+    path: ../

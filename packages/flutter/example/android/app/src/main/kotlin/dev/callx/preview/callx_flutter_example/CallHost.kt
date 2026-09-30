@@ -1,7 +1,6 @@
 package dev.callx.preview.callx_flutter_example
 
 import android.content.Context
-import android.os.Build
 import android.telecom.DisconnectCause
 import android.util.Log
 import androidx.core.telecom.CallEndpointCompat
@@ -9,14 +8,13 @@ import dev.callx.core.BridgeRuntime
 import dev.callx.core.IncomingOutcome
 import dev.callx.core.Invitation
 import dev.callx.flutter.CallxPlugin
+import dev.callx.livekit.CallxLiveKit
 import dev.callx.telecom.CallxBootstrapConfig
 import dev.callx.telecom.CallxFullScreenIntent
 import dev.callx.telecom.TelecomIngress
 import dev.callx.telecom.TelecomIngressListener
 import dev.callx.telecom.TelecomSystemActionHandler
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.ConcurrentLinkedDeque
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +26,7 @@ import org.json.JSONObject
  * Device-trial host. A real app connects its signaling client and media engine here. This one has
  * no signaling client: it records every callback and lets the example UI and the call console
  * stand in for the remote side. Media is real when the console and `npm run media:server` run:
- * [LiveKitCallMedia] joins the call's LiveKit room on answer. Otherwise the UI simulates it.
+ * the callx_livekit adapter joins the call's LiveKit room on answer. Otherwise the UI simulates it.
  */
 object CallHost {
     private const val TAG = "CallxExample"
@@ -50,14 +48,15 @@ object CallHost {
     /** Runs from Application.onCreate, before FCM can deliver a push to this process. */
     fun start(context: Context) {
         if (::runtime.isInitialized) return
-        // The whole native pipeline in one call (ADR-0009). The example passes its media adapter
-        // explicitly; an adapter package would be discovered from its manifest instead.
+        // The call console stands in for the app's token endpoint. Apps usually configure this
+        // from Dart after sign-in (CallxLiveKit.configure); it persists for killed-app answers.
+        CallxLiveKit.configure(context, "http://127.0.0.1:8787/api/media-token")
+        // The whole native pipeline in one call (ADR-0009); callx_livekit is discovered from its manifest.
         val started = CallxPlugin.bootstrap(context, CallxBootstrapConfig(
             accountGeneration = "demo-account-1",
             checkpointPath = File(context.filesDir, "callx/demo-account/coordinator.json").toPath(),
             listener = Listener,
             systemActions = SystemActions,
-            media = LiveKitCallMedia(context, scope, ::mediaCredentials, log = ::record),
             log = ::record,
         ))
         ingress = started.ingress; runtime = started.runtime
@@ -65,22 +64,6 @@ object CallHost {
         record("runtime configured, media: ${started.media}")
         // Without it a locked device shows the call as a notification, not the full-screen call screen.
         if (!CallxFullScreenIntent.isAllowed(context)) record("full-screen intents denied: allow them in Settings")
-    }
-
-    /** Test harness only: the call console issues LiveKit tokens as a backend would. */
-    private fun mediaCredentials(callId: String): MediaCredentials {
-        val body = JSONObject().put("callId", callId).put("identity", "callee").put("name", Build.MODEL).toString()
-        val connection = URL("http://127.0.0.1:8787/api/media-token").openConnection() as HttpURLConnection
-        return try {
-            connection.connectTimeout = 2000; connection.readTimeout = 2000; connection.requestMethod = "POST"
-            connection.doOutput = true; connection.setRequestProperty("content-type", "application/json")
-            connection.outputStream.use { it.write(body.toByteArray()) }
-            if (connection.responseCode != 200) error("console answered ${connection.responseCode}")
-            val reply = JSONObject(connection.inputStream.bufferedReader().readText())
-            MediaCredentials(reply.getString("url"), reply.getString("token"))
-        } catch (error: java.io.IOException) {
-            throw IllegalStateException("no media server; use \"Media connected (simulated)\" (${error.message})")
-        } finally { connection.disconnect() }
     }
 
     /** Test harness only: stands in for the signaling socket a real app would use. */

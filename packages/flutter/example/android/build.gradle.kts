@@ -2,7 +2,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // LiveKit's AudioSwitch fork, used by the example's LiveKitCallMedia.
+        // LiveKit's AudioSwitch fork: callx_livekit needs it, and Gradle resolves it from the app's repositories.
         maven("https://jitpack.io") { content { includeGroup("com.github.davidliu") } }
     }
 }

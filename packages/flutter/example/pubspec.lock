@@ -24,6 +24,13 @@ packages:
       relative: true
     source: path
     version: "0.0.0-preview.1"
+  callx_livekit:
+    dependency: "direct main"
+    description:
+      path: "../../flutter-livekit"
+      relative: true
+    source: path
+    version: "0.0.0-preview.1"
   characters:
     dependency: transitive
     description:
