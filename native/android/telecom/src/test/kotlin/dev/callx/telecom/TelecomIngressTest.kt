@@ -75,12 +75,19 @@ private class FakeMedia(var accept: Boolean = true) : MediaMuteController {
     override suspend fun setMuted(callId: String, muted: Boolean): Boolean { calls += muted; return accept }
 }
 
-private class Harness(ringTimeoutMs: Long = 45_000, budgetMs: Long = 4_000) {
+private class FakeAdapter(override val apiVersion: Int = CALLX_MEDIA_API_VERSION) : CallxMediaAdapter {
+    val events = list<String>(); val sinks = ConcurrentHashMap<String, CallxMediaSink>()
+    override fun start(callId: String, sink: CallxMediaSink) { events += "start:$callId"; sinks[callId] = sink }
+    override fun stop(callId: String) { events += "stop:$callId" }
+    override suspend fun setMuted(callId: String, muted: Boolean): Boolean { events += "muted:$muted"; return true }
+}
+
+private class Harness(ringTimeoutMs: Long = 45_000, budgetMs: Long = 4_000,
+    val media: MediaMuteController = FakeMedia()) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val sessions = FakeSessions()
     val presenter = FakePresenter()
     val listener = RecordingListener()
-    val media = FakeMedia()
     val ingress = TelecomIngress(scope, presenter, listener, media, ringTimeoutMs, budgetMs)
     val runtime = BridgeRuntime(CallCoordinator(),
         ingress.executor(TelecomPlatformExecutor(scope, sessions, media,
@@ -172,6 +179,32 @@ class TelecomIngressTest {
             assertEquals(listOf("answered:call-1", "ended:call-1", "answered:call-2", "ended:call-2", "answered:call-3"),
                 h.listener.media)
         } finally { h.scope.cancel() }
+    }
+
+    @Test fun mediaAdapterFollowsTheCallAndReportsThroughItsSink() = runBlocking {
+        val adapter = FakeAdapter(); val h = Harness(media = adapter)
+        try {
+            h.ingress.handleInvitation(h.invitation("call-1"))
+            h.command("answer", "call-1")
+            assertTrue(eventually { adapter.events.contains("start:call-1") })
+            val sink = adapter.sinks.getValue("call-1")
+            sink.connected(); assertEquals("active", h.state())
+            sink.interrupted()
+            assertEquals(true, (h.runtime.getSnapshot()["call"] as Map<*, *>)["mediaInterrupted"])
+            sink.connected()
+            assertEquals(false, (h.runtime.getSnapshot()["call"] as Map<*, *>)["mediaInterrupted"])
+            h.ingress.audioObserver.onMuteChanged("call-1", true)
+            assertTrue(adapter.events.contains("muted:true"))
+            h.ingress.remoteEnded("call-1")
+            assertEquals(listOf("start:call-1", "muted:true", "stop:call-1"), adapter.events)
+            // A sink kept after the call ended cannot change state.
+            sink.interrupted(); assertEquals("ended", h.state())
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun anAdapterBuiltForAnotherApiVersionIsRefused() {
+        val error = assertFailsWith<IllegalArgumentException> { Harness(media = FakeAdapter(apiVersion = 99)) }
+        assertTrue(error.message!!.contains("99"))
     }
 
     @Test fun coldProcessRecoveryCleansUpAndCanBeRetried() = runBlocking {
@@ -405,18 +438,18 @@ class TelecomIngressTest {
         h.ingress.systemActions(h.host()).answer("call-1", 1)
         // Telecom's Flow emits the current value first, then each change, in order.
         for (muted in listOf(false, true, true, false)) h.ingress.audioObserver.onMuteChanged("call-1", muted)
-        assertEquals(listOf(true, false), h.media.calls)
+        assertEquals(listOf(true, false), (h.media as FakeMedia).calls)
         assertEquals(false, h.muted())
         h.scope.cancel()
     }
 
     @Test fun systemMuteIsRevertedWhenMediaCannotFollow() = runBlocking {
         val h = Harness()
-        h.media.accept = false
+        (h.media as FakeMedia).accept = false
         h.ingress.handleInvitation(h.invitation("call-1"))
         h.ingress.systemActions(h.host()).answer("call-1", 1)
         h.ingress.audioObserver.onMuteChanged("call-1", true)
-        assertEquals(listOf(true), h.media.calls)
+        assertEquals(listOf(true), (h.media as FakeMedia).calls)
         assertEquals(false, h.muted())
         h.scope.cancel()
     }

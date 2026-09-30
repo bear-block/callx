@@ -1,4 +1,5 @@
 #if os(iOS)
+import AVFAudio
 import CallKit
 import Foundation
 import PushKit
@@ -66,14 +67,14 @@ private struct Harness {
     let index = CallKitActionIndex()
     let lifecycle: CallKitActionLifecycle
 
-    init(ringTimeoutMs: Int64 = 45_000) {
+    init(ringTimeoutMs: Int64 = 45_000, media: (any CallxMediaAdapter)? = nil) {
         let now: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
         lifecycle = CallKitActionLifecycle(index: index, registry: PlatformActionRegistry(), nowMs: { 0 })
         runtime = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedIngressExecutor(), capabilities:
             BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
                 providerManagedSignaling: false, hold: true, mute: true), nowMs: now)
         ingress = CallKitIngress(runtime: runtime, reporter: reporter, uuids: uuids, lifecycle: lifecycle,
-            listener: listener, ringTimeoutMs: ringTimeoutMs, nowMs: now)
+            listener: listener, media: media, ringTimeoutMs: ringTimeoutMs, nowMs: now)
     }
 
     func push(_ callID: String, mustReport: Bool = true) async {
@@ -247,6 +248,60 @@ private final class RecordingEnd: CXEndCallAction, @unchecked Sendable {
     let h = Harness(ringTimeoutMs: 50)
     await h.push("call-1")
     #expect(await eventually { h.listener.media == ["ended:call-1"] })
+}
+
+private final class FakeAdapter: CallxMediaAdapter, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _events: [String] = []
+    private var _sinks: [String: any CallxMediaSink] = [:]
+    var apiVersion: Int
+    init(apiVersion: Int = callxMediaAPIVersion) { self.apiVersion = apiVersion }
+    var events: [String] { lock.lock(); defer { lock.unlock() }; return _events }
+    func sink(_ callID: String) -> (any CallxMediaSink)? { lock.lock(); defer { lock.unlock() }; return _sinks[callID] }
+    private func add(_ event: String) { lock.lock(); _events.append(event); lock.unlock() }
+    func start(callID: String, sink: any CallxMediaSink) {
+        lock.lock(); _sinks[callID] = sink; lock.unlock(); add("start:\(callID)")
+    }
+    func stop(callID: String) { add("stop:\(callID)") }
+    func setMuted(callID: String, muted: Bool) async -> Bool { add("muted:\(muted)"); return muted || callID != "no-mic" }
+    func didActivate(_ audioSession: AVAudioSession) {}
+    func didDeactivate(_ audioSession: AVAudioSession) {}
+}
+
+private struct HostPerformer: CallKitActionPerforming {
+    func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool { true }
+    func providerDidReset() async {}
+}
+
+@Test func mediaAdapterFollowsTheCallAndReportsThroughItsSink() async throws {
+    let adapter = FakeAdapter()
+    let h = Harness(media: adapter)
+    await h.push("call-1")
+    let answer = RecordingSystemAnswer(call: h.uuids.uuid(for: "call-1"))
+    #expect(h.lifecycle.begin(answer)); h.lifecycle.applied(answer)
+    #expect(try await eventually { try await h.callState() == .string("connecting") })
+    let sink = try #require(adapter.sink("call-1") as? OrderedMediaSink)
+    sink.connected(); sink.interrupted(); await sink.drain()
+    guard case .object(let call) = try await h.runtime.getSnapshot()["call"] else { Issue.record("missing call"); return }
+    #expect(call["state"] == .string("active"))
+    #expect(call["mediaInterrupted"] == .bool(true))
+    // CallKit mute reaches the adapter before the host performer.
+    let performer = MediaRoutingPerformer(performer: HostPerformer(), media: adapter, uuids: h.uuids)
+    #expect(await performer.perform(.setMuted(true), callUUID: h.uuids.uuid(for: "call-1")))
+    try await h.ingress.remoteEnded(callID: "call-1")
+    #expect(adapter.events == ["start:call-1", "muted:true", "stop:call-1"])
+}
+
+@Test func muteThatMediaCannotFollowFailsTheCallKitAction() async throws {
+    let adapter = FakeAdapter()
+    let uuids = CallUUIDMap()
+    let performer = MediaRoutingPerformer(performer: HostPerformer(), media: adapter, uuids: uuids)
+    #expect(await performer.perform(.setMuted(false), callUUID: uuids.uuid(for: "no-mic")) == false)
+}
+
+@Test func adapterApiVersionIsChecked() {
+    #expect(CallKitIngress.supports(FakeAdapter()))
+    #expect(!CallKitIngress.supports(FakeAdapter(apiVersion: 99)))
 }
 
 private final class RecordingSystemMute: CXSetMutedCallAction, @unchecked Sendable {

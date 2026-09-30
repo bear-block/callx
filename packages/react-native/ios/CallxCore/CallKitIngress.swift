@@ -46,6 +46,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     private let reporter: any CallKitIncomingReporting
     private let uuids: CallUUIDMap
     private weak var listener: (any CallKitIngressListener)?
+    private let media: (any CallxMediaAdapter)?
     private let ringTimeoutMs: Int64
     private let nowMs: @Sendable () -> Int64
     private let decode: @Sendable ([AnyHashable: Any]) throws -> Invitation?
@@ -63,14 +64,21 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     /// `CallKitProviderDelegateAdapter`, so system-UI actions reach the coordinator.
     public init(runtime: BridgeRuntime, reporter: any CallKitIncomingReporting, uuids: CallUUIDMap,
         lifecycle: CallKitActionLifecycle? = nil, listener: (any CallKitIngressListener)? = nil,
+        media: (any CallxMediaAdapter)? = nil,
         ringTimeoutMs: Int64 = 45_000, nowMs: @escaping @Sendable () -> Int64,
         decode: @escaping @Sendable ([AnyHashable: Any]) throws -> Invitation? = InvitationCodec.decode(pushPayload:)) {
+        precondition(media.map(Self.supports) ?? true,
+            "Media adapter API \(media?.apiVersion ?? 0) is not supported; this Callx supports \(callxMediaAPIVersion).")
         self.runtime = runtime; self.reporter = reporter; self.uuids = uuids; self.listener = listener
+        self.media = media
         self.ringTimeoutMs = ringTimeoutMs; self.nowMs = nowMs; self.decode = decode
         super.init()
         lifecycle?.observeSystemActions { [weak self] action in self?.systemActionApplied(action) }
         lifecycle?.observeAppliedActions { [weak self] action in self?.actionApplied(action) }
     }
+
+    /// True when this core can drive `adapter`. Check before passing it to `init`.
+    public static func supports(_ adapter: any CallxMediaAdapter) -> Bool { adapter.apiVersion == callxMediaAPIVersion }
 
     /// Registers for VoIP pushes. Call once, early in application launch.
     public func startPushRegistry(queue: DispatchQueue = .main) {
@@ -236,7 +244,10 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         lock.lock()
         let first = !announcedEnded.contains(callID) && announcedAnswered.insert(callID).inserted
         lock.unlock()
-        if first { listener?.callAnswered(callID: callID) }
+        if first {
+            media?.start(callID: callID, sink: OrderedMediaSink(runtime: runtime, callID: callID))
+            listener?.callAnswered(callID: callID)
+        }
     }
     private func announceEnded(_ callID: String) {
         lock.lock()
@@ -246,7 +257,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
             if announcedEnded.count > 64 { announcedEnded.removeFirst() }
         }
         lock.unlock()
-        if first { listener?.callEnded(callID: callID) }
+        if first { media?.stop(callID: callID); listener?.callEnded(callID: callID) }
     }
 
     private func beginRegistration(_ callID: String) {

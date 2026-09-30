@@ -58,7 +58,8 @@ interface TelecomIngressListener {
     fun onRingTimedOut(callId: String) {}
     /**
      * The call was answered, from any surface or by the remote side of an outgoing call. Start media
-     * here. Runs under the ingress lock: return quickly and connect asynchronously.
+     * here, or pass a [CallxMediaAdapter] as `media`. Runs under the ingress lock: return quickly
+     * and connect asynchronously.
      */
     fun onCallAnswered(callId: String) {}
     /** The call ended for any reason, including one that never rang. Stop media; also runs under the lock. */
@@ -77,7 +78,10 @@ class TelecomIngress(
     private val scope: CoroutineScope,
     private val presenter: IncomingCallPresenter,
     private val listener: TelecomIngressListener? = null,
-    /** Applies mute changes that other surfaces make (car, headset, watch) to your media. */
+    /**
+     * Applies mute changes that other surfaces make (car, headset, watch) to your media. A
+     * [CallxMediaAdapter] is also started and stopped with each call.
+     */
     private val media: MediaMuteController? = null,
     private val ringTimeoutMs: Long = 45_000,
     /** Telecom tears a call down if a system callback takes longer than five seconds. */
@@ -93,6 +97,13 @@ class TelecomIngress(
         const val PUSH_WAIT_MS = 8_000L
         /** The attached ingress that receives notification buttons. */
         @Volatile internal var active: TelecomIngress? = null
+    }
+
+    init {
+        val version = (media as? CallxMediaAdapter)?.apiVersion
+        require(version == null || version == CALLX_MEDIA_API_VERSION) {
+            "Media adapter API $version is not supported; this Callx supports $CALLX_MEDIA_API_VERSION."
+        }
     }
 
     private lateinit var runtime: BridgeRuntime
@@ -336,10 +347,18 @@ class TelecomIngress(
     /** Every terminal path ends here, whichever presenter the host uses. */
     private fun dismissCall(callId: String) {
         presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
+        (media as? CallxMediaAdapter)?.stop(callId)
         listener?.onCallEnded(callId)
     }
     private fun presentAnswered(callId: String, answeredAtMs: Long?) {
-        presenter.showOngoing(callId, answeredAtMs); listener?.onCallAnswered(callId)
+        presenter.showOngoing(callId, answeredAtMs)
+        (media as? CallxMediaAdapter)?.start(callId, sinkFor(callId))
+        listener?.onCallAnswered(callId)
+    }
+    /** The runtime ignores reports for a call that is not current, so a late sink is harmless. */
+    private fun sinkFor(callId: String) = object : CallxMediaSink {
+        override fun connected() = runtime.mediaConnected(callId)
+        override fun interrupted() { runtime.mediaInterrupted(callId) }
     }
     private fun answeredAt(callId: String) = runtime.currentCall()?.takeIf { it.callId == callId }?.acceptedAtMs
 
