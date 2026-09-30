@@ -74,7 +74,8 @@ The peer range is not a tested compatibility matrix. Native builds require iOS 1
 signaling/media integration, push setup and app permissions. Expo is optional;
 Expo users need a development/native build for real calls.
 
-Version `0.0.0-preview.1`. The package includes a lazy `NativeModules.Callx` transport,
+Version `0.0.0-preview.1`. The package includes a typed `Callx` TurboModule (Codegen spec
+`src/specs/NativeCallx.ts`, with a `NativeModules.Callx` fallback on the legacy architecture), an
 event emitter, Android/iOS autolinking entry points, canonical Kotlin/Swift coordinator and an
 explicit simulator. Native entry points advertise `nativeCalling: false` until the app host
 installs a runtime with a real platform executor.

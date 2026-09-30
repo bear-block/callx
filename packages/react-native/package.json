@@ -24,6 +24,7 @@
   },
   "files": [
     "lib",
+    "src/specs",
     "app.plugin.cjs",
     "plugin",
     "android",
@@ -51,6 +52,19 @@
   "peerDependenciesMeta": {
     "@expo/config-plugins": {
       "optional": true
+    }
+  },
+  "codegenConfig": {
+    "name": "CallxSpec",
+    "type": "modules",
+    "jsSrcsDir": "src/specs",
+    "android": {
+      "javaPackageName": "dev.callx.reactnative"
+    },
+    "ios": {
+      "modulesProvider": {
+        "Callx": "CallxModule"
+      }
     }
   }
 }

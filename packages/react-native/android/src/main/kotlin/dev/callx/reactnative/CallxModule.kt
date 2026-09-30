@@ -3,14 +3,13 @@ package dev.callx.reactnative
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.bridge.ReactContextBaseJavaModule
-import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableNativeMap
 import dev.callx.core.BridgeRuntime
 import dev.callx.core.BridgeViolation
 
-class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule(context) {
+/** The Callx TurboModule; NativeCallxSpec is generated from src/specs/NativeCallx.ts. */
+class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
     companion object {
         @Volatile private var hostRuntime: BridgeRuntime? = null
         /** Install once from Application after creating the native signaling/media executor. */
@@ -25,9 +24,8 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
             dev.callx.telecom.CallxBootstrap.start(context, config, ::configure)
         @JvmStatic fun reset() { hostRuntime = null }
     }
-    override fun getName() = "Callx"
 
-    @ReactMethod fun setup(config: ReadableMap, promise: Promise) {
+    override fun setup(config: ReadableMap, promise: Promise) {
         hostRuntime?.let {
             try { promise.resolve(Arguments.makeNativeMap(it.setup(config.toHashMap()))) }
             catch (error: Throwable) { reject(promise, error) }; return
@@ -40,31 +38,31 @@ class CallxModule(context: ReactApplicationContext) : ReactContextBaseJavaModule
         })
     }
 
-    @ReactMethod fun execute(command: ReadableMap, promise: Promise) {
+    override fun execute(command: ReadableMap, promise: Promise) {
         val runtime = hostRuntime ?: return unavailable(promise)
         try { runtime.execute(command.toHashMap()).whenComplete { value, error ->
             if (error != null) reject(promise, error.cause ?: error) else promise.resolve(Arguments.makeNativeMap(value))
         } } catch (error: Throwable) { reject(promise, error) }
     }
-    @ReactMethod fun queryOperation(query: ReadableMap, promise: Promise) = invoke(query, promise) { queryOperation(it) }
-    @ReactMethod fun openSession(request: ReadableMap, promise: Promise) = invoke(request, promise) { openSession(it) }
-    @ReactMethod fun acknowledge(request: ReadableMap, promise: Promise) = invoke(request, promise) { acknowledge(it); null }
-    @ReactMethod fun closeSession(request: ReadableMap, promise: Promise) = invoke(request, promise) { closeSession(it); null }
-    @ReactMethod fun getSnapshot(promise: Promise) {
+    override fun queryOperation(query: ReadableMap, promise: Promise) = invoke(query, promise) { queryOperation(it) }
+    override fun openSession(request: ReadableMap, promise: Promise) = invoke(request, promise) { openSession(it) }
+    override fun acknowledge(request: ReadableMap, promise: Promise) = invoke(request, promise) { acknowledge(it); null }
+    override fun closeSession(request: ReadableMap, promise: Promise) = invoke(request, promise) { closeSession(it); null }
+    override fun getSnapshot(promise: Promise) {
         val runtime = hostRuntime ?: return unavailable(promise)
         try { promise.resolve(Arguments.makeNativeMap(runtime.getSnapshot())) } catch (error: Throwable) { reject(promise, error) }
     }
-    @ReactMethod fun getPushToken(promise: Promise) {
+    override fun getPushToken(promise: Promise) {
         val token = dev.callx.telecom.CallxPushTokens.current
         promise.resolve(token?.let { Arguments.makeNativeMap(mapOf("type" to it.type, "token" to it.token)) })
     }
-    @ReactMethod fun dispose() = Unit
+    override fun dispose() = Unit
 
     private var listenerCount = 0
     // Attach on every JS subscription, like iOS startObserving, so a runtime configured or
     // replaced after this module initialized (for example after login) still reaches JS.
-    @ReactMethod fun addListener(eventName: String) { listenerCount++; attachEvents() }
-    @ReactMethod fun removeListeners(count: Double) {
+    override fun addListener(eventName: String) { listenerCount++; attachEvents() }
+    override fun removeListeners(count: Double) {
         listenerCount = maxOf(0, listenerCount - count.toInt())
         if (listenerCount == 0) hostRuntime?.setEventListener(null)
     }

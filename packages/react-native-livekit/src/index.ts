@@ -30,10 +30,8 @@ let binding: Promise<NativeLiveKit> | undefined;
 
 async function native(): Promise<NativeLiveKit> {
   binding ??= (async () => {
-    const imported = await import('react-native') as unknown as NativeBinding & {default?: NativeBinding};
-    // Metro may wrap React Native's CommonJS exports under `default` for dynamic imports.
-    const rn = imported.NativeModules ? imported : imported.default;
-    const module = rn?.NativeModules.CallxLiveKit as NativeLiveKit | undefined;
+    const rn = (await import('./react-native-bindings.js')).bindings as NativeBinding;
+    const module = rn.NativeModules.CallxLiveKit as NativeLiveKit | undefined;
     if (!module) throw new CallxLiveKitError('The Callx LiveKit native module is not linked; rebuild the app.');
     return module;
   })();

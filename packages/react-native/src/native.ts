@@ -16,6 +16,7 @@ export interface NativeModule {
 
 export type ReactNativeShape = {
   NativeModules: Record<string, unknown>;
+  TurboModuleRegistry?: {get(name: string): unknown};
   NativeEventEmitter: new (module?: unknown) => {
     addListener(name: string, listener: (value: unknown) => void): {remove(): void};
   };
@@ -34,11 +35,10 @@ export class NativeCallxBackend implements CallxBackend {
   }
   private async native(): Promise<{module: NativeModule; rn: ReactNativeShape}> {
     try {
-      const imported = await import('react-native') as unknown as ReactNativeShape & {default?: ReactNativeShape};
-      // Metro may wrap React Native's CommonJS exports under `default` for dynamic imports.
-      const rn = imported.NativeModules ? imported : imported.default;
+      const rn = (await import('./react-native-bindings.js')).bindings as unknown as ReactNativeShape;
       if (!rn?.NativeModules) throw new CallxError('nativeUnavailable', 'React Native bindings are unavailable.');
-      const module = rn.NativeModules.Callx as NativeModule | undefined;
+      // The TurboModule under the New Architecture; the legacy registry otherwise.
+      const module = (rn.TurboModuleRegistry?.get('Callx') ?? rn.NativeModules.Callx) as NativeModule | undefined;
       if (!module) throw new CallxError('nativeUnavailable', 'Callx native module is not linked.');
       return {module, rn};
     } catch (error) {

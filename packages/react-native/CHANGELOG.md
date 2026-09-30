@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The native module is a typed TurboModule: Codegen spec `src/specs/NativeCallx.ts`
+  (`CallxSpec`), `CallxModule` extends `NativeCallxSpec` on Android and `CallxModule.mm` forwards to
+  the Swift `CallxModuleImpl` on iOS. The legacy architecture still loads `NativeModules.Callx`.
+  The podspec uses `install_modules_dependencies`; `CallxModuleBridge.m` is gone.
+- iOS: loading the native module no longer fails with "`new NativeEventEmitter()` requires a
+  non-null argument". The package imported `react-native` as a namespace, which evaluates every
+  export, including `PushNotificationIOS`; it now uses named imports only.
 - `callx.getPushToken()` returns the device's push token (`voip` on iOS, `fcm` on Android) for your
   backend; `CallxBootstrap` records the PushKit token, the FCM service reports its token to
   `CallxPushTokens`.

@@ -13,5 +13,6 @@ Pod::Spec.new do |s|
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
   s.platform     = :ios, '15.0'
   s.swift_version = '6.0'
-  s.dependency 'React-Core'
+  # TurboModule: codegen headers (CallxSpec) and the React Native module dependencies.
+  install_modules_dependencies(s)
 end

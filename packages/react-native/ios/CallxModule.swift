@@ -1,17 +1,19 @@
 import Foundation
 @preconcurrency import React
 
-@objc(Callx)
-final class CallxModule: RCTEventEmitter {
+/// The Swift side of the Callx TurboModule. `CallxModule.mm` conforms to the codegen spec
+/// (src/specs/NativeCallx.ts) and forwards every method here; events go out through `emit`.
+@objc(CallxModuleImpl)
+public final class CallxModuleImpl: NSObject {
     nonisolated(unsafe) private static var hostRuntime: BridgeRuntime?
     private var eventReceiver: ReactBridgeEventReceiver?
+    /// Set by CallxModule.mm: sends a "callxEvent" to JavaScript.
+    @objc public var emit: ((Any) -> Void)?
     static func configure(_ runtime: BridgeRuntime) { hostRuntime = runtime }
     static func reset() { hostRuntime = nil }
-    override static func requiresMainQueueSetup() -> Bool { false }
-    override func supportedEvents() -> [String]! { ["callxEvent"] }
 
-    @objc func setup(_ config: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock,
-        rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func setup(_ config: NSDictionary, resolve: @escaping RCTPromiseResolveBlock,
+        reject: @escaping RCTPromiseRejectBlock) {
         if let runtime = Self.hostRuntime {
             let callback = ReactPromiseBox(resolve, reject)
             let object: BridgeObject
@@ -27,39 +29,39 @@ final class CallxModule: RCTEventEmitter {
         ])
     }
 
-    @objc func execute(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func execute(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { try await $0.execute($1) }
     }
-    @objc func queryOperation(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func queryOperation(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { try await $0.queryOperation($1) }
     }
-    @objc func openSession(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func openSession(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { try await $0.openSession($1) }
     }
-    @objc func acknowledge(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func acknowledge(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { runtime, object in try await runtime.acknowledge(object); return [:] }
     }
-    @objc func closeSession(_ value: NSDictionary, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func closeSession(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         invoke(value, resolve, reject) { runtime, object in try await runtime.closeSession(object); return [:] }
     }
-    @objc func getPushToken(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func getPushToken(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         resolve(CallxPushTokens.current.map { ["type": $0.type, "token": $0.token] })
     }
-    @objc func getSnapshot(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+    @objc public func getSnapshot(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
         guard let runtime = Self.hostRuntime else { reject("notConfigured", "Native Callx host has not been configured.", nil); return }
         let callback = ReactPromiseBox(resolve, reject)
         Task { do { callback.resolve(bridgeAny(try await runtime.getSnapshot())) }
             catch { callback.reject(error) } }
     }
     // Event delivery belongs to start/stopObserving; one Callx instance must not stop it for others.
-    @objc func dispose() {}
+    @objc public func dispose() {}
 
-    override func startObserving() {
+    @objc public func startObserving() {
         guard let runtime = Self.hostRuntime else { return }
         let receiver = ReactBridgeEventReceiver(self); eventReceiver = receiver
         Task { await runtime.setEventReceiver(receiver) }
     }
-    override func stopObserving() {
+    @objc public func stopObserving() {
         eventReceiver = nil
         if let runtime = Self.hostRuntime { Task { await runtime.setEventReceiver(nil) } }
     }
@@ -78,23 +80,23 @@ final class CallxModule: RCTEventEmitter {
 
 public enum CallxReactNativeHost {
     /** Install once after constructing CallKit plus native signaling/media dependencies. */
-    public static func configure(_ runtime: BridgeRuntime) { CallxModule.configure(runtime) }
+    public static func configure(_ runtime: BridgeRuntime) { CallxModuleImpl.configure(runtime) }
     /// Starts the whole native pipeline and installs it for React Native (ADR-0009). Call from
     /// `application(_:didFinishLaunchingWithOptions:)`; see `CallxBootstrap.start` for failures.
     @available(iOS 15.0, *)
     @discardableResult
     public static func bootstrap(_ config: CallxBootstrapConfig = CallxBootstrapConfig()) throws -> CallxBootstrap {
-        try CallxBootstrap.start(config) { CallxModule.configure($0) }
+        try CallxBootstrap.start(config) { CallxModuleImpl.configure($0) }
     }
-    public static func reset() { CallxModule.reset() }
+    public static func reset() { CallxModuleImpl.reset() }
 }
 
 private final class ReactBridgeEventReceiver: BridgeEventReceiving, @unchecked Sendable {
-    private weak var module: CallxModule?
-    init(_ module: CallxModule) { self.module = module }
+    private weak var module: CallxModuleImpl?
+    init(_ module: CallxModuleImpl) { self.module = module }
     func receive(_ event: BridgeObject) {
         let payload = ReactPayloadBox(bridgeAny(event))
-        DispatchQueue.main.async { [weak module, payload] in module?.sendEvent(withName: "callxEvent", body: payload.value) }
+        DispatchQueue.main.async { [weak module, payload] in module?.emit?(payload.value as Any) }
     }
 }
 private final class ReactPromiseBox: @unchecked Sendable {
