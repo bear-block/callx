@@ -76,6 +76,13 @@ final class CallxModule: RCTEventEmitter {
 public enum CallxReactNativeHost {
     /** Install once after constructing CallKit plus native signaling/media dependencies. */
     public static func configure(_ runtime: BridgeRuntime) { CallxModule.configure(runtime) }
+    /// Starts the whole native pipeline and installs it for React Native (ADR-0009). Call from
+    /// `application(_:didFinishLaunchingWithOptions:)`; see `CallxBootstrap.start` for failures.
+    @available(iOS 15.0, *)
+    @discardableResult
+    public static func bootstrap(_ config: CallxBootstrapConfig = CallxBootstrapConfig()) throws -> CallxBootstrap {
+        try CallxBootstrap.start(config) { CallxModule.configure($0) }
+    }
     public static func reset() { CallxModule.reset() }
 }
 

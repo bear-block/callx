@@ -1,0 +1,156 @@
+#if os(iOS)
+@preconcurrency import CallKit
+import Foundation
+
+/// What the host chooses; everything has a working default.
+public struct CallxBootstrapConfig {
+    /// Rotate on sign-out or account switch; it isolates the checkpoint.
+    public var accountGeneration = "default"
+    /// Application-private checkpoint; defaults to `Application Support/callx/<accountGeneration>/coordinator.json`.
+    public var checkpointURL: URL?
+    /// Defaults to voice-only, one call, generic handles.
+    public var providerConfiguration: CXProviderConfiguration?
+    public var listener: (any CallKitIngressListener)?
+    /// Backend and signaling work for each CallKit action; defaults to accepting them.
+    public var performer: (any CallKitActionPerforming)?
+    /// Media: an explicit adapter wins; otherwise the adapter an installed package declares is
+    /// used (ADR-0009). Hosts that run media from listener callbacks pass `audio` instead.
+    public var media: (any CallxMediaAdapter)?
+    public var discoverMedia = true
+    public var audio: (any CallKitAudioSessionHandling)?
+    public var reconciliationProbe: (any OperationReconciliationProbe)?
+    /// Register for VoIP pushes once recovery finishes. Off for hosts that ring only from signaling.
+    public var startPushRegistry = true
+    public var log: @Sendable (String) -> Void = { _ in }
+    public init() {}
+}
+
+/// How media is provided after bootstrap.
+public enum CallxMediaStatus: Sendable, Equatable {
+    case adapter(source: String)
+    /// CallKit audio activation goes to the host; media runs from listener callbacks.
+    case hostControlled
+    /// Calls ring and connect, without media.
+    case none(reason: String?)
+}
+
+public enum CallxBootstrapError: Error, CustomStringConvertible {
+    case mediaAdapterConflict([String])
+    public var description: String {
+        switch self {
+        case .mediaAdapterConflict(let sources):
+            "More than one Callx media adapter is installed (\(sources.joined(separator: ", "))); keep one."
+        }
+    }
+}
+
+/// The native pipeline in one call from `application(_:didFinishLaunchingWithOptions:)`, before
+/// PushKit can deliver (ADR-0009): CXProvider, action lifecycle, executor, durable coordinator,
+/// runtime, ingress, media, cold-process recovery, PushKit and reconciliation. The framework
+/// package installs the runtime through `install`.
+@available(iOS 15.0, *)
+public final class CallxBootstrap: @unchecked Sendable {
+    public let runtime: BridgeRuntime
+    public let ingress: CallKitIngress
+    public let provider: CXProvider
+    public let uuids: CallUUIDMap
+    public let media: CallxMediaStatus
+    /// Completes after cold-process recovery, with the call a previous process left behind (now
+    /// ended; tell your backend). Wait for it before letting Dart or JavaScript call setup.
+    public let ready: Task<CallRecord?, Error>
+    private let delegate: CallKitProviderDelegateAdapter
+
+    nonisolated(unsafe) public private(set) static var started: CallxBootstrap?
+    private static let lock = NSLock()
+
+    /// Idempotent per process. Throws when more than one media adapter is installed or the
+    /// checkpoint cannot be read; never install an empty runtime over a storage error.
+    @discardableResult
+    public static func start(_ config: CallxBootstrapConfig = CallxBootstrapConfig(),
+        install: @escaping @Sendable (BridgeRuntime) -> Void) throws -> CallxBootstrap {
+        lock.lock(); defer { lock.unlock() }
+        if let started { return started }
+        let bootstrap = try CallxBootstrap(config, install: install)
+        started = bootstrap
+        return bootstrap
+    }
+
+    private init(_ config: CallxBootstrapConfig, install: @escaping @Sendable (BridgeRuntime) -> Void) throws {
+        let nowMs: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+        let (adapter, status) = try Self.resolveMedia(config)
+        let provider = CXProvider(configuration: config.providerConfiguration ?? Self.defaultConfiguration())
+        let uuids = CallUUIDMap()
+        let actionIndex = CallKitActionIndex()
+        let registry = PlatformActionRegistry()
+        let lifecycle = CallKitActionLifecycle(index: actionIndex, registry: registry, nowMs: nowMs)
+        let executor = RegistryBackedPlatformExecutor(
+            submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs), registry: registry)
+        let hostPerformer = config.performer ?? AcceptingPerformer()
+        let performer: any CallKitActionPerforming = adapter.map {
+            MediaRoutingPerformer(performer: hostPerformer, media: $0, uuids: uuids)
+        } ?? hostPerformer
+        let delegate = CallKitProviderDelegateAdapter(performer: performer, lifecycle: lifecycle,
+            audio: adapter ?? config.audio)
+        provider.setDelegate(delegate, queue: nil)
+        let url = config.checkpointURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("callx/\(config.accountGeneration)/coordinator.json")
+        let coordinator = try CallCoordinator(store: CoordinatorFileStore(url: url))
+        let runtime = BridgeRuntime(coordinator: coordinator, executor: executor,
+            capabilities: .init(accountGeneration: config.accountGeneration, durableReplay: true,
+                providerManagedSignaling: false, hold: true, mute: adapter != nil || config.audio != nil),
+            nowMs: nowMs)
+        let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids, lifecycle: lifecycle,
+            listener: config.listener, media: adapter, nowMs: nowMs)
+        let probe = config.reconciliationProbe ?? UnavailableProbe(nowMs: nowMs)
+        let startPush = config.startPushRegistry
+        self.runtime = runtime; self.ingress = ingress; self.provider = provider; self.uuids = uuids
+        self.media = status; self.delegate = delegate
+        ready = Task {
+            // New process only: persist termination and clean up CallKit before a push can ring.
+            let recovered = try await ingress.recoverAfterProcessDeath()
+            install(runtime)
+            if startPush { ingress.startPushRegistry() }
+            Task.detached { _ = try? await RecoveredOperationReconciler(coordinator: coordinator, probe: probe)
+                .reconcile(nowMs: nowMs()) }
+            return recovered
+        }
+    }
+
+    private static func resolveMedia(_ config: CallxBootstrapConfig) throws -> ((any CallxMediaAdapter)?, CallxMediaStatus) {
+        if let media = config.media {
+            precondition(CallKitIngress.supports(media), "Media adapter API \(media.apiVersion) is not supported.")
+            return (media, .adapter(source: "explicit"))
+        }
+        if config.discoverMedia {
+            switch CallxMediaAdapters.discover(context: CallxAdapterContext(log: config.log)) {
+            case .resolved(let adapter, let source): return (adapter, .adapter(source: source))
+            case .conflict(let sources): throw CallxBootstrapError.mediaAdapterConflict(sources)
+            case .unavailable(let source, let reason):
+                config.log("media adapter \(source) unavailable: \(reason)")
+                return (nil, config.audio == nil ? .none(reason: reason) : .hostControlled)
+            case .none: break
+            }
+        }
+        return (nil, config.audio == nil ? .none(reason: nil) : .hostControlled)
+    }
+
+    private static func defaultConfiguration() -> CXProviderConfiguration {
+        let configuration = CXProviderConfiguration()
+        configuration.supportsVideo = false
+        configuration.maximumCallGroups = 1
+        configuration.maximumCallsPerCallGroup = 1
+        configuration.supportedHandleTypes = [.generic]
+        return configuration
+    }
+}
+
+private struct AcceptingPerformer: CallKitActionPerforming {
+    func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool { true }
+    func providerDidReset() async {}
+}
+
+private struct UnavailableProbe: OperationReconciliationProbe {
+    let nowMs: @Sendable () -> Int64
+    func query(_ command: NativeCommand) async -> ReconciliationOutcome { .unavailable(observedAtMs: nowMs()) }
+}
+#endif

@@ -18,6 +18,14 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         @Volatile private var hostRuntime: BridgeRuntime? = null
         /** Install once from Application after creating the native signaling/media executor. */
         @JvmStatic fun configure(runtime: BridgeRuntime) { hostRuntime = runtime }
+        /**
+         * Starts the whole native pipeline from `Application.onCreate` and installs it for Flutter
+         * (ADR-0009). See [CallxBootstrap.start] for failures to report as calling unavailable.
+         */
+        @JvmStatic @JvmOverloads
+        fun bootstrap(context: android.content.Context,
+            config: dev.callx.telecom.CallxBootstrapConfig = dev.callx.telecom.CallxBootstrapConfig()) =
+            dev.callx.telecom.CallxBootstrap.start(context, config, ::configure)
         @JvmStatic fun reset() { hostRuntime = null }
     }
 

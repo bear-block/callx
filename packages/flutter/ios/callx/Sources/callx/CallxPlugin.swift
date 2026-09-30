@@ -6,6 +6,13 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     private var receiver: FlutterBridgeEventReceiver?
 
     public static func configure(_ runtime: BridgeRuntime) { hostRuntime = runtime }
+    /// Starts the whole native pipeline and installs it for Flutter (ADR-0009). Call from
+    /// `application(_:didFinishLaunchingWithOptions:)`; see `CallxBootstrap.start` for failures.
+    @available(iOS 15.0, *)
+    @discardableResult
+    public static func bootstrap(_ config: CallxBootstrapConfig = CallxBootstrapConfig()) throws -> CallxBootstrap {
+        try CallxBootstrap.start(config) { configure($0) }
+    }
     public static func reset() { hostRuntime = nil }
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = CallxPlugin()

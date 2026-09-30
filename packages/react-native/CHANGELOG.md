@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `CallxModule.bootstrap` (Android) and `CallxReactNativeHost.bootstrap` (iOS) start the whole native pipeline in one call through
+  `CallxBootstrap` (ADR-0009): Telecom or CallKit, ingress, durable coordinator, recovery,
+  PushKit and media.
+- `CallxMediaAdapter` and `CallxMediaSink`: one media interface on Android and iOS. The ingress
+  starts and stops the adapter with each call; installed adapters are discovered from a
+  `dev.callx.media.<provider>` manifest entry (Android) or `CallxMediaAdapterFactories`
+  (Info.plist). More than one media adapter is refused.
 - iOS: `CallKitIngressListener.callAnswered(callID:)` and `callEnded(callID:)` tell the host to
   start and stop media once per call, from CallKit, the app or the remote side;
   `CallKitActionLifecycle.observeAppliedActions` reports every fulfilled action.
