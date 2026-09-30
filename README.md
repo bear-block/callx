@@ -3,10 +3,14 @@
 Callx provides native call coordination for Flutter and React Native through a shared
 Swift core on iOS and a shared Kotlin core on Android.
 
-| Framework | Package | Guide |
+| Package | Flutter (pub.dev) | React Native (npm) |
 |---|---|---|
-| Flutter | `callx` for pub.dev | [Flutter](packages/callx/README.md) |
-| React Native | `@bear-block/callx` for npm | [React Native](packages/react-native/README.md) |
+| Core: CallKit and Telecom, push ingress, incoming UI, recovery, the media adapter interface | [`callx`](packages/callx/README.md) | [`@bear-block/callx`](packages/react-native/README.md) |
+| LiveKit media adapter (optional; installing it is the whole integration) | [`callx_livekit`](packages/callx_livekit/README.md) | [`@bear-block/callx-livekit`](packages/react-native-livekit/README.md) |
+| Device-trial tools: call console, test pushes, adapter conformance | — | [`@bear-block/callx-testkit`](packages/testkit/README.md) |
+
+Bring your own media with the core alone, or install an adapter
+([ADR-0009](docs/adr/0009-core-and-media-adapter-packages.md)).
 
 ## Status
 
@@ -16,9 +20,9 @@ Native cores, framework transports and platform command adapters have build/test
 Push delivery, two-way audio, lock-screen behavior and process recovery still require
 device/backend acceptance.
 
-Callx does not supply a media server, signaling backend, push credentials or a complete
-provider integration. The application must configure the native runtime and supply
-these services. Installing a package alone does not enable calls.
+Callx does not supply a media server, signaling backend or push credentials. The
+application starts the native runtime with `CallxBootstrap`, configures its push and
+signaling, and either installs a media adapter or connects media from the core's callbacks.
 
 ## Documentation
 

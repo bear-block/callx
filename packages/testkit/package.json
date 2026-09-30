@@ -4,7 +4,10 @@
   "description": "Device-trial tools for callx: a local call console, test push sender and media adapter conformance",
   "license": "MIT",
   "homepage": "https://github.com/bear-block/callx",
-  "repository": {"type": "git", "url": "https://github.com/bear-block/callx.git"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bear-block/callx.git"
+  },
   "type": "module",
   "bin": {
     "callx-console": "./src/console.mjs",
@@ -16,8 +19,15 @@
     "./push": "./src/push.mjs",
     "./conformance": "./src/conformance.mjs"
   },
-  "files": ["src", "LICENSE", "README.md"],
-  "engines": {"node": ">=22"},
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test test/*.test.mjs"
   }

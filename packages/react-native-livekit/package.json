@@ -4,15 +4,31 @@
   "description": "LiveKit media adapter for @bear-block/callx: call audio that starts natively when a call is answered",
   "license": "MIT",
   "homepage": "https://github.com/bear-block/callx",
-  "repository": {"type": "git", "url": "https://github.com/bear-block/callx.git"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bear-block/callx.git"
+  },
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {
-    ".": {"types": "./lib/index.d.ts", "default": "./lib/index.js"},
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./app.plugin": "./app.plugin.cjs"
   },
-  "files": ["lib", "app.plugin.cjs", "android", "ios", "callx-livekit.podspec", "react-native.config.js", "LICENSE", "README.md"],
+  "files": [
+    "lib",
+    "app.plugin.cjs",
+    "android",
+    "ios",
+    "callx-livekit.podspec",
+    "react-native.config.js",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test test/*.test.mjs",
@@ -28,6 +44,8 @@
     "react-native": ">=0.76"
   },
   "peerDependenciesMeta": {
-    "@expo/config-plugins": {"optional": true}
+    "@expo/config-plugins": {
+      "optional": true
+    }
   }
 }
