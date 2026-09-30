@@ -23,6 +23,7 @@ async function invoke(method: string, arguments_: Record<string, unknown> = {}):
 export async function hostStatus(): Promise<HostStatus> { return await invoke('status') as HostStatus; }
 export async function selectEndpoint(index: number): Promise<unknown> { return invoke('selectAudioEndpoint', {index}); }
 export async function requestPermissions(): Promise<void> {
+  if (Platform.OS === 'ios') { if (nativeHost) await invoke('requestPermissions'); return; }
   if (Platform.OS !== 'android') return;
   const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
   if (Number(Platform.Version) >= 33) permissions.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);

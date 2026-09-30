@@ -2,12 +2,40 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {withMainApplication, withMainActivity, withAppDelegate, withAppBuildGradle, withDangerousMod,
-  withXcodeProject, withAndroidManifest, IOSConfig} = require('@expo/config-plugins');
+  withXcodeProject, withAndroidManifest, withInfoPlist, IOSConfig} = require('@expo/config-plugins');
 
 function insertOnce(source, marker, anchor, replacement) {
   if (source.includes(marker)) return source;
   if (!source.includes(anchor)) throw new Error(`Callx example cannot find bootstrap anchor: ${anchor}`);
   return source.replace(anchor, replacement);
+}
+
+/**
+ * Adds a Swift package product to the app target. LiveKit's current Swift SDK is published through
+ * Swift Package Manager only; CocoaPods trunk stops at 2.0.x.
+ */
+function addSwiftPackage(project, {url, version, product}) {
+  const objects = project.hash.project.objects;
+  objects.XCRemoteSwiftPackageReference ??= {};
+  objects.XCSwiftPackageProductDependency ??= {};
+  const quoted = `"${url}"`;
+  if (Object.values(objects.XCRemoteSwiftPackageReference).some(item => item?.repositoryURL === quoted)) return;
+  const packageId = project.generateUuid(), dependencyId = project.generateUuid(), buildFileId = project.generateUuid();
+  const packageName = url.split('/').pop();
+  objects.XCRemoteSwiftPackageReference[packageId] = {isa: 'XCRemoteSwiftPackageReference', repositoryURL: quoted,
+    requirement: {kind: 'exactVersion', version}};
+  objects.XCRemoteSwiftPackageReference[`${packageId}_comment`] = `XCRemoteSwiftPackageReference "${packageName}"`;
+  objects.XCSwiftPackageProductDependency[dependencyId] = {isa: 'XCSwiftPackageProductDependency', package: packageId,
+    package_comment: `XCRemoteSwiftPackageReference "${packageName}"`, productName: product};
+  objects.XCSwiftPackageProductDependency[`${dependencyId}_comment`] = product;
+  objects.PBXBuildFile[buildFileId] = {isa: 'PBXBuildFile', productRef: dependencyId, productRef_comment: product};
+  objects.PBXBuildFile[`${buildFileId}_comment`] = `${product} in Frameworks`;
+  const root = project.getFirstProject().firstProject;
+  root.packageReferences = [...(root.packageReferences ?? []), {value: packageId, comment: `XCRemoteSwiftPackageReference "${packageName}"`}];
+  const target = project.getFirstTarget();
+  target.firstTarget.packageProductDependencies = [...(target.firstTarget.packageProductDependencies ?? []),
+    {value: dependencyId, comment: product}];
+  project.pbxFrameworksBuildPhaseObj(target.uuid).files.push({value: buildFileId, comment: `${product} in Frameworks`});
 }
 
 // Device-trial Firebase config, ignored by Git. Without it the example builds but cannot receive FCM.
@@ -75,9 +103,17 @@ module.exports = config => {
       'let delegate = ReactNativeDelegate()', 'DeviceHost.shared.start()\n    let delegate = ReactNativeDelegate()');
     return mod;
   });
+  config = withInfoPlist(config, mod => {
+    // The Simulator reaches the Mac at 127.0.0.1; set the Mac's address for an iPhone.
+    mod.modResults.CallxConsoleURL ??= 'http://127.0.0.1:8787';
+    mod.modResults.NSAppTransportSecurity = {...mod.modResults.NSAppTransportSecurity, NSAllowsLocalNetworking: true};
+    mod.modResults.NSLocalNetworkUsageDescription ??= 'Device trials reach the call console and media server on this network.';
+    return mod;
+  });
   return withXcodeProject(config, mod => {
     const name = mod.modRequest.projectName ?? IOSConfig.XcodeUtils.getProjectName(mod.modRequest.projectRoot);
-    for (const file of ['DeviceHost.swift', 'DeviceHostBridge.m']) {
+    addSwiftPackage(mod.modResults, {url: 'https://github.com/livekit/client-sdk-swift', version: '2.17.0', product: 'LiveKit'});
+    for (const file of ['DeviceHost.swift', 'DeviceHostBridge.m', 'LiveKitCallMedia.swift', 'ConsoleReporter.swift']) {
       fs.copyFileSync(path.join(__dirname, 'ios', file), path.join(mod.modRequest.platformProjectRoot, name, file));
       const filepath = `${name}/${file}`;
       if (!mod.modResults.hasFile(filepath)) {

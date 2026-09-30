@@ -1,8 +1,13 @@
+import AVFAudio
 import CallKit
 import Foundation
 @preconcurrency import React
+import UIKit
 import callx_react_native
 
+/// Device-trial host. Local signaling only (no push); media is real when the call console and
+/// `npm run media:server` run: `LiveKitCallMedia` joins the call's LiveKit room on answer. Set
+/// `CallxConsoleURL` in Info.plist to the Mac's address for an iPhone.
 final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerforming, @unchecked Sendable {
   static let shared = DeviceHost()
   private let lock = NSLock()
@@ -13,6 +18,13 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
   private var provider: CXProvider?
   private var delegate: CallKitProviderDelegateAdapter?
   private var events: [String] = []
+  private lazy var media = LiveKitCallMedia(
+    credentials: { callID in try await DeviceHost.mediaCredentials(callID) },
+    onConnected: { callID in Task { try? await DeviceHost.shared.runtime?.mediaConnected(callID: callID) } },
+    onInterrupted: { callID in Task { try? await DeviceHost.shared.runtime?.mediaInterrupted(callID: callID) } },
+    log: { DeviceHost.shared.record($0) })
+  static let consoleURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "CallxConsoleURL") as? String
+    ?? "http://127.0.0.1:8787")!
 
   func start() {
     guard runtime == nil else { return }
@@ -29,7 +41,7 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
     let executor = RegistryBackedPlatformExecutor(
       submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs),
       registry: actionRegistry)
-    let delegate = CallKitProviderDelegateAdapter(performer: self, lifecycle: lifecycle)
+    let delegate = CallKitProviderDelegateAdapter(performer: self, lifecycle: lifecycle, audio: media)
     provider.setDelegate(delegate, queue: nil)
     let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("callx/demo-account/coordinator.json")
@@ -43,6 +55,10 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
     let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids,
       lifecycle: lifecycle, listener: self, nowMs: nowMs)
     self.provider = provider; self.delegate = delegate; self.runtime = runtime; self.ingress = ingress
+    ConsoleReporter.start(consoleURL: Self.consoleURL, app: "react-native") { [weak self] in
+      guard let self else { return (nil, []) }
+      self.lock.lock(); defer { self.lock.unlock() }; return (nil, self.events)
+    }
     bootstrap = Task {
       if let recovered = try await ingress.recoverAfterProcessDeath() {
         self.record("recovered \(recovered.callID): \(recovered.endReason ?? "failed")")
@@ -59,6 +75,10 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
     let callID = arguments["callId"] as? String ?? ""
     switch method {
     case "status": return status()
+    case "requestPermissions":
+      // Ask while the app is in use: a call answered on the lock screen cannot show the prompt.
+      let granted = await LiveKitCallMedia.requestMicrophone()
+      record("microphone \(granted ? "allowed" : "denied")")
     case "incoming":
       let invitation = Invitation(callID: callID, displayName: arguments["displayName"] as? String ?? "Caller",
         handle: arguments["handle"] as? String ?? "callx:caller")
@@ -85,6 +105,21 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
       "events": events, "endpoints": [[String: Any]]()]
   }
 
+  /// Test harness only: the call console issues LiveKit tokens as a backend would.
+  static func mediaCredentials(_ callID: String) async throws -> MediaCredentials {
+    var request = URLRequest(url: consoleURL.appendingPathComponent("api/media-token"), timeoutInterval: 3)
+    request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "content-type")
+    request.httpBody = try JSONSerialization.data(withJSONObject: ["callId": callID, "identity": "callee",
+      "name": UIDevice.current.name])
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard (response as? HTTPURLResponse)?.statusCode == 200,
+          let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let url = body["url"] as? String, let token = body["token"] as? String else {
+      throw URLError(.badServerResponse)
+    }
+    return MediaCredentials(url: url, token: token)
+  }
+
   private func record(_ message: String) {
     let formatter = DateFormatter(); formatter.dateFormat = "HH:mm:ss"
     NSLog("CallxExample: %@", message)
@@ -98,10 +133,15 @@ final class DeviceHost: NSObject, CallKitIngressListener, CallKitActionPerformin
     record("did not ring \(invitation?.callID ?? "undecodable payload"): \(outcome.map { "\($0)" } ?? "not recorded or refused by CallKit")")
   }
   func ringTimedOut(callID: String) { record("ring deadline passed: \(callID)") }
+  func callAnswered(callID: String) { record("answered: \(callID)"); media.start(callID: callID) }
+  func callEnded(callID: String) { record("ended: \(callID)"); media.stop(callID: callID) }
 
   // CallKitActionPerforming: a real app does its backend and media work before returning true.
   func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool {
-    record("CallKit action \(kind) for \(uuids.callID(for: callUUID) ?? callUUID.uuidString)"); return true
+    let callID = uuids.callID(for: callUUID) ?? callUUID.uuidString
+    record("CallKit action \(kind) for \(callID)")
+    if case .setMuted(let muted) = kind { return await media.setMuted(callID: callID, muted: muted) }
+    return true
   }
   func providerDidReset() async { record("CallKit provider reset") }
 }

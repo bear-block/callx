@@ -26,6 +26,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CallxConsoleURL</key>
+	<string>http://127.0.0.1:8787</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Device trials reach the call console and media server on this network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Callx example calls use the microphone.</string>
 	<key>UIBackgroundModes</key>

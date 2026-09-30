@@ -1,3 +1,4 @@
+import AVFAudio
 import CallKit
 import Flutter
 import UIKit
@@ -22,9 +23,11 @@ import callx
   }
 }
 
-/// Device-trial host. A real app connects its signaling client and media engine here; this one
-/// has neither, so it records every callback and lets the example UI stand in for the remote
-/// side and for media. Nothing in it produces audio.
+/// Device-trial host. A real app connects its signaling client and media engine here. This one has
+/// no signaling client: it records every callback and lets the example UI and the call console
+/// stand in for the remote side. Media is real when the console and `npm run media:server` run:
+/// `LiveKitCallMedia` joins the call's LiveKit room on answer. Set `CallxConsoleURL` in
+/// Info.plist to the Mac's address for an iPhone (the default reaches the Mac from a Simulator).
 final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming, @unchecked Sendable {
   static let shared = CallHost()
   private let lock = NSLock()
@@ -37,6 +40,13 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
   private var channel: FlutterMethodChannel?
   private var pushToken: String?
   private var events: [String] = []
+  private lazy var media = LiveKitCallMedia(
+    credentials: { callID in try await CallHost.mediaCredentials(callID) },
+    onConnected: { callID in Task { try? await CallHost.shared.runtime?.mediaConnected(callID: callID) } },
+    onInterrupted: { callID in Task { try? await CallHost.shared.runtime?.mediaInterrupted(callID: callID) } },
+    log: { CallHost.shared.record($0) })
+  static let consoleURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "CallxConsoleURL") as? String
+    ?? "http://127.0.0.1:8787")!
 
   func start() {
     guard runtime == nil else { return }
@@ -53,7 +63,7 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     let executor = RegistryBackedPlatformExecutor(
       submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs),
       registry: actionRegistry)
-    let delegate = CallKitProviderDelegateAdapter(performer: self, lifecycle: lifecycle)
+    let delegate = CallKitProviderDelegateAdapter(performer: self, lifecycle: lifecycle, audio: media)
     provider.setDelegate(delegate, queue: nil)
     let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("callx/demo-account/coordinator.json")
@@ -67,6 +77,10 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids,
       lifecycle: lifecycle, listener: self, nowMs: nowMs)
     self.provider = provider; self.delegate = delegate; self.runtime = runtime; self.ingress = ingress
+    ConsoleReporter.start(consoleURL: Self.consoleURL, app: "flutter") { [weak self] in
+      guard let self else { return (nil, []) }
+      self.lock.lock(); defer { self.lock.unlock() }; return (self.pushToken, self.events)
+    }
     bootstrap = Task {
       if let recovered = try await ingress.recoverAfterProcessDeath() {
         self.record("recovered \(recovered.callID): \(recovered.endReason ?? "failed")")
@@ -120,7 +134,8 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
       result(["platform": "ios", "simulator": simulator, "pushReady": token != nil, "pushToken": token as Any,
         "events": recent, "endpoints": [[String: Any]]()])
     case "requestPermissions":
-      // CallKit asks for the microphone when a call first uses it; nothing else to request.
+      // Ask while the app is in use: a call answered on the lock screen cannot show the prompt.
+      Task { self.record("microphone \(await LiveKitCallMedia.requestMicrophone() ? "allowed" : "denied")") }
       result(nil)
     case "incoming":
       let name = arguments["displayName"] as? String ?? "Caller"
@@ -138,6 +153,21 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     case "selectAudioEndpoint": result(false)
     default: result(FlutterMethodNotImplemented)
     }
+  }
+
+  /// Test harness only: the call console issues LiveKit tokens as a backend would.
+  static func mediaCredentials(_ callID: String) async throws -> MediaCredentials {
+    var request = URLRequest(url: consoleURL.appendingPathComponent("api/media-token"), timeoutInterval: 3)
+    request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "content-type")
+    request.httpBody = try JSONSerialization.data(withJSONObject: ["callId": callID, "identity": "callee",
+      "name": UIDevice.current.name])
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard (response as? HTTPURLResponse)?.statusCode == 200,
+          let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+          let url = body["url"] as? String, let token = body["token"] as? String else {
+      throw URLError(.badServerResponse)
+    }
+    return MediaCredentials(url: url, token: token)
   }
 
   private func record(_ message: String) {
@@ -158,10 +188,15 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     record("did not ring \(invitation?.callID ?? "undecodable payload"): \(outcome.map { "\($0)" } ?? "not recorded or refused by CallKit")")
   }
   func ringTimedOut(callID: String) { record("ring deadline passed: \(callID)") }
+  func callAnswered(callID: String) { record("answered: \(callID)"); media.start(callID: callID) }
+  func callEnded(callID: String) { record("ended: \(callID)"); media.stop(callID: callID) }
 
   // CallKitActionPerforming: a real app does its backend and media work before returning true.
   func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool {
-    record("CallKit action \(kind) for \(uuids.callID(for: callUUID) ?? callUUID.uuidString)"); return true
+    let callID = uuids.callID(for: callUUID) ?? callUUID.uuidString
+    record("CallKit action \(kind) for \(callID)")
+    if case .setMuted(let muted) = kind { return await media.setMuted(callID: callID, muted: muted) }
+    return true
   }
   func providerDidReset() async { record("CallKit provider reset") }
 }
