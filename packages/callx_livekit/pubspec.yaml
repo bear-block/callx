@@ -11,8 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # The monorepo resolves this to ../flutter through pubspec_overrides.yaml.
-  callx: 0.0.0-preview.1
+  # The monorepo resolves this to ../callx through pubspec_overrides.yaml.
+  callx: ^0.0.0-preview.1
 
 flutter:
   plugin:

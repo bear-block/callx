@@ -1,7 +1,8 @@
 Pod::Spec.new do |s|
   s.name             = 'callx'
-  # CocoaPods excludes prereleases from unconstrained dependency resolution.
-  s.version          = '0.0.1'
+  # One version for every package (npm run release:version). CocoaPods excludes prereleases
+  # from unconstrained resolution, so the pod carries only the release part.
+  s.version          = File.read(File.join(__dir__, '..', 'pubspec.yaml'))[/^version:\s*(\S+)/, 1].split('-').first
   s.summary          = 'Native call coordination for Flutter.'
   s.homepage         = 'https://github.com/bear-block/callx'
   s.license          = { :type => 'MIT', :file => 'LICENSE' }

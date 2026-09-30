@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# The same commands developers run locally (README, "Repository development").
+jobs:
+  checks:
+    name: Contract, tools and TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run contract:test
+      - run: npm run typecheck
+      - run: npm run native:check
+      - run: npm run release:check
+      - name: React Native package
+        working-directory: packages/react-native
+        run: npm ci && npm test
+      - name: React Native LiveKit adapter
+        working-directory: packages/react-native-livekit
+        # The @bear-block/callx peer is not on npm until the first release.
+        run: npm ci --legacy-peer-deps && npm test
+
+  flutter:
+    name: Flutter packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+      - name: callx
+        working-directory: packages/callx
+        run: flutter pub get && flutter analyze && flutter test
+      - name: callx_livekit
+        working-directory: packages/callx_livekit
+        run: flutter pub get && flutter analyze && flutter test
+
+  android:
+    name: Android (Kotlin tests, example builds)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+      - run: npm ci
+      - name: Kotlin core, Telecom and LiveKit adapter tests
+        run: npm run native:android:test
+      - name: Flutter example APK
+        working-directory: packages/callx/example
+        run: flutter build apk --debug
+      - name: React Native example APK
+        run: |
+          (cd packages/react-native && npm ci)
+          (cd packages/react-native-livekit && npm ci --legacy-peer-deps && npm run build)
+          (cd packages/react-native/example && npm ci && npx tsc --noEmit)
+          node tool/app.mjs rn android --build-only
+
+  ios:
+    name: iOS (Swift, Simulator, example builds)
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      # The core uses iOS 26.4 PushKit metadata, so it needs an Xcode 26 or later SDK.
+      - name: Select the newest Xcode (26 or later)
+        run: |
+          xcode=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$xcode" ] || { echo "::error::No Xcode 26 or later on this runner image"; exit 1; }
+          sudo xcode-select -s "$xcode" && xcodebuild -version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+      - run: npm ci
+      - name: Swift core on macOS
+        run: npm run native:ios:test
+      - name: CallKit and PushKit on the Simulator
+        run: npm run native:ios:simulator-test
+      - name: LiveKit adapter on the Simulator
+        run: sh tool/ios-simulator-test.sh adapters/livekit/native/ios/CallxLiveKit CallxLiveKit
+      - name: Flutter example for the Simulator
+        working-directory: packages/callx/example
+        run: flutter build ios --simulator --debug
+      - name: React Native example for the Simulator
+        run: |
+          (cd packages/react-native && npm ci)
+          (cd packages/react-native-livekit && npm ci --legacy-peer-deps && npm run build)
+          (cd packages/react-native/example && npm ci)
+          node tool/app.mjs rn ios --build-only
+
+  release-dry-run:
+    name: Release dry run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          cache: true
+      - run: npm ci
+      - run: (cd packages/react-native && npm ci) && (cd packages/react-native-livekit && npm ci --legacy-peer-deps)
+      - run: (cd packages/callx && flutter pub get) && (cd packages/callx_livekit && flutter pub get)
+      - run: npm run release:check
+      - run: npm run release:dry-run
