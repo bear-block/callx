@@ -66,8 +66,8 @@ object CallHost {
         CallxTelecomAvailability.requireSupported(context)
         val callsManager = CallsManager(context)
         callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
-        media = LiveKitCallMedia(context, scope, ::mediaCredentials,
-            onConnected = { runtime.mediaConnected(it) }, onInterrupted = { runtime.mediaInterrupted(it) }, log = ::record)
+        // A CallxMediaAdapter: the ingress starts and stops it with each call (ADR-0009).
+        media = LiveKitCallMedia(context, scope, ::mediaCredentials, log = ::record)
         ingress = TelecomIngress(scope, CallStylePresenter(context), Listener, media)
         val sessions = CoreTelecomSessionManager(callsManager, ingress.systemActions(SystemActions), scope, ingress.audioObserver)
         val executor = ingress.executor(TelecomPlatformExecutor(scope, sessions, media, outgoing = sessions))
@@ -145,8 +145,6 @@ object CallHost {
         override fun onUserAnswered(callId: String) { record("answered from notification: $callId") }
         override fun onUserEnded(callId: String) { record("ended from notification: $callId") }
         override fun onRingTimedOut(callId: String) { record("ring deadline passed: $callId") }
-        override fun onCallAnswered(callId: String) { media.start(callId) }
-        override fun onCallEnded(callId: String) { media.stop(callId) }
         override fun onAudioEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>) {
             activeCallId = callId; currentEndpoint = current; endpoints = available
             record("audio: ${current.name} of ${available.joinToString { it.name }}")

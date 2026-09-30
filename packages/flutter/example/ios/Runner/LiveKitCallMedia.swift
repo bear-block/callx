@@ -18,22 +18,18 @@ struct MediaCredentials: Sendable {
 /// when it ends. It follows ADR-0004 and Apple's CallKit rules: CallKit owns the audio session,
 /// so LiveKit's automatic session configuration is off and its audio engine may run only between
 /// `didActivate` and `didDeactivate`. Joining the room and publishing the microphone can happen
-/// earlier; audio starts when CallKit activates the session. Media never decides the call's
-/// state: it reports readiness and interruptions, never a call end.
-final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked Sendable {
+/// earlier; audio starts when CallKit activates the session. It implements `CallxMediaAdapter`
+/// (ADR-0009): the ingress starts and stops it, and it reports readiness and interruptions
+/// through the call's sink, never a call end.
+final class LiveKitCallMedia: NSObject, CallxMediaAdapter, @unchecked Sendable {
   private let credentials: @Sendable (String) async throws -> MediaCredentials
-  private let onConnected: @Sendable (String) -> Void
-  private let onInterrupted: @Sendable (String) -> Void
   private let log: @Sendable (String) -> Void
   private let lock = NSLock()
   private var sessions: [String: Session] = [:]
 
   init(credentials: @escaping @Sendable (String) async throws -> MediaCredentials,
-       onConnected: @escaping @Sendable (String) -> Void,
-       onInterrupted: @escaping @Sendable (String) -> Void,
        log: @escaping @Sendable (String) -> Void) {
-    self.credentials = credentials; self.onConnected = onConnected
-    self.onInterrupted = onInterrupted; self.log = log
+    self.credentials = credentials; self.log = log
     super.init()
     // Before any room exists: CallKit, not LiveKit, activates the audio session.
     AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
@@ -42,10 +38,10 @@ final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked 
   }
 
   /// Joins the call's room. Returns at once; idempotent per call.
-  func start(callID: String) {
+  func start(callID: String, sink: any CallxMediaSink) {
     lock.lock()
     guard sessions[callID] == nil else { lock.unlock(); return }
-    let session = Session(callID: callID, owner: self)
+    let session = Session(callID: callID, sink: sink, owner: self)
     sessions[callID] = session
     lock.unlock()
     session.task = Task { [weak self] in
@@ -131,6 +127,7 @@ final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked 
   /// One call's room and the remote audio it hears.
   fileprivate final class Session: NSObject, RoomDelegate, @unchecked Sendable {
     let callID: String
+    let sink: any CallxMediaSink
     lazy var room = Room(delegate: self)
     var task: Task<Void, Never>?
     var muted = false
@@ -138,13 +135,15 @@ final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked 
     private let lock = NSLock()
     private var hearing: Set<String> = []
 
-    init(callID: String, owner: LiveKitCallMedia) { self.callID = callID; self.owner = owner }
+    init(callID: String, sink: any CallxMediaSink, owner: LiveKitCallMedia) {
+      self.callID = callID; self.sink = sink; self.owner = owner
+    }
 
     func room(_ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication) {
       guard publication.kind == .audio, let owner, owner.isCurrent(self) else { return }
       lock.lock(); hearing.insert(publication.sid.stringValue); lock.unlock()
       owner.log("media connected (LiveKit) for \(callID): hearing \(participant.identity?.stringValue ?? "?")")
-      owner.onConnected(callID)
+      sink.connected()
     }
 
     func room(_ room: Room, participant: RemoteParticipant, didUnsubscribeTrack publication: RemoteTrackPublication) {
@@ -152,19 +151,19 @@ final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked 
       lock.lock(); hearing.remove(publication.sid.stringValue); let silent = hearing.isEmpty; lock.unlock()
       if silent {
         owner.log("media interrupted for \(callID): \(participant.identity?.stringValue ?? "?") is no longer heard")
-        owner.onInterrupted(callID)
+        sink.interrupted()
       }
     }
 
     func roomIsReconnecting(_ room: Room) {
       guard let owner, owner.isCurrent(self) else { return }
-      owner.log("media interrupted for \(callID): LiveKit is reconnecting"); owner.onInterrupted(callID)
+      owner.log("media interrupted for \(callID): LiveKit is reconnecting"); sink.interrupted()
     }
 
     func roomDidReconnect(_ room: Room) {
       lock.lock(); let heard = !hearing.isEmpty; lock.unlock()
       guard heard, let owner, owner.isCurrent(self) else { return }
-      owner.log("media connected (LiveKit) for \(callID): reconnected"); owner.onConnected(callID)
+      owner.log("media connected (LiveKit) for \(callID): reconnected"); sink.connected()
     }
 
     func room(_ room: Room, participantDidDisconnect participant: RemoteParticipant) {
@@ -175,7 +174,7 @@ final class LiveKitCallMedia: NSObject, CallKitAudioSessionHandling, @unchecked 
       // stop() also disconnects; only a drop while the call is live counts.
       guard let owner, owner.isCurrent(self) else { return }
       owner.log("media: left the room of \(callID) (\(error.map { "\($0)" } ?? "no error"))")
-      owner.onInterrupted(callID)
+      sink.interrupted()
     }
   }
 }

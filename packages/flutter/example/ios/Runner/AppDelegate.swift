@@ -40,10 +40,9 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
   private var channel: FlutterMethodChannel?
   private var pushToken: String?
   private var events: [String] = []
+  // A CallxMediaAdapter: the ingress starts and stops it with each call (ADR-0009).
   private lazy var media = LiveKitCallMedia(
     credentials: { callID in try await CallHost.mediaCredentials(callID) },
-    onConnected: { callID in Task { try? await CallHost.shared.runtime?.mediaConnected(callID: callID) } },
-    onInterrupted: { callID in Task { try? await CallHost.shared.runtime?.mediaInterrupted(callID: callID) } },
     log: { CallHost.shared.record($0) })
   static let consoleURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "CallxConsoleURL") as? String
     ?? "http://127.0.0.1:8787")!
@@ -63,7 +62,9 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     let executor = RegistryBackedPlatformExecutor(
       submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs),
       registry: actionRegistry)
-    let delegate = CallKitProviderDelegateAdapter(performer: self, lifecycle: lifecycle, audio: media)
+    // CallKit mutes reach the media first; the action is fulfilled only when media followed.
+    let delegate = CallKitProviderDelegateAdapter(
+      performer: MediaRoutingPerformer(performer: self, media: media, uuids: uuids), lifecycle: lifecycle, audio: media)
     provider.setDelegate(delegate, queue: nil)
     let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("callx/demo-account/coordinator.json")
@@ -75,7 +76,7 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
       capabilities: .init(accountGeneration: "demo-account-1", durableReplay: true,
         providerManagedSignaling: false, hold: true, mute: true), nowMs: nowMs)
     let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids,
-      lifecycle: lifecycle, listener: self, nowMs: nowMs)
+      lifecycle: lifecycle, listener: self, media: media, nowMs: nowMs)
     self.provider = provider; self.delegate = delegate; self.runtime = runtime; self.ingress = ingress
     ConsoleReporter.start(consoleURL: Self.consoleURL, app: "flutter") { [weak self] in
       guard let self else { return (nil, []) }
@@ -188,15 +189,12 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     record("did not ring \(invitation?.callID ?? "undecodable payload"): \(outcome.map { "\($0)" } ?? "not recorded or refused by CallKit")")
   }
   func ringTimedOut(callID: String) { record("ring deadline passed: \(callID)") }
-  func callAnswered(callID: String) { record("answered: \(callID)"); media.start(callID: callID) }
-  func callEnded(callID: String) { record("ended: \(callID)"); media.stop(callID: callID) }
+  func callAnswered(callID: String) { record("answered: \(callID)") }
+  func callEnded(callID: String) { record("ended: \(callID)") }
 
   // CallKitActionPerforming: a real app does its backend and media work before returning true.
   func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool {
-    let callID = uuids.callID(for: callUUID) ?? callUUID.uuidString
-    record("CallKit action \(kind) for \(callID)")
-    if case .setMuted(let muted) = kind { return await media.setMuted(callID: callID, muted: muted) }
-    return true
+    record("CallKit action \(kind) for \(uuids.callID(for: callUUID) ?? callUUID.uuidString)"); return true
   }
   func providerDidReset() async { record("CallKit provider reset") }
 }

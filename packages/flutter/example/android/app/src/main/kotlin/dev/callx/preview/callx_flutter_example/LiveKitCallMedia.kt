@@ -3,7 +3,8 @@ package dev.callx.preview.callx_flutter_example
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import dev.callx.telecom.MediaMuteController
+import dev.callx.telecom.CallxMediaAdapter
+import dev.callx.telecom.CallxMediaSink
 import io.livekit.android.AudioOptions
 import io.livekit.android.LiveKit
 import io.livekit.android.LiveKitOverrides
@@ -27,21 +28,18 @@ data class MediaCredentials(val url: String, val token: String)
  * Example media adapter: one LiveKit room per call, joined when the call is answered and left when
  * it ends. It follows ADR-0004: Telecom owns routing, so LiveKit's own route manager
  * (AudioSwitch) is replaced with [NoAudioHandler], and LiveKit plays on the voice-call stream.
- * Media never decides the call's state: it reports readiness through [onConnected] and drops
- * through [onInterrupted] (LiveKit reconnecting, or no remote audio left), never a call end.
+ * It implements [CallxMediaAdapter] (ADR-0009): the ingress starts and stops it, and it reports
+ * readiness and drops (LiveKit reconnecting, or no remote audio left) through the call's sink,
+ * never a call end.
  */
 class LiveKitCallMedia(
     context: Context,
     private val scope: CoroutineScope,
     private val credentials: suspend (callId: String) -> MediaCredentials,
-    /** The remote party's audio is subscribed: report `mediaConnected`. */
-    private val onConnected: (callId: String) -> Unit,
-    /** Connected media dropped: report `mediaInterrupted`. [onConnected] follows when it is back. */
-    private val onInterrupted: (callId: String) -> Unit,
     private val log: (String) -> Unit,
-) : MediaMuteController {
+) : CallxMediaAdapter {
     private val context = context.applicationContext
-    private class Session(val job: Job) {
+    private class Session(val job: Job, val sink: CallxMediaSink) {
         @Volatile var room: Room? = null
         @Volatile var muted = false
         /** Remote audio tracks this device currently hears. */
@@ -50,7 +48,7 @@ class LiveKitCallMedia(
     private val sessions = ConcurrentHashMap<String, Session>()
 
     /** Joins the call's room. Returns at once; idempotent per call. */
-    fun start(callId: String) {
+    override fun start(callId: String, sink: CallxMediaSink) {
         if (sessions.containsKey(callId)) return
         lateinit var session: Session
         session = Session(scope.launch(start = CoroutineStart.LAZY) {
@@ -67,27 +65,27 @@ class LiveKitCallMedia(
                             is RoomEvent.TrackSubscribed -> if (event.track is AudioTrack) {
                                 session.hearing += event.track
                                 log("media connected (LiveKit) for $callId: hearing ${event.participant.identity?.value}")
-                                onConnected(callId)
+                                session.sink.connected()
                             }
                             is RoomEvent.TrackUnsubscribed -> if (event.track is AudioTrack) {
                                 session.hearing -= event.track
                                 if (session.hearing.isEmpty()) {
                                     log("media interrupted for $callId: ${event.participant.identity?.value} is no longer heard")
-                                    onInterrupted(callId)
+                                    session.sink.interrupted()
                                 }
                             }
                             is RoomEvent.Reconnecting -> {
-                                log("media interrupted for $callId: LiveKit is reconnecting"); onInterrupted(callId)
+                                log("media interrupted for $callId: LiveKit is reconnecting"); session.sink.interrupted()
                             }
                             is RoomEvent.Reconnected -> if (session.hearing.isNotEmpty()) {
-                                log("media connected (LiveKit) for $callId: reconnected"); onConnected(callId)
+                                log("media connected (LiveKit) for $callId: reconnected"); session.sink.connected()
                             }
                             is RoomEvent.ParticipantDisconnected ->
                                 log("media: ${event.participant.identity?.value} left the room of $callId")
                             is RoomEvent.Disconnected -> {
                                 // stop() also disconnects; only a drop while the call is live counts.
                                 log("media: left the room of $callId (${event.reason})")
-                                if (sessions[callId] === session) onInterrupted(callId)
+                                if (sessions[callId] === session) session.sink.interrupted()
                             }
                             else -> Unit
                         }
@@ -101,12 +99,12 @@ class LiveKitCallMedia(
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 log("media failed for $callId: $error")
             }
-        })
+        }, sink)
         if (sessions.putIfAbsent(callId, session) == null) session.job.start()
     }
 
     /** Leaves the call's room and releases LiveKit's resources. */
-    fun stop(callId: String) {
+    override fun stop(callId: String) {
         val session = sessions.remove(callId) ?: return
         session.job.cancel()
     }
