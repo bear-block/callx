@@ -86,3 +86,55 @@ test('plugin raises Android minSdk to the library floor without lowering it', as
   assert.deepEqual(await minSdk('24'), ['29']);
   assert.deepEqual(await minSdk('31'), ['31']);
 });
+
+const MAIN_APPLICATION = `class MainApplication : Application(), ReactApplication {
+  override fun onCreate() {
+    super.onCreate()
+    loadReactNative(this)
+  }
+}`;
+const APP_DELEGATE = `internal import Expo
+import React
+import ReactAppDependencyProvider
+
+@main
+class AppDelegate: ExpoAppDelegate {
+  public override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+  ) -> Bool {
+    let delegate = ReactNativeDelegate()
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}`;
+
+test('bootstrap runs first in MainApplication and AppDelegate, once', () => {
+  const kotlin = plugin.bootstrapMainApplication(MAIN_APPLICATION, null);
+  assert.match(kotlin, /super\.onCreate\(\)\n\s+\/\/ Callx[\s\S]*CallxModule\.bootstrap\(this\)[\s\S]*loadReactNative/);
+  assert.doesNotMatch(kotlin, /registerToken/);
+  assert.equal(plugin.bootstrapMainApplication(kotlin, null), kotlin);
+  assert.match(plugin.bootstrapMainApplication(MAIN_APPLICATION, 'com.acme.app'),
+    /com\.acme\.app\.CallxMessagingService\.registerToken\(this\)/);
+  const swift = plugin.bootstrapAppDelegate(APP_DELEGATE, true);
+  assert.match(swift, /import React\nimport callx_react_native/);
+  assert.match(swift, /-> Bool \{\n\s+\/\/ Callx[\s\S]*startPushRegistry = true[\s\S]*CallxReactNativeHost\.bootstrap[\s\S]*let delegate/);
+  assert.equal(plugin.bootstrapAppDelegate(swift, true), swift);
+  assert.match(plugin.bootstrapAppDelegate(APP_DELEGATE, false), /startPushRegistry = false/);
+});
+
+test('the FCM service extends React Native Firebase when the app uses it', () => {
+  const standalone = plugin.messagingService('com.acme.app', false);
+  assert.match(standalone, /^package com\.acme\.app$/m);
+  assert.match(standalone, /: com\.google\.firebase\.messaging\.FirebaseMessagingService\(\)/);
+  assert.doesNotMatch(standalone, /super\.onMessageReceived|\{\{/);
+  const chained = plugin.messagingService('com.acme.app', true);
+  assert.match(chained, /: io\.invertase\.firebase\.messaging\.ReactNativeFirebaseMessagingService\(\)/);
+  assert.match(chained, /super\.onMessageReceived\(message\)/);
+  assert.match(chained, /super\.onNewToken\(token\)/);
+});
+
+test('plugin validates bootstrap and push options', () => {
+  for (const options of [{bootstrap: 'yes'}, {androidPush: 'apns'}, {androidPush: 'fcm', bootstrap: false}]) {
+    assert.throws(() => plugin({name: 'Test', slug: 'test', android: {package: 'dev.callx.test'}}, options), /Callx/);
+  }
+});

@@ -12,7 +12,8 @@
         {
           "microphonePermission": "Allow Callx to use your microphone for voice calls.",
           "iosVoip": false,
-          "androidNotifications": true
+          "androidNotifications": true,
+          "bootstrap": false
         }
       ],
       "@bear-block/callx-livekit/app.plugin",

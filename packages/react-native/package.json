@@ -25,6 +25,7 @@
   "files": [
     "lib",
     "app.plugin.cjs",
+    "plugin",
     "android",
     "ios",
     "callx-react-native.podspec",
@@ -48,6 +49,8 @@
     "react-native": ">=0.76"
   },
   "peerDependenciesMeta": {
-    "@expo/config-plugins": {"optional": true}
+    "@expo/config-plugins": {
+      "optional": true
+    }
   }
 }

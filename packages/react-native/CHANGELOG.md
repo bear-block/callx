@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `callx.getPushToken()` returns the device's push token (`voip` on iOS, `fcm` on Android) for your
+  backend; `CallxBootstrap` records the PushKit token, the FCM service reports its token to
+  `CallxPushTokens`.
+- Expo config plugin: `bootstrap` (default true) starts `CallxBootstrap` in
+  `MainApplication` and `AppDelegate`; `androidPush: "fcm"` generates `CallxMessagingService`,
+  extending React Native Firebase's service when the app uses it. Expo apps need no native code.
 - `CallxModule.bootstrap` (Android) and `CallxReactNativeHost.bootstrap` (iOS) start the whole native pipeline in one call through
   `CallxBootstrap` (ADR-0009): Telecom or CallKit, ingress, durable coordinator, recovery,
   PushKit and media.
