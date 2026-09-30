@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHmac } from 'node:crypto';
-import { createConsole, liveKitToken, liveKitUrlFor, statusFrom } from './call-console.mjs';
+import { createConsole, liveKitToken, liveKitUrlFor, statusFrom } from '../src/console.mjs';
 
 test('LiveKit URL follows the address a device used to reach the console', () => {
   assert.equal(liveKitUrlFor('ws://127.0.0.1:7880', '127.0.0.1:8787'), 'ws://127.0.0.1:7880');

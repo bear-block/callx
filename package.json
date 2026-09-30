@@ -12,7 +12,7 @@
     "native:ios:test": "cd native/ios && swift test",
     "native:ios:simulator-test": "sh tool/ios-simulator-test.sh",
     "native:android:test": "packages/callx/example/android/gradlew -p native/android test",
-    "test": "node --test src/*.test.ts tool/*.test.mjs",
+    "test": "node --test src/*.test.ts tool/*.test.mjs packages/testkit/test/*.test.mjs",
     "test:all": "sh tool/test-all.sh",
     "test:quick": "sh tool/test-all.sh quick",
     "app": "node tool/app.mjs",
@@ -23,8 +23,9 @@
     "build:android": "node tool/app.mjs flutter android --build-only && node tool/app.mjs rn android --build-only",
     "build:ios": "node tool/app.mjs flutter ios --build-only && node tool/app.mjs rn ios --build-only",
     "typecheck": "tsc --noEmit",
-    "push:test": "node tool/send-test-push.mjs",
-    "call:console": "node tool/call-console.mjs",
+    "push:test": "node packages/testkit/src/push.mjs",
+    "call:console": "node packages/testkit/src/console.mjs",
+    "conformance:android": "node packages/testkit/src/conformance.mjs android",
     "media:server": "sh tool/media-server.sh"
   },
   "devDependencies": {

@@ -16,7 +16,7 @@ step() {
   if (eval "$@"); then passed="$passed\n  ✔ $name"; else failed="$failed\n  ✘ $name"; fi
 }
 
-step "tools and reference model" "npm test"
+step "tools, testkit and reference model" "npm test"
 step "contract fixtures" "npm run -s contract:test"
 step "typecheck" "npm run -s typecheck"
 step "native source parity" "npm run -s native:check"

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import test from 'node:test';
-import { apnsToken, fcmAssertion, fcmMessage, invitation, parseArguments } from './send-test-push.mjs';
+import { apnsToken, fcmAssertion, fcmMessage, invitation, parseArguments } from '../src/push.mjs';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const parts = (token) => token.split('.');

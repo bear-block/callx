@@ -2,7 +2,8 @@
 // Local call console for Android device trials. It stands in for a call server: it sends FCM
 // invitations and test signals, and tracks each call from the example app's host log.
 //
-//   npm run call:console [-- --service-account <file>] [--port 8787] [--host 0.0.0.0]
+//   callx-console [--service-account <file>] [--port 8787] [--host 0.0.0.0]
+//   (in this repository: npm run call:console -- ...)
 //
 // Without --service-account it uses the first *adminsdk*.json or *service-account*.json in
 // packages/secrets/. The example apps post their FCM token and host log to
@@ -18,10 +19,10 @@ import { execFile } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { sendAndroid } from './send-test-push.mjs';
+import { isMain } from './main.mjs';
+import { sendAndroid } from './push.mjs';
 
 const ONLINE_MS = 3000;
 const TERMINAL = new Set(['ended', 'notRung', 'failed']);
@@ -162,15 +163,16 @@ async function body(request) {
   return text ? JSON.parse(text) : {};
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const option = (name) => { const index = args.indexOf(`--${name}`); return index < 0 ? undefined : args[index + 1]; };
   const port = Number(option('port') ?? 8787);
   // 0.0.0.0 lets an iPhone on the same network reach the console; the default stays local.
   const host = option('host') ?? '127.0.0.1';
-  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const serviceAccount = option('service-account') ?? findServiceAccount(join(root, 'packages/secrets'));
-  const page = await import('./call-console-page.mjs').then((module) => module.page);
+  // --service-account, then CALLX_SERVICE_ACCOUNT, then the first key in ./packages/secrets.
+  const serviceAccount = option('service-account') ?? process.env.CALLX_SERVICE_ACCOUNT
+    ?? findServiceAccount(join(process.cwd(), 'packages/secrets'));
+  const page = await import('./console-page.mjs').then((module) => module.page);
   const console_ = createConsole({ send: (options) => {
     if (!serviceAccount) throw new Error('No service account. Put the Firebase private key JSON in packages/secrets/ or pass --service-account.');
     return sendAndroid({ ...options, serviceAccount });

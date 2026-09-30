@@ -2,12 +2,12 @@
 // Sends Callx test pushes for device trials of the example apps.
 //
 //   Android invitation:
-//     node tool/send-test-push.mjs android --service-account ~/secrets/firebase-sa.json --token <FCM token>
+//     callx-push android --service-account ~/secrets/firebase-sa.json --token <FCM token>
 //   Android test signals (the example stands in for a signaling socket with FCM data):
-//     node tool/send-test-push.mjs android ... --message end --call-id <id> [--reason callerCancelled]
-//     node tool/send-test-push.mjs android ... --message accept --call-id <id>
+//     callx-push android ... --message end --call-id <id> [--reason callerCancelled]
+//     callx-push android ... --message accept --call-id <id>
 //   iOS invitation (VoIP push; cancel with the example's "Caller cancels" button):
-//     node tool/send-test-push.mjs ios --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
+//     callx-push ios --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
 //       --bundle-id dev.callx.preview.callxFlutterExample --token <VoIP token> [--production]
 //
 // Common options: --call-id, --name, --handle, --expires-in <seconds> (default 30), --dry-run.
@@ -15,6 +15,7 @@
 import { createPrivateKey, randomUUID, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { connect } from 'node:http2';
+import { isMain } from './main.mjs';
 
 export function parseArguments(argv) {
   const [platform, ...rest] = argv;
@@ -139,7 +140,7 @@ async function sendIos(options) {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   try {
     const options = parseArguments(process.argv.slice(2));
     const result = options.platform === 'android' ? await sendAndroid(options) : await sendIos(options);

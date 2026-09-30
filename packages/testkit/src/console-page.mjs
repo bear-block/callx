@@ -1,4 +1,4 @@
-// The call console's single page. Served by tool/call-console.mjs; polls /api/state.
+// The call console's single page. Served by console.mjs; polls /api/state.
 export const page = `<!doctype html>
 <html lang="en">
 <head>
