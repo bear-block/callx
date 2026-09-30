@@ -11,7 +11,7 @@ dependencies:
     path: ../
   # The LiveKit media adapter: installing it is the whole integration (ADR-0009).
   callx_livekit:
-    path: ../../flutter-livekit
+    path: ../../callx_livekit
   flutter:
     sdk: flutter
 
@@ -24,12 +24,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # The plugin lives in packages/flutter, not a folder named callx. For a plugin's own
-  # example, Flutter then registers the plugin's Swift package under two identities
-  # and resolution fails, so this example builds iOS through CocoaPods. Apps that
-  # depend on callx are unaffected and use Swift Package Manager by default.
+  # Swift Package Manager: callx_livekit needs it, because LiveKit's Swift SDK ships only
+  # through it. Flutter links plugins by their folder names, so packages/callx and
+  # packages/callx_livekit are named after their packages.
   config:
-    enable-swift-package-manager: false
+    enable-swift-package-manager: true
 
 # callx_livekit depends on callx by version; the monorepo uses the local package.
 dependency_overrides:

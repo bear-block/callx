@@ -3,6 +3,7 @@ import CallKit
 import Flutter
 import UIKit
 import callx
+import callx_livekit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -26,7 +27,7 @@ import callx
 /// Device-trial host. A real app connects its signaling client and media engine here. This one has
 /// no signaling client: it records every callback and lets the example UI and the call console
 /// stand in for the remote side. Media is real when the console and `npm run media:server` run:
-/// `LiveKitCallMedia` joins the call's LiveKit room on answer. Set `CallxConsoleURL` in
+/// the callx_livekit adapter joins the call's LiveKit room on answer. Set `CallxConsoleURL` in
 /// Info.plist to the Mac's address for an iPhone (the default reaches the Mac from a Simulator).
 final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming, @unchecked Sendable {
   static let shared = CallHost()
@@ -38,24 +39,22 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
   private var channel: FlutterMethodChannel?
   private var pushToken: String?
   private var events: [String] = []
-  // A CallxMediaAdapter: the ingress starts and stops it with each call (ADR-0009).
-  private lazy var media = LiveKitCallMedia(
-    credentials: { callID in try await CallHost.mediaCredentials(callID) },
-    log: { CallHost.shared.record($0) })
   static let consoleURL = URL(string: Bundle.main.object(forInfoDictionaryKey: "CallxConsoleURL") as? String
     ?? "http://127.0.0.1:8787")!
 
   func start() {
     guard runtime == nil else { return }
-    // The whole native pipeline in one call (ADR-0009). The example passes its media adapter
-    // explicitly; an adapter package would be discovered from Info.plist instead.
+    // The call console stands in for the app's token endpoint. Apps usually configure this from
+    // Dart after sign-in (CallxLiveKit.configure); it persists for killed-app answers.
+    try? CallxLiveKit.configure(tokenURL: Self.consoleURL.appendingPathComponent("api/media-token"))
+    // The whole native pipeline in one call (ADR-0009); callx_livekit is discovered from
+    // Info.plist CallxMediaAdapterFactories.
     var config = CallxBootstrapConfig()
     config.accountGeneration = "demo-account-1"
     config.checkpointURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
       .appendingPathComponent("callx/demo-account/coordinator.json")
     config.listener = self
     config.performer = self
-    config.media = media
     config.startPushRegistry = true
     config.log = { CallHost.shared.record($0) }
     let started: CallxBootstrap
@@ -117,7 +116,7 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
         "events": recent, "endpoints": [[String: Any]]()])
     case "requestPermissions":
       // Ask while the app is in use: a call answered on the lock screen cannot show the prompt.
-      Task { self.record("microphone \(await LiveKitCallMedia.requestMicrophone() ? "allowed" : "denied")") }
+      Task { self.record("microphone \(await LiveKitMediaAdapter.requestMicrophone() ? "allowed" : "denied")") }
       result(nil)
     case "incoming":
       let name = arguments["displayName"] as? String ?? "Caller"
@@ -135,21 +134,6 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
     case "selectAudioEndpoint": result(false)
     default: result(FlutterMethodNotImplemented)
     }
-  }
-
-  /// Test harness only: the call console issues LiveKit tokens as a backend would.
-  static func mediaCredentials(_ callID: String) async throws -> MediaCredentials {
-    var request = URLRequest(url: consoleURL.appendingPathComponent("api/media-token"), timeoutInterval: 3)
-    request.httpMethod = "POST"; request.setValue("application/json", forHTTPHeaderField: "content-type")
-    request.httpBody = try JSONSerialization.data(withJSONObject: ["callId": callID, "identity": "callee",
-      "name": UIDevice.current.name])
-    let (data, response) = try await URLSession.shared.data(for: request)
-    guard (response as? HTTPURLResponse)?.statusCode == 200,
-          let body = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-          let url = body["url"] as? String, let token = body["token"] as? String else {
-      throw URLError(.badServerResponse)
-    }
-    return MediaCredentials(url: url, token: token)
   }
 
   private func record(_ message: String) {

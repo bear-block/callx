@@ -73,7 +73,7 @@ The package is not on pub.dev yet, so point your app's `pubspec.yaml` at this ch
 ```yaml
 dependencies:
   callx:
-    path: /absolute/path/to/callx/packages/flutter
+    path: /absolute/path/to/callx/packages/callx
 ```
 
 Run `flutter pub get`, set Android `minSdk = 29` as described above, then build and run the

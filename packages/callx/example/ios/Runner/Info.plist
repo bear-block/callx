@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CallxMediaAdapterFactories</key>
+	<array>
+		<string>CallxLiveKitAdapterFactory</string>
+	</array>
 	<key>CallxConsoleURL</key>
 	<string>http://127.0.0.1:8787</string>
 	<key>NSAppTransportSecurity</key>

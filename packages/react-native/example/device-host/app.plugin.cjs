@@ -10,34 +10,6 @@ function insertOnce(source, marker, anchor, replacement) {
   return source.replace(anchor, replacement);
 }
 
-/**
- * Adds a Swift package product to the app target. LiveKit's current Swift SDK is published through
- * Swift Package Manager only; CocoaPods trunk stops at 2.0.x.
- */
-function addSwiftPackage(project, {url, version, product}) {
-  const objects = project.hash.project.objects;
-  objects.XCRemoteSwiftPackageReference ??= {};
-  objects.XCSwiftPackageProductDependency ??= {};
-  const quoted = `"${url}"`;
-  if (Object.values(objects.XCRemoteSwiftPackageReference).some(item => item?.repositoryURL === quoted)) return;
-  const packageId = project.generateUuid(), dependencyId = project.generateUuid(), buildFileId = project.generateUuid();
-  const packageName = url.split('/').pop();
-  objects.XCRemoteSwiftPackageReference[packageId] = {isa: 'XCRemoteSwiftPackageReference', repositoryURL: quoted,
-    requirement: {kind: 'exactVersion', version}};
-  objects.XCRemoteSwiftPackageReference[`${packageId}_comment`] = `XCRemoteSwiftPackageReference "${packageName}"`;
-  objects.XCSwiftPackageProductDependency[dependencyId] = {isa: 'XCSwiftPackageProductDependency', package: packageId,
-    package_comment: `XCRemoteSwiftPackageReference "${packageName}"`, productName: product};
-  objects.XCSwiftPackageProductDependency[`${dependencyId}_comment`] = product;
-  objects.PBXBuildFile[buildFileId] = {isa: 'PBXBuildFile', productRef: dependencyId, productRef_comment: product};
-  objects.PBXBuildFile[`${buildFileId}_comment`] = `${product} in Frameworks`;
-  const root = project.getFirstProject().firstProject;
-  root.packageReferences = [...(root.packageReferences ?? []), {value: packageId, comment: `XCRemoteSwiftPackageReference "${packageName}"`}];
-  const target = project.getFirstTarget();
-  target.firstTarget.packageProductDependencies = [...(target.firstTarget.packageProductDependencies ?? []),
-    {value: dependencyId, comment: product}];
-  project.pbxFrameworksBuildPhaseObj(target.uuid).files.push({value: buildFileId, comment: `${product} in Frameworks`});
-}
-
 // Device-trial Firebase config, ignored by Git. Without it the example builds but cannot receive FCM.
 const googleServices = path.join(__dirname, '../../../secrets/google-services.json');
 
@@ -62,8 +34,7 @@ module.exports = config => {
       '    implementation("androidx.core:core-telecom:1.0.1")\n' +
       '    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")\n' +
       '    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))\n' +
-      '    implementation("com.google.firebase:firebase-messaging")\n' +
-      '    implementation("io.livekit:livekit-android:2.29.0")');
+      '    implementation("com.google.firebase:firebase-messaging")');
     return mod;
   });
   config = withMainActivity(config, mod => {
@@ -91,8 +62,7 @@ module.exports = config => {
   config = withDangerousMod(config, ['android', mod => {
     const destination = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/java/dev/callx/preview/rn/device');
     fs.mkdirSync(destination, {recursive: true});
-    for (const file of ['DeviceHost.kt', 'DeviceHostModule.kt', 'DeviceHostMessagingService.kt', 'ConsoleReporter.kt',
-      'LiveKitCallMedia.kt']) {
+    for (const file of ['DeviceHost.kt', 'DeviceHostModule.kt', 'DeviceHostMessagingService.kt', 'ConsoleReporter.kt']) {
       fs.copyFileSync(path.join(__dirname, 'android', file), path.join(destination, file));
     }
     return mod;
@@ -112,8 +82,7 @@ module.exports = config => {
   });
   return withXcodeProject(config, mod => {
     const name = mod.modRequest.projectName ?? IOSConfig.XcodeUtils.getProjectName(mod.modRequest.projectRoot);
-    addSwiftPackage(mod.modResults, {url: 'https://github.com/livekit/client-sdk-swift', version: '2.17.0', product: 'LiveKit'});
-    for (const file of ['DeviceHost.swift', 'DeviceHostBridge.m', 'LiveKitCallMedia.swift', 'ConsoleReporter.swift']) {
+    for (const file of ['DeviceHost.swift', 'DeviceHostBridge.m', 'ConsoleReporter.swift']) {
       fs.copyFileSync(path.join(__dirname, 'ios', file), path.join(mod.modRequest.platformProjectRoot, name, file));
       const filepath = `${name}/${file}`;
       if (!mod.modResults.hasFile(filepath)) {

@@ -6,7 +6,7 @@ import {resolve, extname, sep} from 'node:path';
 
 const repo = fileURLToPath(new URL('../', import.meta.url));
 const apps = [
-  {name:'Flutter', port:4173, root:resolve(repo,'packages/flutter/example/build/web')},
+  {name:'Flutter', port:4173, root:resolve(repo,'packages/callx/example/build/web')},
   {name:'React Native', port:4174, root:resolve(repo,'packages/react-native/example/dist')},
 ];
 const mime = {'.html':'text/html', '.js':'application/javascript', '.json':'application/json',

@@ -15,6 +15,7 @@
           "androidNotifications": true
         }
       ],
+      "@bear-block/callx-livekit/app.plugin",
       "./device-host/app.plugin.cjs"
     ],
     "ios": {

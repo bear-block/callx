@@ -21,13 +21,16 @@ step "contract fixtures" "npm run -s contract:test"
 step "typecheck" "npm run -s typecheck"
 step "native source parity" "npm run -s native:check"
 if [ "${1:-}" != "quick" ]; then
-  step "native Android (Kotlin)" "npm run -s native:android:test"
+  step "native Android (Kotlin, core and adapters)" "npm run -s native:android:test"
   step "native iOS (Swift)" "npm run -s native:ios:test"
   step "native iOS on the Simulator (CallKit, PushKit)" "npm run -s native:ios:simulator-test"
+  step "LiveKit adapter on the Simulator" "sh tool/ios-simulator-test.sh adapters/livekit/native/ios/CallxLiveKit CallxLiveKit"
 fi
-step "Flutter analyze" "cd packages/flutter && $flutter_cmd analyze"
-step "Flutter tests" "cd packages/flutter && $flutter_cmd test"
+step "Flutter analyze" "cd packages/callx && $flutter_cmd analyze"
+step "Flutter tests" "cd packages/callx && $flutter_cmd test"
 step "React Native tests" "cd packages/react-native && npm test"
+step "Flutter LiveKit adapter tests" "cd packages/callx_livekit && $flutter_cmd test"
+step "React Native LiveKit adapter tests" "cd packages/react-native-livekit && npm test"
 step "React Native example typecheck" "cd packages/react-native/example && npx tsc --noEmit"
 
 printf '\n\033[1mSummary\033[0m'

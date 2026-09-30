@@ -27,7 +27,7 @@ packages:
   callx_livekit:
     dependency: "direct main"
     description:
-      path: "../../flutter-livekit"
+      path: "../../callx_livekit"
       relative: true
     source: path
     version: "0.0.0-preview.1"

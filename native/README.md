@@ -40,7 +40,7 @@ From the repository root:
 ```sh
 npm run native:ios:test
 npm run native:android:test
-packages/flutter/example/android/gradlew -p native/android :telecom:assembleDebug
+packages/callx/example/android/gradlew -p native/android :telecom:assembleDebug
 ./tool/check_native_sources.sh
 ```
 

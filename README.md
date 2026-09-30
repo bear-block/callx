@@ -5,7 +5,7 @@ Swift core on iOS and a shared Kotlin core on Android.
 
 | Framework | Package | Guide |
 |---|---|---|
-| Flutter | `callx` for pub.dev | [Flutter](packages/flutter/README.md) |
+| Flutter | `callx` for pub.dev | [Flutter](packages/callx/README.md) |
 | React Native | `@bear-block/callx` for npm | [React Native](packages/react-native/README.md) |
 
 ## Status

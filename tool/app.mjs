@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGE = 'dev.bearblock.callx';
 const EXAMPLES = {
-  flutter: { dir: join(root, 'packages/flutter/example'), activity: 'callx_flutter_example.MainActivity' },
+  flutter: { dir: join(root, 'packages/callx/example'), activity: 'callx_flutter_example.MainActivity' },
   rn: { dir: join(root, 'packages/react-native/example'), activity: `${PACKAGE}/.MainActivity` },
 };
 
