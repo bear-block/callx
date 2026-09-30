@@ -1,0 +1,3 @@
+dependency_overrides:
+  callx:
+    path: ../flutter

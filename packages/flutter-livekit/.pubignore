@@ -1,0 +1,2 @@
+# Monorepo-only override; the published package depends on callx by version.
+pubspec_overrides.yaml

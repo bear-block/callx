@@ -186,8 +186,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     'GET /': (_, response) => response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(page),
     'GET /api/state': () => ({ ...console_.snapshot(), serviceAccount: serviceAccount ?? null, adb, liveKitUrl: liveKit.url }),
     // A real backend issues these after authenticating the user and checking call membership.
-    'POST /api/media-token': ({ callId, identity, name }, _, request) => {
-      if (!callId || !identity) throw new Error('callId and identity are required.');
+    // The adapter sends only the call ID; a real backend takes the identity from the session.
+    'POST /api/media-token': ({ callId, identity = 'callee', name }, _, request) => {
+      if (!callId) throw new Error('callId is required.');
       return { url: liveKitUrlFor(liveKit.url, request.headers.host),
         token: liveKitToken({ ...liveKit, room: `call-${callId}`, identity, name }) };
     },

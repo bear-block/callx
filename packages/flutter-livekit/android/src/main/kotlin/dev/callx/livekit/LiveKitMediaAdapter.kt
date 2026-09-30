@@ -1,4 +1,4 @@
-package dev.callx.preview.callx_flutter_example
+package dev.callx.livekit
 
 import android.Manifest
 import android.content.Context
@@ -21,21 +21,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
-/** Where and as whom a call's media connects. A real app gets this from its backend. */
-data class MediaCredentials(val url: String, val token: String)
-
 /**
- * Example media adapter: one LiveKit room per call, joined when the call is answered and left when
+ * LiveKit media adapter: one LiveKit room per call, joined when the call is answered and left when
  * it ends. It follows ADR-0004: Telecom owns routing, so LiveKit's own route manager
  * (AudioSwitch) is replaced with [NoAudioHandler], and LiveKit plays on the voice-call stream.
  * It implements [CallxMediaAdapter] (ADR-0009): the ingress starts and stops it, and it reports
  * readiness and drops (LiveKit reconnecting, or no remote audio left) through the call's sink,
  * never a call end.
  */
-class LiveKitCallMedia(
+class LiveKitMediaAdapter(
     context: Context,
     private val scope: CoroutineScope,
-    private val credentials: suspend (callId: String) -> MediaCredentials,
+    private val credentials: suspend (callId: String) -> LiveKitCredentials,
     private val log: (String) -> Unit,
 ) : CallxMediaAdapter {
     private val context = context.applicationContext

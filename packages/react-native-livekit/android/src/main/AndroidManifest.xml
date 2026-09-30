@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <application>
+        <!-- Callx finds this adapter when the package is installed (ADR-0009). -->
+        <meta-data android:name="dev.callx.media.livekit" android:value="dev.callx.livekit.LiveKitAdapterFactory" />
+    </application>
+</manifest>

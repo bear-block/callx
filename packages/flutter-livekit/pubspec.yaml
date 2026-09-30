@@ -1,0 +1,29 @@
+name: callx_livekit
+description: LiveKit media adapter for callx. Call audio starts natively when a call is answered.
+version: 0.0.0-preview.1
+homepage: https://github.com/bear-block/callx
+repository: https://github.com/bear-block/callx
+
+environment:
+  sdk: ^3.11.4
+  flutter: ">=3.41.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The monorepo resolves this to ../flutter through pubspec_overrides.yaml.
+  callx: 0.0.0-preview.1
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.callx.livekit.flutter
+        pluginClass: CallxLiveKitPlugin
+      ios:
+        pluginClass: CallxLiveKitPlugin
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
