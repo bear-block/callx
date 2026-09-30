@@ -60,11 +60,16 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
     private let nowMs: @Sendable () -> Int64
     private let observerLock = NSLock()
     private var systemActionObserver: (@Sendable (CXAction) -> Void)?
+    private var appliedActionObserver: (@Sendable (CXAction) -> Void)?
     public init(index: CallKitActionIndex, registry: PlatformActionRegistry,
         nowMs: @escaping @Sendable () -> Int64) { self.index = index; self.registry = registry; self.nowMs = nowMs }
     /// Receives actions the system started, such as an answer from the lock screen, after they are fulfilled.
     public func observeSystemActions(_ observer: (@Sendable (CXAction) -> Void)?) {
         observerLock.lock(); systemActionObserver = observer; observerLock.unlock()
+    }
+    /// Receives every fulfilled action, whether the system or a Callx command started it.
+    public func observeAppliedActions(_ observer: (@Sendable (CXAction) -> Void)?) {
+        observerLock.lock(); appliedActionObserver = observer; observerLock.unlock()
     }
     public func begin(_ action: CXAction) -> Bool {
         guard !action.isComplete, action.timeoutDate > Date() else {
@@ -83,12 +88,13 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
             return
         }
         action.fulfill()
+        observerLock.lock(); let system = systemActionObserver; let applied = appliedActionObserver; observerLock.unlock()
         if let operationID = completion.operationID {
             Task { await registry.complete(operationID, with: .applied(completedAtMs: atMs)) }
         } else {
-            observerLock.lock(); let observer = systemActionObserver; observerLock.unlock()
-            observer?(action)
+            system?(action)
         }
+        applied?(action)
     }
     public func rejected(_ action: CXAction, errorCode: String = "platformRejected") {
         guard let completion = index.complete(actionUUID: action.uuid) else { return }

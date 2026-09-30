@@ -14,6 +14,11 @@ public protocol CallKitIngressListener: AnyObject, Sendable {
     /// `outcome` is nil when the call could not be recorded or reported.
     func invitationRejected(_ invitation: Invitation?, outcome: IncomingOutcome?)
     func ringTimedOut(callID: String)
+    /// The call was answered: from CallKit, your app, or by the remote side of an outgoing call.
+    /// Prepare media here; start audio only in `CXProviderDelegate.provider(_:didActivate:)`.
+    func callAnswered(callID: String)
+    /// The call ended for any reason, including one that never rang. Stop media.
+    func callEnded(callID: String)
 }
 public extension CallKitIngressListener {
     func pushTokenUpdated(_ token: Data) {}
@@ -21,6 +26,8 @@ public extension CallKitIngressListener {
     func invitationAccepted(_ invitation: Invitation) {}
     func invitationRejected(_ invitation: Invitation?, outcome: IncomingOutcome?) {}
     func ringTimedOut(callID: String) {}
+    func callAnswered(callID: String) {}
+    func callEnded(callID: String) {}
 }
 
 /// The CXProvider calls the ingress makes. `CXProvider` conforms; tests can supply a fake.
@@ -48,6 +55,9 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     private var registrations: [String: RegistrationAction] = [:]
     private var registry: PKPushRegistry?
     private var ringTimers: [String: DispatchWorkItem] = [:]
+    // Each call is announced answered and ended at most once; the ended set is bounded.
+    private var announcedAnswered: Set<String> = []
+    private var announcedEnded: [String] = []
 
     /// Pass the same `uuids` to `CallKitTransactionSubmitter` and the `lifecycle` given to your
     /// `CallKitProviderDelegateAdapter`, so system-UI actions reach the coordinator.
@@ -59,6 +69,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         self.ringTimeoutMs = ringTimeoutMs; self.nowMs = nowMs; self.decode = decode
         super.init()
         lifecycle?.observeSystemActions { [weak self] action in self?.systemActionApplied(action) }
+        lifecycle?.observeAppliedActions { [weak self] action in self?.actionApplied(action) }
     }
 
     /// Registers for VoIP pushes. Call once, early in application launch.
@@ -97,7 +108,10 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         let ended = try await runtime.remoteEnded(callID: callID, reason: reason)
         if ended { markRegistration(callID, action: .ended(reason)) }
         cancelRing(callID)
-        if ended { reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: Self.endedReason(reason)) }
+        if ended {
+            reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: Self.endedReason(reason))
+            announceEnded(callID)
+        }
     }
 
     /// Cold-process bootstrap only: terminate checkpoint calls whose media session was lost.
@@ -108,6 +122,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         cancelRing(call.callID)
         reporter.reportCall(with: uuids.uuid(for: call.callID), endedAt: Date(),
             reason: Self.endedReason(call.endReason ?? "failed"))
+        announceEnded(call.callID)
         return call
     }
 
@@ -115,6 +130,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     public func remoteAnswered(callID: String) async throws {
         if try await runtime.remoteAnswered(callID: callID) {
             reporter.reportOutgoingCall(with: uuids.uuid(for: callID), connectedAt: Date())
+            announceAnswered(callID)
         }
     }
 
@@ -211,6 +227,28 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         }
     }
 
+    private func actionApplied(_ action: CXAction) {
+        guard let call = action as? CXCallAction, let callID = uuids.callID(for: call.callUUID) else { return }
+        if action is CXAnswerCallAction { announceAnswered(callID) }
+        else if action is CXEndCallAction { announceEnded(callID) }
+    }
+    private func announceAnswered(_ callID: String) {
+        lock.lock()
+        let first = !announcedEnded.contains(callID) && announcedAnswered.insert(callID).inserted
+        lock.unlock()
+        if first { listener?.callAnswered(callID: callID) }
+    }
+    private func announceEnded(_ callID: String) {
+        lock.lock()
+        let first = !announcedEnded.contains(callID)
+        if first {
+            announcedAnswered.remove(callID); announcedEnded.append(callID)
+            if announcedEnded.count > 64 { announcedEnded.removeFirst() }
+        }
+        lock.unlock()
+        if first { listener?.callEnded(callID: callID) }
+    }
+
     private func beginRegistration(_ callID: String) {
         lock.lock(); defer { lock.unlock() }
         registrations[callID] = .ringing
@@ -239,6 +277,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
             reporter.reportCall(with: uuids.uuid(for: invitation.callID), endedAt: Date(), reason: Self.endedReason(reason))
             let outcome = IncomingOutcome.ended(reason: reason)
             listener?.invitationRejected(invitation, outcome: outcome)
+            announceEnded(invitation.callID)
             return outcome
         }
         if case .answered = action {
@@ -270,6 +309,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         guard let ended = try? await runtime.expireRinging(callID: callID), ended == callID else { return }
         reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: .unanswered)
         listener?.ringTimedOut(callID: callID)
+        announceEnded(callID)
     }
 
     static func update(for invitation: Invitation) -> CXCallUpdate {

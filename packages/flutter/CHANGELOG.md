@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- iOS: `CallKitIngressListener.callAnswered(callID:)` and `callEnded(callID:)` tell the host to
+  start and stop media once per call, from CallKit, the app or the remote side;
+  `CallKitActionLifecycle.observeAppliedActions` reports every fulfilled action.
 - `Call.mediaInterrupted` and native `BridgeRuntime.mediaInterrupted`: report that connected
   media dropped (for example while the media SDK reconnects) without changing the call;
   `mediaConnected` clears it.

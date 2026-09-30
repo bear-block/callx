@@ -42,6 +42,10 @@ private final class Listener: CallKitIngressListener, @unchecked Sendable {
         lock.lock(); _rejected.append((invitation?.callID, outcome)); lock.unlock()
     }
     func ringTimedOut(callID: String) { lock.lock(); _timedOut.append(callID); lock.unlock() }
+    private var _media: [String] = []
+    var media: [String] { lock.lock(); defer { lock.unlock() }; return _media }
+    func callAnswered(callID: String) { lock.lock(); _media.append("answered:\(callID)"); lock.unlock() }
+    func callEnded(callID: String) { lock.lock(); _media.append("ended:\(callID)"); lock.unlock() }
 }
 
 private struct AppliedIngressExecutor: PlatformCommandExecutor {
@@ -59,10 +63,12 @@ private struct Harness {
     let reporter = FakeReporter()
     let listener = Listener()
     let uuids = CallUUIDMap()
-    let lifecycle = CallKitActionLifecycle(index: CallKitActionIndex(), registry: PlatformActionRegistry(), nowMs: { 0 })
+    let index = CallKitActionIndex()
+    let lifecycle: CallKitActionLifecycle
 
     init(ringTimeoutMs: Int64 = 45_000) {
         let now: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
+        lifecycle = CallKitActionLifecycle(index: index, registry: PlatformActionRegistry(), nowMs: { 0 })
         runtime = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedIngressExecutor(), capabilities:
             BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
                 providerManagedSignaling: false, hold: true, mute: true), nowMs: now)
@@ -211,6 +217,36 @@ private func eventually(_ condition: () async throws -> Bool) async rethrows -> 
     #expect(h.lifecycle.begin(action))
     h.lifecycle.applied(action)
     #expect(try await eventually { try await h.callState() == .string("connecting") })
+}
+
+private final class RecordingEnd: CXEndCallAction, @unchecked Sendable {
+    override func fulfill() {}
+    override func fail() {}
+}
+
+@Test func mediaHearsEveryAnswerAndEndOnce() async throws {
+    let h = Harness()
+    // Answered from CallKit's own UI, then ended by the remote side (twice).
+    await h.push("call-1")
+    let answer = RecordingSystemAnswer(call: h.uuids.uuid(for: "call-1"))
+    #expect(h.lifecycle.begin(answer)); h.lifecycle.applied(answer)
+    #expect(try await eventually { try await h.callState() == .string("connecting") })
+    try await h.ingress.remoteEnded(callID: "call-1"); try await h.ingress.remoteEnded(callID: "call-1")
+    // Answered and hung up through Callx commands: CallKit fulfils actions that carry an operation ID.
+    await h.push("call-2")
+    let appAnswer = RecordingSystemAnswer(call: h.uuids.uuid(for: "call-2"))
+    h.index.register(actionUUID: appAnswer.uuid, operationID: "answer-2")
+    #expect(h.lifecycle.begin(appAnswer)); h.lifecycle.applied(appAnswer)
+    let appEnd = RecordingEnd(call: h.uuids.uuid(for: "call-2"))
+    h.index.register(actionUUID: appEnd.uuid, operationID: "end-2")
+    #expect(h.lifecycle.begin(appEnd)); h.lifecycle.applied(appEnd)
+    #expect(h.listener.media == ["answered:call-1", "ended:call-1", "answered:call-2", "ended:call-2"])
+}
+
+@Test func ringDeadlineAnnouncesTheEnd() async throws {
+    let h = Harness(ringTimeoutMs: 50)
+    await h.push("call-1")
+    #expect(await eventually { h.listener.media == ["ended:call-1"] })
 }
 
 private final class RecordingSystemMute: CXSetMutedCallAction, @unchecked Sendable {
