@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHmac } from 'node:crypto';
-import { createConsole, liveKitToken, statusFrom } from './call-console.mjs';
+import { createConsole, liveKitToken, liveKitUrlFor, statusFrom } from './call-console.mjs';
+
+test('LiveKit URL follows the address a device used to reach the console', () => {
+  assert.equal(liveKitUrlFor('ws://127.0.0.1:7880', '127.0.0.1:8787'), 'ws://127.0.0.1:7880');
+  assert.equal(liveKitUrlFor('ws://127.0.0.1:7880', 'localhost:8787'), 'ws://127.0.0.1:7880');
+  assert.equal(liveKitUrlFor('ws://127.0.0.1:7880', '192.168.1.16:8787'), 'ws://192.168.1.16:7880');
+  assert.equal(liveKitUrlFor('wss://media.example.com', '192.168.1.16:8787'), 'wss://media.example.com');
+  assert.equal(liveKitUrlFor('ws://127.0.0.1:7880', undefined), 'ws://127.0.0.1:7880');
+});
 
 function harness() {
   let clock = 1_000;

@@ -2,7 +2,7 @@
 # Runs every test suite in the repository and prints a summary. Keeps going after a failure.
 #
 #   npm run test:all            all suites
-#   npm run test:all -- quick   skip the native Android and iOS suites
+#   npm run test:all -- quick   skip the native Android and iOS suites (the Simulator run takes minutes)
 set -u
 
 repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -23,6 +23,7 @@ step "native source parity" "npm run -s native:check"
 if [ "${1:-}" != "quick" ]; then
   step "native Android (Kotlin)" "npm run -s native:android:test"
   step "native iOS (Swift)" "npm run -s native:ios:test"
+  step "native iOS on the Simulator (CallKit, PushKit)" "npm run -s native:ios:simulator-test"
 fi
 step "Flutter analyze" "cd packages/flutter && $flutter_cmd analyze"
 step "Flutter tests" "cd packages/flutter && $flutter_cmd test"

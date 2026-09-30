@@ -52,6 +52,12 @@ export const page = `<!doctype html>
         <button class="primary" id="invite">Send invitation</button>
         <div id="error" role="alert"></div>
       </section>
+      <section><h2>Join by call ID</h2>
+        <label for="manual">For calls the console did not send, such as iOS local-signaling invitations</label>
+        <input id="manual" placeholder="call ID">
+        <button class="primary" id="manualJoin">Join audio as the caller</button>
+        <div id="manualAudio" class="audio"></div>
+      </section>
     </div>
     <div>
       <section><h2>Calls</h2><div id="calls" class="empty">No calls yet.</div></section>
@@ -133,7 +139,10 @@ function render() {
         : '<button data-join="' + esc(c.callId) + '"' + (live ? '' : ' disabled') + '>Join audio</button>') + '</div>' + audioLine(c) +
       '<ol>' + c.timeline.map((t) => '<li>' + time(t.at) + ' <span class="src ' + t.source + '">' + t.source + '</span>' + esc(t.text) + '</li>').join('') + '</ol></div>';
   }).join('');
-  $('log').innerHTML = (device?.log ?? []).map((line) => '<li>' + esc(line) + '</li>').join('') || '<li class="empty">No log from this device.</li>';
+  const manual = $('manual').value.trim();
+  $('manualAudio').innerHTML = manual && callers[manual] && !state.calls.some((c) => c.callId === manual)
+    ? audioLine({ callId: manual }) + (callers[manual].room ? '<button data-leave="' + esc(manual) + '">Leave audio</button>' : '') : '';
+  $('log').innerHTML =(device?.log ?? []).map((line) => '<li>' + esc(line) + '</li>').join('') || '<li class="empty">No log from this device.</li>';
 }
 
 async function refresh() {
@@ -143,9 +152,10 @@ async function refresh() {
 
 document.addEventListener('change', (event) => { if (event.target.dataset.reason) reasons[event.target.dataset.reason] = event.target.value; });
 document.addEventListener('click', (event) => {
-  const target = event.target.closest('[data-key],[data-accept],[data-end],[data-join],[data-leave],#invite');
+  const target = event.target.closest('[data-key],[data-accept],[data-end],[data-join],[data-leave],#invite,#manualJoin');
   if (!target) return;
-  if (target.dataset.key) { selected = target.dataset.key; render(); }
+  if (target.id === 'manualJoin') { const id = $('manual').value.trim(); if (id) joinAudio(id).then(render); }
+  else if (target.dataset.key) { selected = target.dataset.key; render(); }
   else if (target.dataset.accept) post('/api/signal', { callId: target.dataset.accept, message: 'accept' });
   else if (target.dataset.join) joinAudio(target.dataset.join).then(render);
   else if (target.dataset.leave) leaveAudio(target.dataset.leave);

@@ -21,4 +21,8 @@ rn_media="$repo_dir/packages/react-native/example/device-host/android/LiveKitCal
 if [ "$(sed 1d "$flutter_media")" != "$(sed 1d "$rn_media")" ]; then
   echo "LiveKitCallMedia.kt differs between the Flutter and React Native examples"; status=1
 fi
+for file in LiveKitCallMedia.swift ConsoleReporter.swift; do
+  cmp -s "$repo_dir/packages/flutter/example/ios/Runner/$file" "$repo_dir/packages/react-native/example/device-host/ios/$file" ||
+    { echo "$file differs between the Flutter and React Native examples"; status=1; }
+done
 exit "$status"

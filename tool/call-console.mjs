@@ -2,7 +2,7 @@
 // Local call console for Android device trials. It stands in for a call server: it sends FCM
 // invitations and test signals, and tracks each call from the example app's host log.
 //
-//   npm run call:console [-- --service-account <file>] [--port 8787]
+//   npm run call:console [-- --service-account <file>] [--port 8787] [--host 0.0.0.0]
 //
 // Without --service-account it uses the first *adminsdk*.json or *service-account*.json in
 // packages/secrets/. The example apps post their FCM token and host log to
@@ -17,6 +17,7 @@ import { createHmac } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { networkInterfaces } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -52,6 +53,16 @@ export function liveKitToken({ key, secret, room, identity, name, nowSeconds = M
     video: { room, roomJoin: true, canPublish: true, canSubscribe: true },
   })}`;
   return `${unsigned}.${createHmac('sha256', secret).update(unsigned).digest('base64url')}`;
+}
+
+/**
+ * The LiveKit URL for a client that reached the console at [hostHeader]. The default local URL
+ * is rewritten to the address that client used, so an iPhone on the network gets the Mac's IP.
+ */
+export function liveKitUrlFor(configured, hostHeader) {
+  const hostname = hostHeader?.replace(/:\d+$/, '');
+  if (!/^wss?:\/\/127\.0\.0\.1:/.test(configured) || !hostname || ['127.0.0.1', 'localhost'].includes(hostname)) return configured;
+  return configured.replace('127.0.0.1', hostname);
 }
 
 /** Host log lines start with "HH:mm:ss  ". */
@@ -155,6 +166,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const option = (name) => { const index = args.indexOf(`--${name}`); return index < 0 ? undefined : args[index + 1]; };
   const port = Number(option('port') ?? 8787);
+  // 0.0.0.0 lets an iPhone on the same network reach the console; the default stays local.
+  const host = option('host') ?? '127.0.0.1';
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const serviceAccount = option('service-account') ?? findServiceAccount(join(root, 'packages/secrets'));
   const page = await import('./call-console-page.mjs').then((module) => module.page);
@@ -173,9 +186,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     'GET /': (_, response) => response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(page),
     'GET /api/state': () => ({ ...console_.snapshot(), serviceAccount: serviceAccount ?? null, adb, liveKitUrl: liveKit.url }),
     // A real backend issues these after authenticating the user and checking call membership.
-    'POST /api/media-token': ({ callId, identity, name }) => {
+    'POST /api/media-token': ({ callId, identity, name }, _, request) => {
       if (!callId || !identity) throw new Error('callId and identity are required.');
-      return { url: liveKit.url, token: liveKitToken({ ...liveKit, room: `call-${callId}`, identity, name }) };
+      return { url: liveKitUrlFor(liveKit.url, request.headers.host),
+        token: liveKitToken({ ...liveKit, room: `call-${callId}`, identity, name }) };
     },
     'POST /api/device': (payload) => { console_.report(payload); return {}; },
     'POST /api/invite': (payload) => console_.invite(payload),
@@ -185,13 +199,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const route = routes[`${request.method} ${request.url}`];
     if (!route) return response.writeHead(404).end();
     try {
-      const result = await route(request.method === 'POST' ? await body(request) : undefined, response);
+      const result = await route(request.method === 'POST' ? await body(request) : undefined, response, request);
       if (!response.headersSent) response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(result));
     } catch (error) {
       response.writeHead(400, { 'content-type': 'application/json' }).end(JSON.stringify({ error: error.message }));
     }
-  }).listen(port, '127.0.0.1', () => {
+  }).listen(port, host, () => {
     console.log(`Callx call console: http://127.0.0.1:${port}`);
+    if (host !== '127.0.0.1') {
+      const lan = Object.values(networkInterfaces()).flat().find((item) => item?.family === 'IPv4' && !item.internal)?.address;
+      console.log(`Listening on ${host}: an iPhone uses http://${lan ?? '<this Mac>'}:${port} as CallxConsoleURL.`);
+      console.log('No authentication: anyone on this network can send pushes through this console.');
+    }
     console.log(`Service account: ${serviceAccount ?? 'none (invites disabled)'}`);
     console.log(adb);
   });
