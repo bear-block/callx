@@ -84,7 +84,7 @@ jobs:
         run: flutter build apk --debug
       - name: React Native example APK
         run: |
-          (cd packages/react-native && npm ci)
+          (cd packages/react-native && npm ci && npm run build)
           (cd packages/react-native-livekit && npm ci --legacy-peer-deps && npm run build)
           (cd packages/react-native/example && npm ci && npx tsc --noEmit)
           node tool/app.mjs rn android --build-only
@@ -125,7 +125,7 @@ jobs:
         run: flutter build ios --simulator --debug
       - name: React Native example for the Simulator
         run: |
-          (cd packages/react-native && npm ci)
+          (cd packages/react-native && npm ci && npm run build)
           (cd packages/react-native-livekit && npm ci --legacy-peer-deps && npm run build)
           (cd packages/react-native/example && npm ci)
           node tool/app.mjs rn ios --build-only
