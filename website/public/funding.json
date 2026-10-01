@@ -51,12 +51,6 @@
         "type": "payment-provider",
         "address": "https://buymeacoffee.com/bearblock",
         "description": "Buy Me a Coffee, one-time support"
-      },
-      {
-        "guid": "open-collective",
-        "type": "payment-provider",
-        "address": "https://opencollective.com/callx",
-        "description": "Open Collective, with a public ledger"
       }
     ],
     "plans": [
@@ -70,7 +64,6 @@
         "frequency": "one-time",
         "channels": [
           "github-sponsors",
-          "open-collective",
           "buy-me-a-coffee"
         ]
       },
@@ -83,8 +76,7 @@
         "currency": "USD",
         "frequency": "yearly",
         "channels": [
-          "github-sponsors",
-          "open-collective"
+          "github-sponsors"
         ]
       },
       {
@@ -96,8 +88,7 @@
         "currency": "USD",
         "frequency": "yearly",
         "channels": [
-          "github-sponsors",
-          "open-collective"
+          "github-sponsors"
         ]
       },
       {
@@ -108,8 +99,7 @@
         "currency": "USD",
         "frequency": "monthly",
         "channels": [
-          "github-sponsors",
-          "open-collective"
+          "github-sponsors"
         ]
       },
       {
@@ -120,8 +110,7 @@
         "currency": "USD",
         "frequency": "monthly",
         "channels": [
-          "github-sponsors",
-          "open-collective"
+          "github-sponsors"
         ]
       }
     ],

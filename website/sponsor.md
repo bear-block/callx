@@ -14,18 +14,13 @@ one thing a call library cannot do without: testing on real phones.
 <div class="sponsor-tiers">
   <div>
     <h4>GitHub Sponsors</h4>
-    <p>Monthly membership or one-time, from your GitHub account. No fees for personal sponsors.</p>
+    <p>Monthly membership or one-time, from your GitHub account. Companies can sponsor from their GitHub organization.</p>
     <p><a href="https://github.com/sponsors/bear-block">Sponsor on GitHub →</a></p>
   </div>
   <div>
     <h4>Buy Me a Coffee</h4>
     <p>A one-time thank-you of any size, no account needed.</p>
     <p><a href="https://buymeacoffee.com/bearblock">Buy a coffee →</a></p>
-  </div>
-  <div>
-    <h4>Open Collective</h4>
-    <p>Transparent public ledger and invoices, which suits companies.</p>
-    <p><a href="https://opencollective.com/callx">Back on Open Collective →</a></p>
   </div>
 </div>
 
@@ -43,7 +38,7 @@ scenarios on each of them for every release, and the discipline to publish the r
 
 ## Where the money goes
 
-Every sponsorship goes to these, in this order. Spending is published on Open Collective.
+Every sponsorship goes to these, in this order.
 
 | Priority | What | Estimated cost | Why it matters |
 |---|---|---|---|

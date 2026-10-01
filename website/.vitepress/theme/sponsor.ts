@@ -2,7 +2,6 @@
 export const sponsorLinks = {
   monthly: 'https://github.com/sponsors/bear-block',
   oneTime: 'https://buymeacoffee.com/bearblock',
-  company: 'https://opencollective.com/callx',
 };
 
 /** Why the reader is being asked, so the message fits the page they are on. */
