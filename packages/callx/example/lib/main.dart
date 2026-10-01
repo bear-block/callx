@@ -383,7 +383,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   ),
                   const SizedBox(height: 10),
                   const Text(
-                    'Flutter SDK · Acme Support\nExplore the integration before we build the native runtime.',
+                    'Flutter SDK · Acme Support\nExplore native calling and the shared call contract.',
                     style: TextStyle(fontSize: 16, height: 1.6),
                   ),
                   const SizedBox(height: 20),
