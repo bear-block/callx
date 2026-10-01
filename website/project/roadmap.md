@@ -1,6 +1,7 @@
 ---
 title: "Roadmap"
 description: "What is next for Callx, in order, and what each step depends on."
+sponsorPrompt: roadmap
 ---
 
 # Roadmap
@@ -41,6 +42,8 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 | **Multiple calls**: call waiting, hold-and-swap | Contract `0.2` |
 | **`@bear-block/callx-server`**: payload builders and push helpers for Node.js backends | Stable invitation schema |
 | **DTMF** | Provider support |
+
+<SponsorCallout reason="roadmap" />
 
 ## Not planned
 

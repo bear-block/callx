@@ -14,8 +14,13 @@ one thing a call library cannot do without: testing on real phones.
 <div class="sponsor-tiers">
   <div>
     <h4>GitHub Sponsors</h4>
-    <p>Monthly or one-time, from your GitHub account. No fees for personal sponsors.</p>
+    <p>Monthly membership or one-time, from your GitHub account. No fees for personal sponsors.</p>
     <p><a href="https://github.com/sponsors/bear-block">Sponsor on GitHub →</a></p>
+  </div>
+  <div>
+    <h4>Buy Me a Coffee</h4>
+    <p>A one-time thank-you of any size, no account needed.</p>
+    <p><a href="https://buymeacoffee.com/bearblock">Buy a coffee →</a></p>
   </div>
   <div>
     <h4>Open Collective</h4>

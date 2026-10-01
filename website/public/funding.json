@@ -23,8 +23,19 @@
         "url": "https://github.com/bear-block/callx",
         "wellKnown": "https://github.com/bear-block/callx/blob/main/.well-known/funding-manifest-urls"
       },
-      "licenses": ["spdx:MIT"],
-      "tags": ["mobile", "voip", "flutter", "react-native", "ios", "android", "communication", "privacy"]
+      "licenses": [
+        "spdx:MIT"
+      ],
+      "tags": [
+        "mobile",
+        "voip",
+        "flutter",
+        "react-native",
+        "ios",
+        "android",
+        "communication",
+        "privacy"
+      ]
     }
   ],
   "funding": {
@@ -34,6 +45,12 @@
         "type": "payment-provider",
         "address": "https://github.com/sponsors/bear-block",
         "description": "GitHub Sponsors"
+      },
+      {
+        "guid": "buy-me-a-coffee",
+        "type": "payment-provider",
+        "address": "https://buymeacoffee.com/bearblock",
+        "description": "Buy Me a Coffee, one-time support"
       },
       {
         "guid": "open-collective",
@@ -51,7 +68,11 @@
         "amount": 3000,
         "currency": "USD",
         "frequency": "one-time",
-        "channels": ["github-sponsors", "open-collective"]
+        "channels": [
+          "github-sponsors",
+          "open-collective",
+          "buy-me-a-coffee"
+        ]
       },
       {
         "guid": "maintenance",
@@ -61,7 +82,10 @@
         "amount": 24000,
         "currency": "USD",
         "frequency": "yearly",
-        "channels": ["github-sponsors", "open-collective"]
+        "channels": [
+          "github-sponsors",
+          "open-collective"
+        ]
       },
       {
         "guid": "platform-costs",
@@ -71,7 +95,10 @@
         "amount": 1000,
         "currency": "USD",
         "frequency": "yearly",
-        "channels": ["github-sponsors", "open-collective"]
+        "channels": [
+          "github-sponsors",
+          "open-collective"
+        ]
       },
       {
         "guid": "backer",
@@ -80,7 +107,10 @@
         "amount": 5,
         "currency": "USD",
         "frequency": "monthly",
-        "channels": ["github-sponsors", "open-collective"]
+        "channels": [
+          "github-sponsors",
+          "open-collective"
+        ]
       },
       {
         "guid": "company",
@@ -89,7 +119,10 @@
         "amount": 250,
         "currency": "USD",
         "frequency": "monthly",
-        "channels": ["github-sponsors", "open-collective"]
+        "channels": [
+          "github-sponsors",
+          "open-collective"
+        ]
       }
     ],
     "history": []

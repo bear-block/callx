@@ -1,6 +1,7 @@
 ---
 title: "Status"
 description: "What has been verified, how, and on which devices. Updated as device trials pass."
+sponsorPrompt: devices
 ---
 
 # Status
@@ -52,6 +53,8 @@ as a device pass.
 
 iOS Simulator rows are partial because the Simulator cannot receive VoIP pushes and ends CallKit
 calls immediately; it proves builds, discovery and API wiring, not a ringing call.
+
+<SponsorCallout reason="devices" />
 
 ## Known issues
 
