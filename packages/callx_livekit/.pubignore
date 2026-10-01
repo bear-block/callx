@@ -1,2 +1,9 @@
+# A .pubignore replaces .gitignore for publishing, so it repeats the generated output too.
 # Monorepo-only override; the published package depends on callx by version.
 pubspec_overrides.yaml
+build/
+.dart_tool/
+.flutter-plugins-dependencies
+coverage/
+*.iml
+.idea/

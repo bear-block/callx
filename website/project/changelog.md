@@ -13,6 +13,15 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
+## 0.1.1
+
+A packaging release with no code changes:
+
+- `@bear-block/callx` is on npm from this version. Its name had been used before, and npm never
+  reuses a version number, so 0.1.0 could not be published.
+- `callx_livekit` no longer ships local build output.
+- `@bear-block/callx-testkit` declares its commands without `./` prefixes.
+
 ## 0.1.0
 
 The first public release. Verification levels for each feature are on the

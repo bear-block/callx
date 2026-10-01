@@ -38,12 +38,40 @@ function npmPack(dir) {
   return { files: result.files.map((file) => file.path), size: result.size };
 }
 
+/** Paths in pub's tree listing ("│   ├── name (1 KB)"), with a trailing "/" for directories. */
+export function pubTreePaths(text) {
+  const paths = [];
+  const stack = [];
+  const lines = text.split('\n');
+  for (const [index, line] of lines.entries()) {
+    const match = line.match(/^((?:│ {3}| {4})*)[├└]── (.+?)(?: \([^)]*\))?$/u);
+    if (!match) continue;
+    const depth = match[1].length / 4;
+    stack.length = depth;
+    stack.push(match[2]);
+    const next = lines[index + 1]?.match(/^((?:│ {3}| {4})*)[├└]── /u);
+    const isDirectory = Boolean(next) && next[1].length / 4 > depth;
+    paths.push(stack.join('/') + (isDirectory ? '/' : ''));
+  }
+  return paths;
+}
+
+/** Compressed archive size in megabytes from pub's "Total compressed archive size" line. */
+export function pubArchiveMegabytes(text) {
+  const match = text.match(/Total compressed archive size: ([\d.]+) (KB|MB)/);
+  if (!match) return 0;
+  return match[2] === 'MB' ? Number(match[1]) : Number(match[1]) / 1024;
+}
+
+const PUB_MAX_MB = 5;
+// pub.dev shows a package's example, so only npm forbids example/.
+const PUB_FORBIDDEN = FORBIDDEN.filter((pattern) => !pattern.test('example/'));
+
 function pubDryRun(dir) {
   const flutter = spawnSync('which', ['fvm']).status === 0 ? ['fvm', ['flutter']] : ['flutter', []];
   const result = spawnSync(flutter[0], [...flutter[1], 'pub', 'publish', '--dry-run'], { cwd: join(root, dir), encoding: 'utf8' });
   const text = `${result.stdout}\n${result.stderr}`;
-  const files = [...text.matchAll(/^[│├└|`\s-]*[├└|`]-+\s*(.+)$/gm)].map((match) => match[1].trim());
-  return { status: result.status, text, files };
+  return { status: result.status, text, files: pubTreePaths(text) };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -58,13 +86,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     } catch (error) { console.log(`✘ npm ${dir}: ${error.message.split('\n')[0]}`); failed = true; }
   }
   for (const dir of ['packages/callx', 'packages/callx_livekit']) {
-    const { status, text } = pubDryRun(dir);
+    const { status, text, files } = pubDryRun(dir);
     const warnings = text.match(/Package has (\d+) warnings?/)?.[1] ?? '0';
-    const forbidden = FORBIDDEN.filter((pattern) => text.split('\n').some((line) => pattern.test(line.trim())));
+    const forbidden = files.filter((file) => PUB_FORBIDDEN.some((pattern) => pattern.test(file)));
+    const megabytes = pubArchiveMegabytes(text);
     // pub exits 65 with warnings; errors print "Package validation found the following error".
     const errors = /following errors?:/.test(text) && !/following potential issue/.test(text) ? 'errors' : null;
-    const ok = !errors && forbidden.length === 0;
-    console.log(`${ok ? '✔' : '✘'} pub ${dir}: exit ${status}, ${warnings} warning(s)${errors ? ', validation errors' : ''}`);
+    const tooBig = megabytes > PUB_MAX_MB;
+    const ok = !errors && forbidden.length === 0 && !tooBig && files.length > 0;
+    console.log(`${ok ? '✔' : '✘'} pub ${dir}: exit ${status}, ${files.length} files, ${megabytes.toFixed(1)} MB, ${warnings} warning(s)${errors ? ', validation errors' : ''}`);
+    for (const file of forbidden.slice(0, 8)) console.log(`    must not ship ${file}`);
+    if (tooBig) console.log(`    archive is larger than ${PUB_MAX_MB} MB`);
     for (const line of text.split('\n').filter((line) => /^\* |error/i.test(line.trim())).slice(0, 12)) console.log(`    ${line.trim()}`);
     failed ||= !ok;
   }

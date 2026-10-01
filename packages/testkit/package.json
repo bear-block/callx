@@ -1,6 +1,6 @@
 {
   "name": "@bear-block/callx-testkit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Device-trial tools for callx: a local call console, test push sender and media adapter conformance",
   "keywords": [
     "callx",
@@ -24,9 +24,9 @@
   },
   "type": "module",
   "bin": {
-    "callx-console": "./src/console.mjs",
-    "callx-push": "./src/push.mjs",
-    "callx-conformance": "./src/conformance.mjs"
+    "callx-console": "src/console.mjs",
+    "callx-push": "src/push.mjs",
+    "callx-conformance": "src/conformance.mjs"
   },
   "exports": {
     "./console": "./src/console.mjs",

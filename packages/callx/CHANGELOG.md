@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Republished with the other packages at 0.1.1; no code changes since 0.1.0.
+
 ## 0.1.0
 
 First public release. Highlights: library-owned incoming path (PushKit and FCM), CallKit and

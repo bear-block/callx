@@ -168,7 +168,7 @@ export default function App() {
       </View>}
       <Text style={[styles.sectionTitle,{marginTop:32}]}>Event timeline</Text>
       {timeline.map((line,i)=><Text key={i+'-'+line} style={styles.log}>{line}</Text>)}
-      <Text style={styles.footer}>callx 0.1.0 / React Native + shared contract / Not a native-call certification</Text>
+      <Text style={styles.footer}>callx 0.1.1 / React Native + shared contract / Not a native-call certification</Text>
     </View>
   </ScrollView>;
 }

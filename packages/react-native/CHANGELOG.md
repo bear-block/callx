@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- First npm release of `@bear-block/callx`: 0.1.0 could not be published because that version
+  number was used by an earlier, unpublished package with the same name. Same code as 0.1.0 of
+  the Flutter package.
+
 ## 0.1.0
 
 First public release. Highlights: typed TurboModule, Expo config plugin with no native code,
