@@ -1,12 +1,26 @@
 {
   "name": "@bear-block/callx-livekit",
-  "version": "0.0.0-preview.1",
+  "version": "0.1.0",
   "description": "LiveKit media adapter for @bear-block/callx: call audio that starts natively when a call is answered",
+  "keywords": [
+    "react-native",
+    "expo",
+    "livekit",
+    "callkit",
+    "telecom",
+    "voip",
+    "calls",
+    "webrtc"
+  ],
   "license": "MIT",
-  "homepage": "https://github.com/bear-block/callx",
+  "homepage": "https://bear-block.github.io/callx/",
+  "bugs": {
+    "url": "https://github.com/bear-block/callx/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bear-block/callx.git"
+    "url": "git+https://github.com/bear-block/callx.git",
+    "directory": "packages/react-native-livekit"
   },
   "type": "module",
   "main": "./lib/index.js",
@@ -39,7 +53,7 @@
     "typescript": "~5.9.3"
   },
   "peerDependencies": {
-    "@bear-block/callx": "^0.0.0-preview.1",
+    "@bear-block/callx": "^0.1.0",
     "@expo/config-plugins": ">=57.0.0 <58.0.0",
     "react-native": ">=0.76"
   },
@@ -47,5 +61,18 @@
     "@expo/config-plugins": {
       "optional": true
     }
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/bear-block"
+    },
+    {
+      "type": "individual",
+      "url": "https://buymeacoffee.com/bearblock"
+    }
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

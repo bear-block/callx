@@ -10,11 +10,12 @@ alone and connect LiveKit yourself when the call is answered.
 
 ## Install
 
-```yaml
-dependencies:
-  callx: ^0.0.0
-  callx_livekit: ^0.0.0
+```sh
+flutter pub add callx callx_livekit
+```
 
+```yaml
+# pubspec.yaml
 flutter:
   config:
     # LiveKit's Swift SDK ships only through Swift Package Manager.

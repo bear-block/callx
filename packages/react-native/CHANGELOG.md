@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
+
+First public release. Highlights: typed TurboModule, Expo config plugin with no native code,
+library-owned incoming path (PushKit and FCM), CallKit and Core-Telecom, durable journal and
+recovery, media adapter interface. Details below; release notes:
+https://bear-block.github.io/callx/project/changelog
 
 - The native module is a typed TurboModule: Codegen spec `src/specs/NativeCallx.ts`
   (`CallxSpec`), `CallxModule` extends `NativeCallxSpec` on Android and `CallxModule.mm` forwards to

@@ -1,12 +1,28 @@
 {
   "name": "@bear-block/callx",
-  "version": "0.0.0-preview.1",
+  "version": "0.1.0",
   "description": "Native call coordination for React Native using CallKit and Android Core-Telecom",
+  "keywords": [
+    "react-native",
+    "expo",
+    "callkit",
+    "pushkit",
+    "telecom",
+    "voip",
+    "calls",
+    "incoming-call",
+    "android",
+    "ios"
+  ],
   "license": "MIT",
-  "homepage": "https://github.com/bear-block/callx",
+  "homepage": "https://bear-block.github.io/callx/",
+  "bugs": {
+    "url": "https://github.com/bear-block/callx/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bear-block/callx.git"
+    "url": "git+https://github.com/bear-block/callx.git",
+    "directory": "packages/react-native"
   },
   "type": "module",
   "main": "./lib/index.js",
@@ -66,5 +82,18 @@
         "Callx": "CallxModule"
       }
     }
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/bear-block"
+    },
+    {
+      "type": "individual",
+      "url": "https://buymeacoffee.com/bearblock"
+    }
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

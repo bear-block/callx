@@ -1,210 +1,118 @@
 # callx
 
-Native call coordination for Flutter using iOS CallKit and Android Core-Telecom.
-Includes typed commands, call snapshots, operation lookup and observation sessions.
+Native incoming and outgoing calls for Flutter: iOS CallKit, Android Core-Telecom, VoIP and FCM
+push handling, and crash recovery in one shared native core. Calls ring even when your app is not
+running, answers are never lost on the lock screen, and cancelled calls never ring again.
 
-## Start here: choose simulation or a real integration
+**[Documentation](https://bear-block.github.io/callx/)** ·
+[Flutter quick start](https://bear-block.github.io/callx/guide/flutter) ·
+[API reference](https://bear-block.github.io/callx/reference/dart) ·
+[Status](https://bear-block.github.io/callx/project/status)
 
-For a UI-only demonstration, follow **Run the customized example** below. For real
-calls, complete these steps in order:
+## Features
 
-1. Install this package into a Flutter iOS/Android app.
-2. Configure native permissions, platform reporting and an application-scoped runtime.
-3. Implement native signaling/media and forward FCM messages to Callx; Callx receives
-   VoIP pushes, rings the call and shows the Android call notification.
-4. Register device tokens with your backend and send a real call invitation.
-5. Use `Callx()`, check capabilities, and verify incoming → answer → audio → end.
+- **Native owns the call.** Pushes are received, reported to CallKit or Telecom, and every answer
+  and hang-up is recorded natively, before the Flutter engine starts.
+- **Rings only when it should.** Duplicate, expired, busy and already-cancelled invitations never
+  ring; unanswered calls end at a ring deadline.
+- **Recovery built in.** A durable journal, idempotent commands with explicit results, and
+  replayable events after a crash, a hot restart or a reboot.
+- **Bring your own backend and media.** No hosted service and no Firebase or media dependency. Add
+  [`callx_livekit`](https://pub.dev/packages/callx_livekit) for LiveKit audio with no native code.
+- **Same core as React Native.** [`@bear-block/callx`](https://www.npmjs.com/package/@bear-block/callx)
+  runs the same Swift and Kotlin sources.
+- **Private by default.** MIT licensed, no telemetry.
 
-This package provides coordination, the native incoming-call path and adapter seams,
-not a signaling server, push sender or media engine. Neither `flutter pub get` nor
-Dart `setup` creates those integrations. Timing-critical incoming handling must work before the
-Dart engine attaches.
+## Requirements
 
-| Integration question | Detailed guide |
+| | Minimum |
 |---|---|
-| What push do I send? How should signaling work? | [Backend endpoints and APNs/FCM payloads](https://bear-block.github.io/callx/guides/backend) |
-| What Swift/Kotlin host code is required? | [Native bootstrap](https://bear-block.github.io/callx/guides/native-host) |
-| What owns call state and audio? | [Architecture](https://bear-block.github.io/callx/concepts/architecture) |
-| How do retries and event recovery work? | [API and recovery](https://bear-block.github.io/callx/concepts/commands) |
+| Flutter | 3.41 (Dart 3.11) |
+| iOS | 15.0, built with Xcode 26 or later |
+| Android | API 29 (`minSdk = 29`) |
 
-Flutter does not use
-the Expo plugin: configure its generated native host directly. Set an iOS microphone
-description, appropriate audio/VoIP background capabilities and signing; declare
-Android `INTERNET`, `RECORD_AUDIO`, `MANAGE_OWN_CALLS` and any additional permissions
-required by your notification/media integration. Request runtime permissions where
-applicable; a manifest declaration is not a grant.
-Set `minSdk = 29` in `android/app/build.gradle(.kts)`; the Flutter template default
-is lower and the Android build fails below the plugin's floor.
-
-## Status and requirements
-
-Native integration preview; not yet published or production-validated. Supports one
-live call. Native calling targets iOS/Android; web is simulator-only. Requires Dart
-`^3.11.4`, Flutter `>=3.41.0`, iOS 15+ / Swift 6, and Android API 29+ with a compatible
-Android build toolchain. The recorded development baseline is Flutter 3.47.5.
-Bring your own native signaling/media integration, push setup and app permissions.
-
-Version `0.0.0-preview.1`. The package contains a typed MethodChannel/EventChannel backend,
-Android/iOS entry points and the canonical Kotlin/Swift coordinator. It never falls back
-silently to the simulator.
-
-Read the [English integration and API guides](https://bear-block.github.io/callx/)
-for architecture, native bootstrap, recovery and device acceptance.
-
-## Run the customized example now
-
-From this package directory:
-
-```sh
-flutter pub get
-cd example
-flutter run -d chrome
-```
-
-The example also has generated iOS/Android host projects. Use `flutter run -d <device-id>`
-to run the same simulated UI there. Real calls require host runtime and provider wiring.
-Web support is for this preview only, not a production calling support promise.
-
-## Try it in your own app before release
-
-The package is not on pub.dev yet, so point your app's `pubspec.yaml` at this checkout:
-
-```yaml
-dependencies:
-  callx:
-    path: /absolute/path/to/callx/packages/callx
-```
-
-Run `flutter pub get`, set Android `minSdk = 29` as described above, then build and run the
-app. Flutter installs the iOS side itself through Swift Package Manager or CocoaPods. Dart
-changes in the package apply on hot restart, but Swift/Kotlin changes need a full rebuild:
-stop the app and run `flutter run` again.
-
-## Try the API
-
-```dart
-import 'package:callx/callx.dart';
-import 'package:callx/callx_preview.dart';
-
-Future<void> demo() async {
-  final preview = CallxPreview(); // Explicit opt-in; never an automatic fallback.
-  final callx = preview.callx;
-  final subscription = callx.snapshots.listen((snapshot) {
-    print('${snapshot.sequence}: ${snapshot.call?.state.name}');
-  });
-
-  await callx.setup(const CallxConfig(appName: 'Acme Support'));
-
-  // Test harness only — production invitation arrives through native ingress.
-  await preview.simulator.incoming(
-    const CallInput(callId: 'demo-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid'),
-  );
-  final result = await callx.answer('demo-1');
-  print(result.execution.name); // preview
-  // State is connecting, not active/audio-ready.
-  await preview.simulator.mediaConnected(); // No microphone or audio is started.
-  await callx.setMuted('demo-1', true);
-  await callx.setHeld('demo-1', true);
-  await callx.setHeld('demo-1', false);
-  await callx.end('demo-1');
-
-  await subscription.cancel(); // Detach observer, not a hangup operation.
-  await callx.dispose(); // Release the preview instance when its owner is done.
-}
-```
-
-## Installation after publication
+## Install
 
 ```sh
 flutter pub add callx
 ```
 
-The intended construction is `final callx = Callx();`, followed by `setup`. A missing plugin
-throws `nativeUnavailable`; an attached but unwired host returns `nativeCalling: false` and
-commands throw `CallxException` with code `notConfigured`.
+Set `minSdk = 29` in `android/app/build.gradle.kts`. On iOS, enable **Push Notifications** and the
+**Audio** and **Voice over IP** background modes, and add `NSMicrophoneUsageDescription`.
 
-Native app bootstrap, PushKit/APNs, FCM/Telecom presentation, permissions and a native
-provider/media adapter are still required. A package install or Dart setup call alone
-cannot establish those capabilities.
+## Bootstrap the native core
 
-## Native host wiring
-
-Create one durable `CallCoordinator`, a platform executor backed by CallKit/Core-Telecom plus
-your native media/signaling implementation, and a stable login-generation ID. Install it before
-the first Dart `setup` call. The [native bootstrap guide](https://bear-block.github.io/callx/guides/native-host) shows how
-`telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and how to
-reconcile work left pending by a previous process. In BYO signaling mode also create
-`CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift, `import callx`.
+The core starts with the process, before any push can arrive.
 
 ```kotlin
-val runtime = BridgeRuntime(coordinator, telecomExecutor,
-  BridgeCapabilities(accountGeneration, true, false, hold = true, mute = true))
-CallxPlugin.configure(runtime)
+// Android: Application.onCreate
+CallxPlugin.bootstrap(this, CallxBootstrapConfig(accountGeneration = currentAccount()))
 ```
 
 ```swift
-let runtime = BridgeRuntime(coordinator: coordinator, executor: callKitExecutor,
-  capabilities: .init(accountGeneration: accountGeneration, durableReplay: true,
-    providerManagedSignaling: false, hold: true, mute: true),
-  nowMs: { Int64(Date().timeIntervalSince1970 * 1000) })
-CallxPlugin.configure(runtime)
+// iOS: application(_:didFinishLaunchingWithOptions:)
+var config = CallxBootstrapConfig()
+config.accountGeneration = currentAccount()
+try CallxPlugin.bootstrap(config)
 ```
 
-Push/signaling code calls `runtime.reportIncoming(...)`, `remoteAnswered(...)` and
-`remoteEnded(...)`; the media engine calls `mediaConnected(...)`. Do not call
-`mediaConnected` merely because answer succeeded. On iOS, only fulfill a CallKit action after
-the native performer has completed its signaling/media work.
+On Android, forward FCM messages from your `FirebaseMessagingService` to
+`CallxBootstrap.started?.ingress?.handlePush(...)`. The
+[Flutter quick start](https://bear-block.github.io/callx/guide/flutter) shows every file.
 
-## Preview contract and limits
+## Use it
 
-- One live call. States: incoming, outgoing, connecting, active, held, ended.
-- answer is separate from mediaConnected. All effects are in memory.
-- Commands return operationId/status/execution; invalid operations throw CallxException.
-- Save `capabilities.accountGeneration`, then use
-  `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
-  `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
-  command never ran.
-- Durable-observation shape is available through `openSession([afterSequence])`,
-  `eventsFor(sessionId)`, `acknowledge(...)`, and `closeSession(...)`. Preview replay is
-  memory-only and deliberately reports `durableReplay: false`.
-- Snapshots are immutable, include a decimal-string sequence and current call.
-- Each stream subscriber receives current snapshot plus changes. No durable replay/ack.
-- No OS UI, background execution, delivery guarantees, timeout simulation, real media or network.
-- Reset clears the simulator; it is not a production SDK command.
-- SDK/toolchain baseline here: Flutter 3.47.5 / Dart 3.13.4. Production baseline is not frozen.
-- The native core is connected behind `CallxBackend`; the simulator remains explicit.
+```dart
+import 'package:callx/callx.dart';
 
-## Check
+final callx = Callx();
 
-```sh
-flutter test
-dart analyze
-cd example
-flutter test
-flutter build web
+Future<void> start() async {
+  final capabilities = await callx.setup(const CallxConfig(appName: 'Acme'));
+  if (!capabilities.nativeCalling) return;
+
+  // Send this to your backend so it can push invitations to this device.
+  final token = await callx.pushToken(); // voip on iOS, fcm on Android
+
+  callx.snapshots.listen((snapshot) {
+    final call = snapshot.call; // incoming, connecting, active, held, ended…
+  });
+}
+
+Future<void> answer(String callId) async {
+  final result = await callx.answer(callId);
+  if (result.status != CommandStatus.applied) print(result.error?.message);
+}
 ```
 
-Package tests use shared preview fixtures in the development monorepo. Those fixtures are not
-a runtime dependency. Preview API remains subject to change; do not ship it as a calling SDK.
+Your backend sends an APNs VoIP push or an FCM data message with a `callx` invitation; the
+[backend guide](https://bear-block.github.io/callx/guides/backend) has the exact payloads.
 
-## Build and release
+## Try it without a backend
 
-Run package checks above and `flutter pub publish --dry-run` from this directory.
-A plugin ships source; build the example on both native platforms to validate its
-integration. Before upload, follow the full
-[build-to-pub.dev runbook](https://bear-block.github.io/callx/project/contributing),
-including clean consumers, version/changelog updates and device evidence.
+```dart
+import 'package:callx/callx_preview.dart';
 
-## Troubleshooting and support
+final preview = CallxPreview();
+await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+await preview.simulator.incoming(
+  const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'));
+await preview.callx.answer('demo-1'); // connecting
+await preview.simulator.mediaConnected(); // active
+```
 
-`nativeUnavailable` means the native plugin is unavailable in the current host;
-`notConfigured` means host runtime setup is missing. An applied answer does not
-prove media readiness. See the
-[troubleshooting guide](https://bear-block.github.io/callx/guides/testing).
-When reporting an issue, include package/framework/OS versions and a minimal
-reproduction with sanitized logs. Do not include credentials or push tokens.
+The simulator is an explicit opt-in; `Callx()` never falls back to it.
 
-## License
+## Scope
 
-MIT. See [LICENSE](LICENSE). Third-party platform/provider dependencies retain their
-own licenses and configuration requirements.
+One live call at a time, voice, iOS and Android (web runs the simulator only). Callx does not
+host signaling, send pushes or carry media. See the
+[roadmap](https://bear-block.github.io/callx/project/roadmap) and what has been
+[verified on devices](https://bear-block.github.io/callx/project/status).
+
+## Support
+
+Callx is free and independent. [Sponsoring it](https://bear-block.github.io/callx/sponsor) funds
+testing on real phones across Android vendors and iPhones.
+
+MIT licensed.

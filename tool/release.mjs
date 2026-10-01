@@ -39,6 +39,15 @@ export function versionSites(read = (path) => readFileSync(join(root, path), 'ut
       sites.push({ label: `${name} dependency callx`, path, value: dependency[1],
         set: (source, version) => source.replace(/^( {2}callx:[ \t]*)\S+[ \t]*$/m, `$1^${version}`) });
     }
+    // The plugin's Android library declares its own version.
+    const gradlePath = `${dir}/android/build.gradle`;
+    let gradle;
+    try { gradle = read(gradlePath); } catch { gradle = undefined; }
+    const gradleVersion = gradle?.match(/^version = "([^"]+)"/m);
+    if (gradleVersion) {
+      sites.push({ label: `${name} Android library version`, path: gradlePath, value: gradleVersion[1],
+        set: (source, version) => source.replace(/^version = "[^"]+"/m, `version = "${version}"`) });
+    }
   }
   return sites;
 }

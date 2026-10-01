@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.0
+
+First public release. Highlights: library-owned incoming path (PushKit and FCM), CallKit and
+Core-Telecom, durable journal and recovery, one-call native bootstrap, media adapter interface.
+Details below; release notes: https://bear-block.github.io/callx/project/changelog
 
 - `Callx.pushToken()` returns the device's push token (`voip` on iOS, `fcm` on Android) for your
   backend; `CallxBootstrap` records the PushKit token, the FCM service reports its token to

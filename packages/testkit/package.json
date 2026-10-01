@@ -1,12 +1,26 @@
 {
   "name": "@bear-block/callx-testkit",
-  "version": "0.0.0-preview.1",
+  "version": "0.1.0",
   "description": "Device-trial tools for callx: a local call console, test push sender and media adapter conformance",
+  "keywords": [
+    "callx",
+    "voip",
+    "fcm",
+    "apns",
+    "push",
+    "testing",
+    "conformance",
+    "livekit"
+  ],
   "license": "MIT",
-  "homepage": "https://github.com/bear-block/callx",
+  "homepage": "https://bear-block.github.io/callx/",
+  "bugs": {
+    "url": "https://github.com/bear-block/callx/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bear-block/callx.git"
+    "url": "git+https://github.com/bear-block/callx.git",
+    "directory": "packages/testkit"
   },
   "type": "module",
   "bin": {
@@ -30,5 +44,18 @@
   },
   "scripts": {
     "test": "node --test test/*.test.mjs"
+  },
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/bear-block"
+    },
+    {
+      "type": "individual",
+      "url": "https://buymeacoffee.com/bearblock"
+    }
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }

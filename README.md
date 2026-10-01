@@ -14,11 +14,10 @@ Bring your own media with the core alone, or install an adapter
 
 ## Status
 
-Native integration preview `0.0.0-preview.1`, contract candidate `0.1.0`.
-Local installation and simulated demos are available; registry publication is pending.
-Native cores, framework transports and platform command adapters have build/test evidence.
-Push delivery, two-way audio, lock-screen behavior and process recovery still require
-device/backend acceptance.
+Version `0.1.0` on [pub.dev](https://pub.dev/packages/callx) and
+[npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.1.0`. Automated, emulator and
+simulator checks pass; physical-device verification is tracked on the
+[status page](https://bear-block.github.io/callx/project/status).
 
 Callx does not supply a media server, signaling backend or push credentials. The
 application starts the native runtime with `CallxBootstrap`, configures its push and

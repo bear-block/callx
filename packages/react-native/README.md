@@ -1,262 +1,140 @@
 # @bear-block/callx
 
-Native call coordination for React Native using iOS CallKit and Android Core-Telecom.
-Includes typed commands, call snapshots, operation lookup and observation sessions.
+Native incoming and outgoing calls for React Native and Expo: iOS CallKit, Android Core-Telecom,
+VoIP and FCM push handling, and crash recovery in one shared native core. Calls ring even when your
+app is not running, answers are never lost on the lock screen, and cancelled calls never ring again.
 
-## Start here: choose simulation or a real integration
+**[Documentation](https://bear-block.github.io/callx/)** ·
+[React Native quick start](https://bear-block.github.io/callx/guide/react-native) ·
+[Expo quick start](https://bear-block.github.io/callx/guide/expo) ·
+[API reference](https://bear-block.github.io/callx/reference/javascript) ·
+[Status](https://bear-block.github.io/callx/project/status)
 
-For a UI-only demonstration, follow **Run the customized example** below. For real
-calls, complete these steps in order:
+## Features
 
-1. Install the package in a native app; choose RN CLI/manual setup or Expo/plugin setup.
-2. Configure native permissions, platform reporting and application-scoped runtime.
-3. Implement native signaling/media and forward FCM messages to Callx; Callx receives
-   VoIP pushes, rings the call and shows the Android call notification.
-4. Register device tokens with your backend and send a real call invitation.
-5. Use `new Callx()`, check setup capabilities, then verify incoming → answer → audio → end.
+- **Native owns the call.** Pushes are received, reported to CallKit or Telecom, and every answer
+  and hang-up is recorded natively, before the JavaScript bundle loads.
+- **Rings only when it should.** Duplicate, expired, busy and already-cancelled invitations never
+  ring; unanswered calls end at a ring deadline.
+- **Recovery built in.** A durable journal, idempotent commands with explicit results, and
+  replayable events after a crash, a reload or a reboot.
+- **Expo with no native code.** The config plugin bootstraps the core and generates the FCM
+  service, compatible with React Native Firebase.
+- **Bring your own backend and media.** No hosted service and no Firebase or media dependency. Add
+  [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) for
+  LiveKit audio with no native code.
+- **New Architecture.** A typed TurboModule, with a fallback for the legacy architecture.
+- **Private by default.** MIT licensed, no telemetry.
 
-The package supplies the coordinator, the native incoming-call path and platform adapter
-seams. It does **not** supply a signaling server, push sender or media engine. `setup` cannot
-configure those services. The simulator deliberately works without them.
+## Requirements
 
-| Integration question | Detailed guide |
+| | Minimum |
 |---|---|
-| RN CLI or Expo? Which native configuration changes? | [RN CLI and Expo](https://bear-block.github.io/callx/guide/expo) |
-| What push do I send? What endpoints do I implement? | [Signaling and APNs/FCM payloads](https://bear-block.github.io/callx/guides/backend) |
-| How do I construct and configure the native runtime? | [Native bootstrap](https://bear-block.github.io/callx/guides/native-host) |
-| How do retries, state and replay work? | [API and recovery](https://bear-block.github.io/callx/concepts/commands) |
+| React Native | 0.76 (React 18) |
+| Expo | SDK 57, development build (not Expo Go) |
+| iOS | 15.0, built with Xcode 26 or later |
+| Android | API 29 (`minSdkVersion = 29`) |
 
-## Expo configuration
-
-For the Expo 57 baseline, install the optional build-time peer if needed:
+## Install with Expo
 
 ```sh
-npm install --save-dev @expo/config-plugins@57.0.9
+npx expo install @bear-block/callx
 ```
-
-Add the explicit plugin export to your app configuration:
 
 ```json
 {
   "expo": {
-    "plugins": [["@bear-block/callx/app.plugin", {
-      "microphonePermission": "Allow microphone access for voice calls.",
-      "iosVoip": true,
-      "androidNotifications": true
-    }]]
+    "plugins": [
+      ["@bear-block/callx/app.plugin", {
+        "microphonePermission": "Acme uses the microphone for calls.",
+        "iosVoip": true,
+        "androidNotifications": true,
+        "androidPush": "fcm"
+      }]
+    ]
   }
 }
 ```
 
-Then inspect with `npx expo config --type introspect`, run `npx expo prebuild` and
-rebuild with `npx expo run:ios` / `npx expo run:android`. The plugin merges iOS audio/
-VoIP background modes and microphone text, plus base Android permissions. Optional
-`apsEnvironment` explicitly sets APNs entitlement; match your signing environment.
-The plugin also raises Android `minSdkVersion` to 29 when it is lower.
-It does not generate the Firebase messaging service that forwards to Callx, or the
-authenticated runtime bootstrap.
-Preserve host code in committed native projects or a reproducible local integration
-package before using `prebuild --clean`. Expo Go cannot load Callx native code.
+Then `npx expo prebuild` and `npx expo run:ios` / `npx expo run:android`. Every option is in the
+[plugin reference](https://bear-block.github.io/callx/reference/expo-plugin).
 
-RN CLI consumers do not need Expo or its plugin: apply the manual configuration in
-the linked guide, including Android `minSdkVersion = 29`, install pods and rebuild. Autolinking includes native source;
-it does not configure your backend or native runtime.
-
-## Status and requirements
-
-Native integration preview; not yet published or production-validated. Supports one
-live call. Native calling targets iOS/Android; web is simulator-only. Declared peers:
-React `>=18`, React Native `>=0.76`; recorded demo baseline: RN 0.86.3 / Expo 57.
-The peer range is not a tested compatibility matrix. Native builds require iOS 15+
-/ Swift 6 or Android API 29+ and a compatible native toolchain. Bring your own
-signaling/media integration, push setup and app permissions. Expo is optional;
-Expo users need a development/native build for real calls.
-
-Version `0.0.0-preview.1`. The package includes a typed `Callx` TurboModule (Codegen spec
-`src/specs/NativeCallx.ts`, with a `NativeModules.Callx` fallback on the legacy architecture), an
-event emitter, Android/iOS autolinking entry points, canonical Kotlin/Swift coordinator and an
-explicit simulator. Native entry points advertise `nativeCalling: false` until the app host
-installs a runtime with a real platform executor.
-
-Read the [English integration and API guides](https://bear-block.github.io/callx/)
-for architecture, native bootstrap, recovery and device acceptance.
-
-## Run the customized example now
-
-From this package directory:
+## Install with React Native CLI
 
 ```sh
-npm ci
-npm run build
-cd example
-npm ci
-npm run web
+npm install @bear-block/callx
+cd ios && pod install
 ```
 
-The example uses Expo 57 / React Native 0.86.3 / React 19.2.3, resolved from the official
-blank TypeScript template for this preview. Use `npm run ios` or `npm run android` with a
-compatible simulator/device to build the example's Device mode: real CallKit/Core-Telecom,
-local signaling controls, optional FCM test pushes on Android and simulated media (no audio). Its example-only Expo
-plugin installs native bootstrap; SDK setup waits for checkpoint recovery. See the
-[example guide](https://github.com/bear-block/callx/blob/main/packages/react-native/example/README.md).
-Web is a preview target, not a production calling support promise.
+Set `minSdkVersion = 29`, enable **Push Notifications** and the **Audio** and **Voice over IP**
+background modes on iOS, and bootstrap the core from native code:
 
-Expo is the demo host, not a required dependency of the SDK. The native module requires a
-development/native build; Expo Go is not the real-call integration path.
+```kotlin
+// Android: MainApplication.onCreate
+CallxModule.bootstrap(this)
+```
 
-## Try it in your own app before release
+```swift
+// iOS: application(_:didFinishLaunchingWithOptions:)
+try CallxReactNativeHost.bootstrap(CallxBootstrapConfig())
+```
 
-The package is not on npm yet, so install it from this checkout. Choose one way:
+On Android, forward FCM messages from your messaging service to
+`CallxBootstrap.started?.ingress?.handlePush(...)`. The
+[React Native quick start](https://bear-block.github.io/callx/guide/react-native) shows every file.
 
-- **Link the folder** while you are changing Callx. npm points your app at this folder, so
-  it picks up later changes after each `npm run build`:
+## Use it
 
-  ```sh
-  cd /absolute/path/to/callx/packages/react-native
-  npm ci && npm run build
-  cd /path/to/your-app
-  npm install /absolute/path/to/callx/packages/react-native
-  ```
+```ts
+import {Callx} from '@bear-block/callx';
 
-- **Install a packed copy** to test exactly what npm would publish. `npm pack` builds the
-  package and prints the `.tgz` file name:
+export const callx = new Callx();
 
-  ```sh
-  cd /absolute/path/to/callx/packages/react-native
-  npm ci && npm pack
-  cd /path/to/your-app
-  npm install /absolute/path/to/callx/packages/react-native/bear-block-callx-<version>.tgz
-  ```
+export async function start() {
+  const capabilities = await callx.setup({appName: 'Acme'});
+  if (!capabilities.nativeCalling) return;
 
-Either way, the package contains native code, so rebuild the app rather than only reloading
-JavaScript: run `pod install` in `ios/` and build both platforms, or with Expo run
-`npx expo prebuild` and then `npx expo run:ios` / `npx expo run:android`. The example in this
-repository already links the package with `"@bear-block/callx": "file:.."`.
+  // Send this to your backend so it can push invitations to this device.
+  const token = await callx.getPushToken(); // {type: 'voip' | 'fcm', token}
 
-## Try the API
+  return callx.observe(({call}) => {
+    // call?.state: incoming, outgoing, connecting, active, held, ended
+  });
+}
+
+export async function answer(callId: string) {
+  const result = await callx.answer(callId);
+  if (result.status !== 'applied') console.warn(result.error?.message);
+}
+```
+
+Your backend sends an APNs VoIP push or an FCM data message with a `callx` invitation; the
+[backend guide](https://bear-block.github.io/callx/guides/backend) has the exact payloads.
+
+## Try it without a backend
 
 ```ts
 import {createCallxPreview} from '@bear-block/callx/preview';
 
-async function demo() {
-  const {callx, simulator} = createCallxPreview(); // Explicit opt-in.
-  const unsubscribe = callx.observe(snapshot => {
-    console.log(snapshot.sequence, snapshot.call?.state);
-  });
-  await callx.setup({appName: 'Acme Support'});
-
-  // Test harness only — production invitation arrives through native ingress.
-  await simulator.incoming({callId: 'demo-1', displayName: 'hao.dev7', handle: 'sip:hao.dev7@example.invalid'});
-  const result = await callx.answer('demo-1');
-  console.log(result.execution); // preview
-  // Answer gives connecting, not real media readiness.
-  await simulator.mediaConnected(); // No microphone or audio is started.
-  await callx.setMuted('demo-1', true);
-  await callx.setHeld('demo-1', true);
-  await callx.setHeld('demo-1', false);
-  await callx.end('demo-1');
-
-  unsubscribe(); // Detach observer, not a hangup operation.
-  callx.dispose(); // Release preview instance when its owner is done.
-}
+const {callx, simulator} = createCallxPreview();
+await callx.setup({appName: 'Acme'});
+await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'});
+await callx.answer('demo-1'); // connecting
+await simulator.mediaConnected(); // active
 ```
 
-## Installation after publication
+The simulator is an explicit opt-in; `new Callx()` never falls back to it.
 
-```sh
-npm install @bear-block/callx
-```
+## Scope
 
-The intended native construction is:
+One live call at a time, voice, iOS and Android (web runs the simulator only). Callx does not
+host signaling, send pushes or carry media. See the
+[roadmap](https://bear-block.github.io/callx/project/roadmap) and what has been
+[verified on devices](https://bear-block.github.io/callx/project/status).
 
-```ts
-import {Callx} from '@bear-block/callx';
-const callx = new Callx();
-await callx.setup({appName: 'Acme Support'});
-```
+## Support
 
-If autolinking is missing it rejects with `nativeUnavailable`. An unwired native host returns
-`nativeCalling: false` and rejects commands with `notConfigured`. Native bootstrap,
-push/permissions/presentation and provider/media wiring
-remain separate steps; autolinking does not replace them.
+Callx is free and independent. [Sponsoring it](https://bear-block.github.io/callx/sponsor) funds
+testing on real phones across Android vendors and iPhones.
 
-## Native host wiring
-
-Create one durable coordinator and a platform executor backed by native signaling/media, then
-install the runtime before JavaScript calls `setup`. The [native bootstrap guide](https://bear-block.github.io/callx/guides/native-host)
-shows how `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and
-how to reconcile work left pending by a previous process. In BYO signaling mode also create
-`CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift,
-`import callx_react_native`.
-
-```kotlin
-val runtime = BridgeRuntime(coordinator, telecomExecutor,
-  BridgeCapabilities(accountGeneration, true, false, hold = true, mute = true))
-CallxModule.configure(runtime)
-```
-
-```swift
-let runtime = BridgeRuntime(coordinator: coordinator, executor: callKitExecutor,
-  capabilities: .init(accountGeneration: accountGeneration, durableReplay: true,
-    providerManagedSignaling: false, hold: true, mute: true),
-  nowMs: { Int64(Date().timeIntervalSince1970 * 1000) })
-CallxReactNativeHost.configure(runtime)
-```
-
-Push/signaling calls `reportIncoming`, `remoteAnswered` and `remoteEnded` on the runtime; media
-calls `mediaConnected` only when media is actually usable. The JS thread is never the CallKit or
-Core-Telecom action performer.
-
-## Preview contract and limits
-
-- One live call; incoming/outgoing → connecting → active/held → ended.
-- Typed commands return operationId/status/execution; invalid operations throw CallxError.
-- Save `capabilities.accountGeneration`, then use
-  `queryOperation(operationId, accountGeneration)` after an ambiguous timeout. The lookup is
-  `available`, `unavailable`, or `generationMismatch`; `unavailable` is not proof that the
-  command never ran.
-- Durable-observation shape is available through `openSession(afterSequence?)`,
-  `observeEvents(sessionId, listener)`, `acknowledge(...)`, and `closeSession(...)`. Preview
-  replay is memory-only and deliberately reports `durableReplay: false`.
-- Immutable snapshots include decimal-string sequence. observe gives current state immediately.
-- Unsubscribe is independent from ending a call.
-- No native UI, push, background runtime, real audio, network, timeout simulation or durable replay.
-- `Callx` uses the native backend by default. The simulator is never an automatic fallback.
-- The `/preview` export is separate: normal imports never silently enable a fake call.
-
-## Check
-
-```sh
-npm test
-npm pack --dry-run
-cd example
-npm run typecheck
-npm run build:web
-```
-
-Tests use shared fixtures from the development monorepo. Published artifacts contain
-`lib/` plus native Android/iOS sources and autolinking metadata; they do not require
-root sources at runtime. Preview API is not yet stable.
-
-## Build and release
-
-`npm run build` compiles TypeScript; `npm pack` runs the build and produces a
-self-contained tarball with native sources. Install that tarball in clean native
-consumers before publishing. Follow the full
-[build-to-npm runbook](https://bear-block.github.io/callx/project/contributing)
-for versioning, device evidence and `--access public --tag preview` publication.
-Do not publish from the monorepo root.
-
-## Troubleshooting and support
-
-`nativeUnavailable` means the native module is unavailable in the current host;
-`notConfigured` means host runtime setup is missing. Rebuild the native app after
-installation; Metro reload cannot install native code. See the
-[troubleshooting guide](https://bear-block.github.io/callx/guides/testing).
-Report package/framework/OS versions and a minimal reproduction with sanitized logs;
-omit credentials and push tokens.
-
-## License
-
-MIT. See [LICENSE](LICENSE). Third-party platform/provider dependencies retain their
-own licenses and configuration requirements.
+MIT licensed.
