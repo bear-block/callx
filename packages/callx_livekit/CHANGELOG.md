@@ -2,4 +2,4 @@
 
 ## Unreleased
 
-- First preview: see [ADR-0009](https://callx.pages.dev/project/decisions).
+- First preview: see [ADR-0009](https://bear-block.github.io/callx/project/decisions).

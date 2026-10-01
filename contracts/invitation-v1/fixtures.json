@@ -1,5 +1,5 @@
 {
-  "description": "call.invited schema v1 (https://callx.pages.dev/guides/backend). Both native decoders must accept every valid payload with the expected result and reject every invalid one.",
+  "description": "call.invited schema v1 (https://bear-block.github.io/callx/guides/backend). Both native decoders must accept every valid payload with the expected result and reject every invalid one.",
   "valid": [
     {
       "name": "full recipe payload",

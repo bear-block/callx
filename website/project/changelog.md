@@ -1,0 +1,67 @@
+---
+title: "Changelog"
+description: "Release notes for all Callx packages, which share one version number."
+---
+
+# Changelog
+
+All Callx packages release together with one version number. Each package also keeps its own
+`CHANGELOG.md` with package-specific details:
+[callx](https://github.com/bear-block/callx/blob/main/packages/callx/CHANGELOG.md),
+[@bear-block/callx](https://github.com/bear-block/callx/blob/main/packages/react-native/CHANGELOG.md),
+[callx_livekit](https://github.com/bear-block/callx/blob/main/packages/callx_livekit/CHANGELOG.md),
+[@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
+[@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
+
+## 0.1.0
+
+The first public release. Verification levels for each feature are on the
+[status page](/project/status).
+
+### Core (Flutter and React Native)
+
+- **Shared native core**: the same Swift and Kotlin sources in both packages, contract `0.1.0`,
+  checked by shared fixtures on all four languages.
+- **Library-owned incoming path**: `CallKitIngress` receives VoIP pushes and reports them to
+  CallKit natively, honouring iOS 26.4 `mustReport`; `TelecomIngress` takes forwarded FCM
+  messages, adds the call to Core-Telecom and shows a CallStyle notification.
+- **Rings only when it should**: duplicates, busy, expired and already-ended invitations never
+  ring; a cancel that arrives before its invitation wins; unanswered calls end at the ring
+  deadline.
+- **One-call bootstrap**: `CallxBootstrap` builds the whole native pipeline, including recovery
+  and media adapter discovery.
+- **Durable state**: journal, replayable observation sessions, idempotent commands with
+  explicit results and operation lookup; cleanup recovery after process death.
+- **Push tokens**: `getPushToken()` / `pushToken()` return the VoIP or FCM token.
+- **Media interface**: `CallxMediaAdapter` and `CallxMediaSink`, `mediaInterrupted`, adapters
+  discovered from the Android manifest or `Info.plist`.
+
+### Android
+
+- Native `CallxIncomingCallActivity` that appears over the lock screen without waiting for the
+  framework engine.
+- Repeating ringtone on a versioned channel; volume-down silences it.
+- `LockedAnswer` policy: require unlock (default) or show over the lock screen.
+- Ongoing notification with a call timer; follows answers and hang-ups from every surface.
+- `CallxFullScreenIntent` and `CallxTelecomAvailability` helpers.
+- Audio routing through Telecom with `requestAudioEndpoint`; mute and hold from cars, headsets
+  and watches.
+
+### React Native
+
+- Typed TurboModule (Codegen spec `NativeCallx`) on the New Architecture, with a legacy
+  architecture fallback.
+- Expo config plugin: `bootstrap` (no native code needed) and `androidPush: "fcm"` (generated
+  messaging service, compatible with React Native Firebase).
+
+### LiveKit adapter
+
+- `callx_livekit` and `@bear-block/callx-livekit`: one LiveKit room per call, joined natively
+  on answer from any surface.
+- Telecom owns routing on Android; CallKit owns the audio session on iOS.
+- Credentials from a persisted token URL (headers encrypted) or a native provider.
+- Listen-only when the microphone permission is missing.
+
+### Testkit
+
+- `callx-console`, `callx-push` and `callx-conformance`.

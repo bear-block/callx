@@ -3,7 +3,7 @@
 LiveKit media adapter for [`@bear-block/callx`](../react-native/README.md). When a call is
 answered, from the app, the lock screen, a watch or a car, the adapter joins the call's LiveKit
 room natively, so audio starts even if JavaScript is not running yet
-([ADR-0009](https://callx.pages.dev/project/decisions)).
+([ADR-0009](https://bear-block.github.io/callx/project/decisions)).
 
 Voice calls only. If your app renders video or participants with LiveKit's own React Native
 SDK, use `@bear-block/callx` alone and connect LiveKit yourself when the call is answered.

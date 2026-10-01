@@ -14,7 +14,7 @@ const mime = {'.html':'text/html', '.js':'application/javascript', '.json':'appl
   '.woff2':'font/woff2', '.ttf':'font/ttf', '.ico':'image/x-icon'};
 for (const app of apps) {
   if (!existsSync(resolve(app.root,'index.html'))) {
-    throw new Error('Build '+app.name+' first; see https://callx.pages.dev/guide/simulator');
+    throw new Error('Build '+app.name+' first; see https://bear-block.github.io/callx/guide/simulator');
   }
 }
 const servers = [];
