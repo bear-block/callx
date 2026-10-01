@@ -26,7 +26,11 @@ signaling, and either installs a media adapter or connects media from the core's
 
 ## Documentation
 
-Start with the [English documentation](docs/README.md):
+**[bear-block.github.io/callx](https://bear-block.github.io/callx/)**: guides, API reference,
+comparison with other libraries and project status. The site's source is in [`website/`](website)
+(`npm run docs:dev`).
+
+Repository guides, ADRs and evidence records start at [docs/README.md](docs/README.md):
 
 1. [Architecture and ownership](docs/guides/architecture.md).
 2. [Installation and usage](docs/guides/getting-started.md).

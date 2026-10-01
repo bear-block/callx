@@ -1,0 +1,4 @@
+# Shows the Sponsor button on the repository. Update the handles once the accounts exist.
+github: [bear-block]
+open_collective: callx
+custom: ["https://bear-block.github.io/callx/sponsor"]
