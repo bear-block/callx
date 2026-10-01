@@ -73,6 +73,19 @@ denied on Android 14+; a 30-minute call; and account switches.
 Results are published on this page, with the device, OS version and date of each run, as the
 trials pass.
 
+### What the trials are waiting for
+
+| Platform | Needed | Why emulators cannot stand in |
+|---|---|---|
+| iOS | An iPhone on iOS 15 or later, and an Apple Developer Program membership | PushKit and APNs need a paid membership, and the Simulator neither receives VoIP pushes nor keeps CallKit calls |
+| Android | Phones from the vendors users have: Samsung and Xiaomi first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
+
+Until then, Android emulators cover several API levels on every change, and the
+[sponsor page](/sponsor) explains how to help fund the devices. If you run the
+[acceptance checklist](/guides/testing#acceptance-checklist) on your own phone, please
+[share the results](https://github.com/bear-block/callx/issues/new): they will be listed here
+with credit.
+
 ## Help verify
 
 Device coverage is the most valuable contribution right now, and the most expensive part of
