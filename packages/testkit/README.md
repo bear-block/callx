@@ -44,6 +44,6 @@ With the console and LiveKit running, and the app installed with the microphone 
 7. Logcat shows no crash of the app process.
 
 Chrome is found at its macOS path or `CHROME`. Every media adapter passes this on an Android
-device before release ([ADR-0009](../../docs/adr/0009-core-and-media-adapter-packages.md)). iOS
+device before release ([ADR-0009](https://callx.pages.dev/project/decisions)). iOS
 conformance needs an iPhone, because the Simulator ends CallKit calls at once; it is manual
 for now.

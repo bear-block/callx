@@ -2,4 +2,4 @@
 
 ## Unreleased
 
-- First preview: see [ADR-0009](../../docs/adr/0009-core-and-media-adapter-packages.md).
+- First preview: see [ADR-0009](https://callx.pages.dev/project/decisions).

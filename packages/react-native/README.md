@@ -21,12 +21,10 @@ configure those services. The simulator deliberately works without them.
 
 | Integration question | Detailed guide |
 |---|---|
-| RN CLI or Expo? Which native configuration changes? | [RN CLI and Expo](https://github.com/bear-block/callx/blob/main/docs/guides/react-native-and-expo.md) |
-| What push do I send? What endpoints do I implement? | [Signaling and APNs/FCM payloads](https://github.com/bear-block/callx/blob/main/docs/guides/signaling-and-push.md) |
-| How do I construct and configure the native runtime? | [Native bootstrap](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) |
-| How do retries, state and replay work? | [API and recovery](https://github.com/bear-block/callx/blob/main/docs/guides/api.md) |
-
-These guides also exist under `docs/guides/` in the source checkout.
+| RN CLI or Expo? Which native configuration changes? | [RN CLI and Expo](https://callx.pages.dev/guide/expo) |
+| What push do I send? What endpoints do I implement? | [Signaling and APNs/FCM payloads](https://callx.pages.dev/guides/backend) |
+| How do I construct and configure the native runtime? | [Native bootstrap](https://callx.pages.dev/guides/native-host) |
+| How do retries, state and replay work? | [API and recovery](https://callx.pages.dev/concepts/commands) |
 
 ## Expo configuration
 
@@ -80,9 +78,8 @@ event emitter, Android/iOS autolinking entry points, canonical Kotlin/Swift coor
 explicit simulator. Native entry points advertise `nativeCalling: false` until the app host
 installs a runtime with a real platform executor.
 
-Read the [English integration and API guides](https://github.com/bear-block/callx/blob/main/docs/README.md)
-for architecture, native bootstrap, recovery and device acceptance. In a local checkout,
-the same documentation is under `docs/guides/` at the repository root.
+Read the [English integration and API guides](https://callx.pages.dev/)
+for architecture, native bootstrap, recovery and device acceptance.
 
 ## Run the customized example now
 
@@ -186,7 +183,7 @@ remain separate steps; autolinking does not replace them.
 ## Native host wiring
 
 Create one durable coordinator and a platform executor backed by native signaling/media, then
-install the runtime before JavaScript calls `setup`. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md)
+install the runtime before JavaScript calls `setup`. The [native bootstrap guide](https://callx.pages.dev/guides/native-host)
 shows how `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and
 how to reconcile work left pending by a previous process. In BYO signaling mode also create
 `CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift,
@@ -246,7 +243,7 @@ root sources at runtime. Preview API is not yet stable.
 `npm run build` compiles TypeScript; `npm pack` runs the build and produces a
 self-contained tarball with native sources. Install that tarball in clean native
 consumers before publishing. Follow the full
-[build-to-npm runbook](https://github.com/bear-block/callx/blob/main/docs/guides/build-and-release.md)
+[build-to-npm runbook](https://callx.pages.dev/project/contributing)
 for versioning, device evidence and `--access public --tag preview` publication.
 Do not publish from the monorepo root.
 
@@ -255,7 +252,7 @@ Do not publish from the monorepo root.
 `nativeUnavailable` means the native module is unavailable in the current host;
 `notConfigured` means host runtime setup is missing. Rebuild the native app after
 installation; Metro reload cannot install native code. See the
-[troubleshooting guide](https://github.com/bear-block/callx/blob/main/docs/guides/acceptance.md).
+[troubleshooting guide](https://callx.pages.dev/guides/testing).
 Report package/framework/OS versions and a minimal reproduction with sanitized logs;
 omit credentials and push tokens.
 

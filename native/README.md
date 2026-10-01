@@ -1,8 +1,8 @@
 # Canonical native cores
 
 The Flutter and React Native packages share one Swift implementation on iOS and one
-Kotlin implementation on Android. Read the [architecture](../docs/guides/architecture.md)
-and [host integration guide](../docs/guides/native-integration.md).
+Kotlin implementation on Android. Read the [architecture](https://callx.pages.dev/concepts/architecture)
+and [host integration guide](https://callx.pages.dev/guides/native-host).
 
 ## Current implementation
 
@@ -22,7 +22,7 @@ and [host integration guide](../docs/guides/native-integration.md).
 - `BridgeRuntime`: validates requests, exposes snapshots/sessions and receives host ingress.
 - CallKit adapters and Android `telecom` module: connect platform actions to host behavior.
 - `CallKitIngress` and `TelecomIngress`: the library-owned incoming path in BYO mode
-  ([ADR-0007](../docs/adr/0007-library-owned-incoming-path.md)); `CallStylePresenter` is the
+  ([ADR-0007](https://callx.pages.dev/project/decisions)); `CallStylePresenter` is the
   default Android call notification.
 
 Storage is optional in the coordinator constructor. Configure a file-backed store before

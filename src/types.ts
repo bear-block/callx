@@ -2,8 +2,8 @@
  * Call lifecycle — shared data types.
  *
  * This is an executable prototype, not a production contract yet. The native port
- * must settle command confirmation, audio readiness and recovery per
- * docs/adr/0002-command-observation.md before using it as a conformance oracle.
+ * must settle command confirmation, audio readiness and recovery before using
+ * it as a conformance oracle.
  * Platform policy such as PushKit `mustReport` belongs to the native adapter.
  *
  * HOW STATES ARE CHOSEN
@@ -47,7 +47,7 @@ export type EndReason =
  *
  * A caller who cancels is remoteEnded in the sense of Apple's enum; unanswered
  * is for a timeout before connecting started with no party ending the call. This mapping
- * makes no promise about how Recents displays it. See docs/research/2026-09-12-technical-audit.md.
+ * makes no promise about how Recents displays it.
  * null only says there is no matching CXCallEndedReason: a local command still needs
  * CXEndCallAction; null must not be treated as a no-op before the action completes.
  */

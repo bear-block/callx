@@ -10,7 +10,7 @@ Swift core on iOS and a shared Kotlin core on Android.
 | Device-trial tools: call console, test pushes, adapter conformance | — | [`@bear-block/callx-testkit`](packages/testkit/README.md) |
 
 Bring your own media with the core alone, or install an adapter
-([ADR-0009](docs/adr/0009-core-and-media-adapter-packages.md)).
+([ADR-0009](https://callx.pages.dev/project/decisions)).
 
 ## Status
 
@@ -26,21 +26,17 @@ signaling, and either installs a media adapter or connects media from the core's
 
 ## Documentation
 
-**[bear-block.github.io/callx](https://bear-block.github.io/callx/)**: guides, API reference,
-comparison with other libraries and project status. The site's source is in [`website/`](website)
-(`npm run docs:dev`).
+**[callx.pages.dev](https://callx.pages.dev/)**: guides, API reference, comparison with other
+libraries and project status.
 
-Repository guides, ADRs and evidence records start at [docs/README.md](docs/README.md):
-
-1. [Architecture and ownership](docs/guides/architecture.md).
-2. [Installation and usage](docs/guides/getting-started.md).
-3. [Native host integration](docs/guides/native-integration.md).
-4. [API behavior and recovery](docs/guides/api.md).
-5. [Testing and acceptance](docs/guides/acceptance.md).
-6. [Build and release to npm/pub.dev](docs/guides/build-and-release.md).
-7. [Repository maintenance](docs/guides/repository-maintenance.md).
-8. [Signaling, backend endpoints and push payloads](docs/guides/signaling-and-push.md).
-9. [RN CLI and Expo config plugin](docs/guides/react-native-and-expo.md).
+1. [Architecture and ownership](https://callx.pages.dev/concepts/architecture).
+2. [Installation and usage](https://callx.pages.dev/guide/).
+3. [Native host integration](https://callx.pages.dev/guides/native-host).
+4. [API behavior and recovery](https://callx.pages.dev/concepts/commands).
+5. [Testing and acceptance](https://callx.pages.dev/guides/testing).
+6. [Signaling, backend endpoints and push payloads](https://callx.pages.dev/guides/backend).
+7. [RN CLI and Expo config plugin](https://callx.pages.dev/guide/expo).
+8. [Building from source and contributing](https://callx.pages.dev/project/contributing).
 
 Both example apps include an explicit simulator with call controls and an event timeline.
 Both also have a Device mode wired to native CallKit/Core-Telecom, with optional test pushes

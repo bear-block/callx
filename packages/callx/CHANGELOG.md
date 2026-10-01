@@ -21,7 +21,7 @@
 - `TelecomIngressListener.onCallAnswered` and `onCallEnded` tell the host to start and
   stop media once per call, whichever surface answered or ended it.
 - The example host joins a LiveKit room per call for real audio in device trials
-  ([ADR-0008](https://github.com/bear-block/callx/blob/main/docs/adr/0008-first-media-adapter-livekit.md)).
+  ([ADR-0008](https://callx.pages.dev/project/decisions)).
 - Android incoming calls use a versioned ringtone channel and repeat ringing until
   answered, ended or silenced; ongoing calls use a silent channel. Native incoming UI
   forwards volume-down to `TelecomIngress.silenceIncoming`.
@@ -31,7 +31,7 @@
 - Expose `CallxTelecomAvailability` so hosts can reject unsupported devices before
   registering with Telecom.
 
-- Own the incoming path in BYO signaling mode ([ADR-0007](https://github.com/bear-block/callx/blob/main/docs/adr/0007-library-owned-incoming-path.md)):
+- Own the incoming path in BYO signaling mode ([ADR-0007](https://callx.pages.dev/project/decisions)):
   `CallKitIngress` receives VoIP pushes, reports calls to CallKit (honouring iOS 26.4
   `mustReport`) and ends unanswered calls; `TelecomIngress` takes forwarded FCM data,
   registers the Telecom call and shows a CallStyle notification with answer and decline.

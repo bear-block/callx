@@ -22,12 +22,12 @@ Dart engine attaches.
 
 | Integration question | Detailed guide |
 |---|---|
-| What push do I send? How should signaling work? | [Backend endpoints and APNs/FCM payloads](https://github.com/bear-block/callx/blob/main/docs/guides/signaling-and-push.md) |
-| What Swift/Kotlin host code is required? | [Native bootstrap](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) |
-| What owns call state and audio? | [Architecture](https://github.com/bear-block/callx/blob/main/docs/guides/architecture.md) |
-| How do retries and event recovery work? | [API and recovery](https://github.com/bear-block/callx/blob/main/docs/guides/api.md) |
+| What push do I send? How should signaling work? | [Backend endpoints and APNs/FCM payloads](https://callx.pages.dev/guides/backend) |
+| What Swift/Kotlin host code is required? | [Native bootstrap](https://callx.pages.dev/guides/native-host) |
+| What owns call state and audio? | [Architecture](https://callx.pages.dev/concepts/architecture) |
+| How do retries and event recovery work? | [API and recovery](https://callx.pages.dev/concepts/commands) |
 
-In the source checkout these guides are under `docs/guides/`. Flutter does not use
+Flutter does not use
 the Expo plugin: configure its generated native host directly. Set an iOS microphone
 description, appropriate audio/VoIP background capabilities and signing; declare
 Android `INTERNET`, `RECORD_AUDIO`, `MANAGE_OWN_CALLS` and any additional permissions
@@ -48,9 +48,8 @@ Version `0.0.0-preview.1`. The package contains a typed MethodChannel/EventChann
 Android/iOS entry points and the canonical Kotlin/Swift coordinator. It never falls back
 silently to the simulator.
 
-Read the [English integration and API guides](https://github.com/bear-block/callx/blob/main/docs/README.md)
-for architecture, native bootstrap, recovery and device acceptance. In a local checkout,
-the same documentation is under `docs/guides/` at the repository root.
+Read the [English integration and API guides](https://callx.pages.dev/)
+for architecture, native bootstrap, recovery and device acceptance.
 
 ## Run the customized example now
 
@@ -132,7 +131,7 @@ cannot establish those capabilities.
 
 Create one durable `CallCoordinator`, a platform executor backed by CallKit/Core-Telecom plus
 your native media/signaling implementation, and a stable login-generation ID. Install it before
-the first Dart `setup` call. The [native bootstrap guide](https://github.com/bear-block/callx/blob/main/docs/guides/native-integration.md) shows how
+the first Dart `setup` call. The [native bootstrap guide](https://callx.pages.dev/guides/native-host) shows how
 `telecomExecutor` and `callKitExecutor` are assembled from the packaged adapters and how to
 reconcile work left pending by a previous process. In BYO signaling mode also create
 `CallKitIngress` / `TelecomIngress`, which receive pushes and ring the call. In Swift, `import callx`.
@@ -193,7 +192,7 @@ a runtime dependency. Preview API remains subject to change; do not ship it as a
 Run package checks above and `flutter pub publish --dry-run` from this directory.
 A plugin ships source; build the example on both native platforms to validate its
 integration. Before upload, follow the full
-[build-to-pub.dev runbook](https://github.com/bear-block/callx/blob/main/docs/guides/build-and-release.md),
+[build-to-pub.dev runbook](https://callx.pages.dev/project/contributing),
 including clean consumers, version/changelog updates and device evidence.
 
 ## Troubleshooting and support
@@ -201,7 +200,7 @@ including clean consumers, version/changelog updates and device evidence.
 `nativeUnavailable` means the native plugin is unavailable in the current host;
 `notConfigured` means host runtime setup is missing. An applied answer does not
 prove media readiness. See the
-[troubleshooting guide](https://github.com/bear-block/callx/blob/main/docs/guides/acceptance.md).
+[troubleshooting guide](https://callx.pages.dev/guides/testing).
 When reporting an issue, include package/framework/OS versions and a minimal
 reproduction with sanitized logs. Do not include credentials or push tokens.
 

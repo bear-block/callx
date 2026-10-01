@@ -5,7 +5,7 @@
  * plus an event, and returns the new state plus the list of work the native layer
  * must do. That way the whole lifecycle can be verified without a device, and
  * the Swift/Kotlin versions have a starting point to compare against. Command confirmation/recovery
- * is not complete: see docs/research/2026-09-12-technical-audit.md before the native port.
+ * is not complete in this prototype; the native core is the reference.
  *
  * INVARIANTS
  *  1. `ended` is terminal. The first writer wins — every end event arriving

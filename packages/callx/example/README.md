@@ -117,7 +117,7 @@ which call the same ingress methods a signaling client would.
 
 Run these on each platform, locked and unlocked, with the app in the foreground, in the
 background and not running. Record results with the
-[evidence template](../../../docs/evidence/README.md); a scenario passes only with a trace.
+[evidence template](https://callx.pages.dev/project/status); a scenario passes only with a trace.
 
 | ID | Steps | Expect |
 |---|---|---|
@@ -128,4 +128,4 @@ background and not running. Record results with the
 | S-11 | Send the same `--call-id` again after it ended | Does not ring again |
 | S-12 | Lock the phone → invite → answer on the lock screen | Answers without unlocking |
 
-The full matrix is in [the test plan](../../../docs/plan/03-test-matrix.md).
+The full matrix is in [the test plan](https://callx.pages.dev/guides/testing#acceptance-checklist).

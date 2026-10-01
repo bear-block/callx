@@ -2,6 +2,6 @@
 
 ## Unreleased
 
-- First preview: see [ADR-0009](../../docs/adr/0009-core-and-media-adapter-packages.md).
+- First preview: see [ADR-0009](https://callx.pages.dev/project/decisions).
 - iOS: import `NativeModules` by name; a namespace import of `react-native` threw while
   evaluating `PushNotificationIOS`.

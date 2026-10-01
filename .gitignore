@@ -11,3 +11,6 @@ google-services.json
 GoogleService-Info.plist
 *.p8
 *service-account*.json
+
+# Local preview screenshots (tool/check-preview-browser.mjs).
+/build/

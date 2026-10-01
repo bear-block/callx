@@ -29,7 +29,7 @@ published SDK's Expo plugin.
 
 Native startup completes checkpoint recovery before JS setup. A JS reload reattaches
 to the same native runtime and does not terminate the call. A new process terminates
-lost calls using the recovery policy in [ADR-0007](../../../docs/adr/0007-library-owned-incoming-path.md).
+lost calls using the recovery policy in [ADR-0007](https://callx.pages.dev/project/decisions).
 Bootstrap errors remain visible in Device mode; they do not select a simulator silently.
 
 Use an iPhone for real iOS lifecycle trials. The iOS Simulator can terminate CallKit
@@ -72,4 +72,4 @@ selecting a route does not create an audio stream in this harness.
 
 For web preview: `npm run web`. For validation: `npm run typecheck` and `npm run build:web`.
 Device results must be recorded separately from builds and simulator results using the
-[evidence template](../../../docs/evidence/README.md).
+[evidence template](https://callx.pages.dev/project/status).

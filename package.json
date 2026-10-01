@@ -29,10 +29,7 @@
     "push:test": "node packages/testkit/src/push.mjs",
     "call:console": "node packages/testkit/src/console.mjs",
     "conformance:android": "node packages/testkit/src/conformance.mjs android",
-    "media:server": "sh tool/media-server.sh",
-    "docs:dev": "npm --prefix website run dev",
-    "docs:build": "npm --prefix website run build",
-    "docs:preview": "npm --prefix website run preview"
+    "media:server": "sh tool/media-server.sh"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

@@ -3,7 +3,7 @@
 LiveKit media adapter for [callx](../callx/README.md). When a call is answered, from the app,
 the lock screen, a watch or a car, the adapter joins the call's LiveKit room natively, so audio
 starts even if Dart is not running yet
-([ADR-0009](../../docs/adr/0009-core-and-media-adapter-packages.md)).
+([ADR-0009](https://callx.pages.dev/project/decisions)).
 
 Voice calls only. If your app renders video or participants with `livekit_client`, use callx
 alone and connect LiveKit yourself when the call is answered.

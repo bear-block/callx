@@ -42,7 +42,7 @@ async function until(session, expression) {
   }
   throw new Error('Page condition not met: '+expression);
 }
-const dir = fileURLToPath(new URL('../docs/preview/screenshots/',import.meta.url));
+const dir = fileURLToPath(new URL('../build/preview-screenshots/',import.meta.url));
 mkdirSync(dir,{recursive:true});
 const targets=[];
 try {
