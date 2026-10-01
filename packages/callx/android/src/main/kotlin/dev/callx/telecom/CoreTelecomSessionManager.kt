@@ -2,8 +2,10 @@ package dev.callx.telecom
 
 import android.net.Uri
 import android.telecom.DisconnectCause
+import android.util.Log
 import androidx.core.telecom.CallAttributesCompat
 import androidx.core.telecom.CallEndpointCompat
+import androidx.core.telecom.CallException
 import androidx.core.telecom.CallsManager
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -74,32 +76,38 @@ class CoreTelecomSessionManager(
         )
         val job = applicationScope.launch {
             try {
-                callsManager.addCall(
-                    attributes,
-                    onAnswer = { callType: Int ->
-                        systemActions.answer(callId, callType)
-                        incomingRinging.set(false)
-                    },
-                    onDisconnect = { cause: DisconnectCause -> systemActions.disconnect(callId, cause) },
-                    onSetActive = { systemActions.setActive(callId) },
-                    onSetInactive = { systemActions.setInactive(callId) },
-                    block = {
-                        sessions[callId] = CoreTelecomCallHandle(this) {
-                            incomingRinging.get()
-                        }
-                        // These collectors live in the call scope and stop when the call ends.
-                        audio?.let { observer ->
-                            launch { isMuted.collect { observer.onMuteChanged(callId, it) } }
-                            launch {
-                                combine(currentCallEndpoint, availableEndpoints) { current, available -> current to available }
-                                    .collect { (current, available) -> observer.onEndpointsChanged(callId, current, available) }
+                addCallRegisteringOnce(canRetry = { !ready.isCompleted }) {
+                    callsManager.addCall(
+                        attributes,
+                        onAnswer = { callType: Int ->
+                            systemActions.answer(callId, callType)
+                            incomingRinging.set(false)
+                        },
+                        onDisconnect = { cause: DisconnectCause -> systemActions.disconnect(callId, cause) },
+                        onSetActive = { systemActions.setActive(callId) },
+                        onSetInactive = { systemActions.setInactive(callId) },
+                        block = {
+                            sessions[callId] = CoreTelecomCallHandle(this) {
+                                incomingRinging.get()
                             }
-                        }
-                        ready.complete(TelecomActionResult.Applied)
-                    },
-                )
-            } catch (_: Throwable) {
-                ready.complete(TelecomActionResult.Rejected())
+                            // These collectors live in the call scope and stop when the call ends.
+                            audio?.let { observer ->
+                                launch { isMuted.collect { observer.onMuteChanged(callId, it) } }
+                                launch {
+                                    combine(currentCallEndpoint, availableEndpoints) { current, available -> current to available }
+                                        .collect { (current, available) -> observer.onEndpointsChanged(callId, current, available) }
+                                }
+                            }
+                            ready.complete(TelecomActionResult.Applied)
+                        },
+                    )
+                }
+            } catch (error: Throwable) {
+                // Only the type and code: messages can carry the caller's handle.
+                val code = (error as? CallException)?.code
+                if (!ready.isCompleted) Log.w(TAG, "Telecom did not add the call: ${error.javaClass.simpleName}" +
+                    (code?.let { " (code $it)" } ?: ""))
+                ready.complete(TelecomActionResult.Rejected(code))
             } finally {
                 sessions.remove(callId)
                 starting.remove(callId)
@@ -107,5 +115,25 @@ class CoreTelecomSessionManager(
         }
         job.invokeOnCompletion { ready.complete(TelecomActionResult.Rejected()) }
         return ready.await()
+    }
+
+    /**
+     * Telecom throws SecurityException when the app's PhoneAccount is gone: removed late after a
+     * reinstall, or by the system. Registering is idempotent, so register again and retry once,
+     * unless the call was already added.
+     */
+    private suspend fun addCallRegisteringOnce(canRetry: () -> Boolean, addCall: suspend () -> Unit) {
+        try {
+            addCall()
+        } catch (error: SecurityException) {
+            if (!canRetry()) throw error
+            Log.w(TAG, "Telecom does not know this app's account; registering again")
+            callsManager.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
+            addCall()
+        }
+    }
+
+    private companion object {
+        const val TAG = "Callx"
     }
 }
