@@ -7,6 +7,9 @@ on:
   pull_request:
     paths: ['website/**', '.github/workflows/docs.yml']
   workflow_dispatch:
+  # Daily rebuild, so new sponsors appear on the site within a day.
+  schedule:
+    - cron: '17 3 * * *'
 
 permissions:
   contents: read
@@ -35,8 +38,11 @@ jobs:
           cache: npm
           cache-dependency-path: website/package-lock.json
       - run: npm ci
-      # VitePress fails the build on dead internal links.
+      # Fetches the sponsor list, then builds; VitePress fails the build on dead internal links.
       - run: npm run build
+        env:
+          SPONSORS_GITHUB_TOKEN: ${{ secrets.SPONSORS_GITHUB_TOKEN }}
+          SPONSORS_BMC_TOKEN: ${{ secrets.SPONSORS_BMC_TOKEN }}
       - uses: actions/configure-pages@v5
         if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3

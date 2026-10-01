@@ -90,6 +90,8 @@ Callx is a library, not a calling service. It does not host signaling, send push
 media. You keep your backend and your media provider; Callx makes the phone side of the call
 correct. [Read why that boundary matters →](/why#what-callx-does-not-do)
 
+<SponsorList :tiers="['partner', 'company']" heading="Sponsors" hide-when-empty />
+
 <p style="margin-top: 48px; text-align: center;">
   Callx is independent open source. <a href="/callx/sponsor">Sponsoring it</a> pays for real-device testing across Android vendors and keeps it maintained.
 </p>

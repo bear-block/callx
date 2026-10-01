@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
-    "build": "vitepress build",
-    "preview": "vitepress preview"
+    "build": "node scripts/fetch-sponsors.mjs && vitepress build",
+    "preview": "vitepress preview",
+    "sponsors": "node scripts/fetch-sponsors.mjs"
   },
   "devDependencies": {
     "mermaid": "^11.17.2",

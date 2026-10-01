@@ -100,7 +100,10 @@ Organisations running grant programmes are welcome to contact the maintainers.
 
 ## Sponsors
 
-Callx has no sponsors yet. Yours could be the first name here.
+bear-block's sponsors support Callx and [vision-camera-ocr](https://github.com/bear-block/vision-camera-ocr).
+The list updates every day from GitHub Sponsors and Buy Me a Coffee.
+
+<SponsorList />
 
 ## Other ways to help
 
