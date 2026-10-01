@@ -54,6 +54,22 @@ as a device pass.
 iOS Simulator rows are partial because the Simulator cannot receive VoIP pushes and ends CallKit
 calls immediately; it proves builds, discovery and API wiring, not a ringing call.
 
+### Android emulator matrix
+
+`npm run conformance:matrix` runs the LiveKit adapter conformance on each emulator in turn: a
+real FCM invitation, ringing through Telecom, answer from the notification, media connected,
+interruption and recovery, remote end, and no crash.
+
+| Android | API | Result | Date |
+|---|---|---|---|
+| 10 | 29 | 8/8 | 2026-10-01 |
+| 12 | 31 | 8/8 | 2026-10-01 |
+| 13 | 33 | 8/8 | 2026-10-01 |
+| 16 | 36 | 8/8 | 2026-10-01 |
+
+The first run found that calls did not ring below Android 13; the fix is in the
+[changelog](/project/changelog).
+
 <SponsorCallout reason="devices" />
 
 ## Known issues
