@@ -75,8 +75,13 @@ export function fcmMessage(options, payload) {
       : { type: 'call.accepted', callId: options.callId }) };
   } else throw new Error('--message must be invite, end or accept.');
   // Only a visible invitation warrants high priority. Test-only signals make no notification.
+  // The TTL lets FCM hold a message while the device's connection is down (a fresh boot, Doze,
+  // a network switch). An invitation lives until it expires, since the core ignores it after
+  // that; a zero TTL drops it whenever the device is not connected at that very moment.
+  const ttlSeconds = message === 'invite'
+    ? Math.max(0, Math.ceil((payload.expiresAtMs - payload.issuedAtMs) / 1000)) : 30;
   return { message: { token: options.token,
-    android: { priority: message === 'invite' ? 'HIGH' : 'NORMAL', ttl: '0s' }, data } };
+    android: { priority: message === 'invite' ? 'HIGH' : 'NORMAL', ttl: `${ttlSeconds}s` }, data } };
 }
 
 export function apnsToken(keyPem, keyId, teamId, nowSeconds = Math.floor(Date.now() / 1000)) {

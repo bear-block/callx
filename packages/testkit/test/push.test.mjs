@@ -18,10 +18,11 @@ test('invitation matches call.invited schema v1', () => {
   assert.equal(invitation({ callId: 'call-7' }).callId, 'call-7');
 });
 
-test('FCM invitation is data-only, high priority and zero TTL', () => {
+test('FCM invitation is data-only, high priority, and lives until it expires', () => {
   const payload = invitation({});
   const { message } = fcmMessage({ token: 't' }, payload);
-  assert.deepEqual(message.android, { priority: 'HIGH', ttl: '0s' });
+  assert.deepEqual(message.android, { priority: 'HIGH', ttl: '30s' });
+  assert.equal(fcmMessage({ token: 't' }, invitation({ expiresIn: 45 })).message.android.ttl, '45s');
   assert.deepEqual(JSON.parse(message.data.callx), payload);
   assert.equal(message.notification, undefined);
 });
@@ -29,7 +30,7 @@ test('FCM invitation is data-only, high priority and zero TTL', () => {
 test('FCM test signals need a call ID', () => {
   assert.throws(() => fcmMessage({ token: 't', message: 'end' }, invitation({})), /--call-id/);
   const { message } = fcmMessage({ token: 't', message: 'end', callId: 'c1', reason: 'callerCancelled' }, invitation({}));
-  assert.deepEqual(message.android, { priority: 'NORMAL', ttl: '0s' });
+  assert.deepEqual(message.android, { priority: 'NORMAL', ttl: '30s' });
   assert.deepEqual(JSON.parse(message.data.callxTest), { type: 'call.ended', callId: 'c1', reason: 'callerCancelled' });
   assert.equal(fcmMessage({ token: 't', message: 'accept', callId: 'c1' }, invitation({})).message.android.priority, 'NORMAL');
   assert.throws(() => fcmMessage({ token: 't', message: 'ring' }, invitation({})), /must be invite/);

@@ -133,7 +133,7 @@ content-type: application/json
 {
   "message": {
     "token": "ANDROID_FCM_TOKEN",
-    "android": {"priority": "HIGH", "ttl": "0s"},
+    "android": {"priority": "HIGH", "ttl": "30s"},
     "data": {
       "callx": "{\"schemaVersion\":1,\"eventId\":\"evt-invite-001\",\"type\":\"call.invited\",\"callId\":\"85a4fd88-b5c3-4f79-a2cf-a7db9df06750\",\"revision\":\"1\",\"displayName\":\"Alex\",\"handle\":\"acme:user-a\",\"issuedAtMs\":1790000000000,\"expiresAtMs\":1790000030000}"
     }
@@ -142,7 +142,11 @@ content-type: application/json
 ```
 
 - Use high priority and no `notification` block, so the app's code presents the call.
-- `ttl: "0s"` discards the message if the device is offline.
+- Set `ttl` to the time left until `expiresAtMs`, in whole seconds. FCM then holds the
+  invitation while the device's connection is down (after a reboot, in Doze, or during a
+  network switch) and still delivers it in time; Callx ignores an invitation that arrives after
+  it expires. Do not use `"0s"`: FCM drops a zero-TTL message whenever the device is not
+  connected at that moment, and the call never rings.
 - Do not send invitations you already know are expired, cancelled or busy. FCM can lower the
   priority of apps whose high-priority messages do not lead to a visible notification.
 - Remove tokens FCM reports as invalid.
