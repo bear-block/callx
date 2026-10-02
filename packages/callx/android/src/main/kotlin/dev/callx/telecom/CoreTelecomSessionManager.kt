@@ -118,8 +118,8 @@ class CoreTelecomSessionManager(
     }
 
     /**
-     * Telecom throws SecurityException when the app's PhoneAccount is gone: removed late after a
-     * reinstall, or by the system. Registering is idempotent, so register again and retry once,
+     * Telecom throws SecurityException when the app's PhoneAccount is gone, for example removed late
+     * after a quick reinstall. Registering is idempotent, so register again and retry once,
      * unless the call was already added.
      */
     private suspend fun addCallRegisteringOnce(canRetry: () -> Boolean, addCall: suspend () -> Unit) {

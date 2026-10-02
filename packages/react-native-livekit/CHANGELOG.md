@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Released with core 0.1.3, which fixes ringing on Android 10–12. No adapter changes.
+
 ## 0.1.1
 
 - Republished with `@bear-block/callx` 0.1.1, the first version of the core on npm. No code changes.

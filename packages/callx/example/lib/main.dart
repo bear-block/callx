@@ -682,7 +682,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'callx 0.1.1  /  Flutter + shared contract  /  Not a native-call certification',
+                    'callx 0.1.3  /  Flutter + shared contract  /  Not a native-call certification',
                   ),
                 ],
               ),

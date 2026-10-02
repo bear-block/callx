@@ -1,12 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
 - Android 10–12: calls rang only on Android 13 and later. The Telecom check looked for
   `FEATURE_TELECOM`, which exists only from API 33; earlier versions are now checked for
   `FEATURE_CONNECTION_SERVICE`, so bootstrap no longer fails there with "Telecom is unavailable".
-- Android: if Telecom no longer has the app's PhoneAccount when a call arrives (removed late
-  after a reinstall, or by the system), the core registers again and retries once instead of
+- Android: if Telecom no longer has the app's PhoneAccount when a call arrives (for example,
+  removed late after a quick reinstall), the core registers again and retries once instead of
   dropping the call. Telecom refusals are now logged under the `Callx` tag with the error type
   and code, and no caller data.
 

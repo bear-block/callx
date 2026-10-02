@@ -12,7 +12,7 @@ describes how Callx is designed to behave; this page says where that behaviour h
 and where it has not been yet.
 </p>
 
-**Last updated:** 2026-10-01 · **Packages:** `0.1.1` · **Contract:** `0.1.0`
+**Last updated:** 2026-10-02 · **Packages:** `0.1.3` · **Contract:** `0.1.0`
 
 ## How we verify
 

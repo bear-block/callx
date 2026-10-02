@@ -13,14 +13,17 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
-## Unreleased
+## 0.1.3
+
+A fix release; update if you support Android 10–12. There is no 0.1.2: npm used that number for
+an earlier package with the same name.
 
 - **Fix, Android 10–12:** incoming calls did not ring below Android 13. The core checked for
   the `FEATURE_TELECOM` system feature, which only exists from API 33, so bootstrap failed with
   "Telecom is unavailable" on earlier versions. It now checks `FEATURE_CONNECTION_SERVICE` there.
   Found by the new emulator matrix (API 29, 31, 33, 36).
-- **Android:** when Telecom has lost the app's PhoneAccount (removed late after a reinstall, or by
-  the system), the core registers again and retries the call once instead of dropping it.
+- **Android:** when Telecom has lost the app's PhoneAccount (for example, removed late after a
+  quick reinstall), the core registers again and retries the call once instead of dropping it.
   Telecom refusals are logged under the `Callx` tag with the error type and code only.
 - **Backend guide:** send FCM invitations with a TTL equal to the time left before they expire,
   not `0s`. A zero TTL drops the invitation whenever the device's FCM connection is down at that

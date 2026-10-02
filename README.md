@@ -14,7 +14,7 @@ Bring your own media with the core alone, or install an adapter
 
 ## Status
 
-Version `0.1.1` on [pub.dev](https://pub.dev/packages/callx) and
+Version `0.1.3` on [pub.dev](https://pub.dev/packages/callx) and
 [npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.1.0`. Automated, emulator and
 simulator checks pass; physical-device verification is tracked on the
 [status page](https://bear-block.github.io/callx/project/status).

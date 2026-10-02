@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
 - `callx-push` and the call console send FCM invitations with a TTL equal to their lifetime
   instead of zero, so an invitation still arrives when the device's FCM connection is briefly
