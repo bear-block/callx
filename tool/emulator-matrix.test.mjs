@@ -4,7 +4,7 @@ import {conformanceSummary, parseArguments} from './emulator-matrix.mjs';
 
 test('AVD names and options are parsed', () => {
   assert.deepEqual(parseArguments(['api29', '--apk', 'a.apk', 'api33']),
-    {avds: ['api29', 'api33'], console: 'http://127.0.0.1:8787', apk: 'a.apk', settle: 60, video: false});
+    {avds: ['api29', 'api33'], console: 'http://127.0.0.1:8787', apk: 'a.apk', settle: 60, video: false, headless: false});
   assert.equal(parseArguments(['--video', 'api29']).video, true);
   assert.equal(parseArguments(['--settle', '5', 'api29']).settle, 5);
   assert.throws(() => parseArguments([]), /at least one AVD/);

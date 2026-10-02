@@ -3,9 +3,10 @@
 // one row per emulator. Each emulator boots without a window, gets the example installed with its
 // permissions granted, registers with the call console, runs callx-conformance and shuts down.
 //
-//   npm run conformance:matrix -- [--apk <path>] [--console <url>] [--settle <seconds>] [--video] <avd> [<avd> ...]
+//   npm run conformance:matrix -- [--apk <path>] [--console <url>] [--settle <seconds>] [--video] [--headless] <avd> [<avd> ...]
 //
 // --video runs the video conformance (ADR-0010); emulators always boot with emulated cameras.
+// Emulators boot one at a time with their window, so the run can be watched; --headless hides it.
 //
 // Needs the call console (npm run call:console) and the media server (npm run media:server).
 // Without --apk it builds the Flutter example (debug), which reports to the console. Each
@@ -25,12 +26,13 @@ const logs = join(root, 'build/emulator-matrix');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function parseArguments(argv) {
-  const options = { avds: [], console: 'http://127.0.0.1:8787', apk: null, settle: 60, video: false };
+  const options = { avds: [], console: 'http://127.0.0.1:8787', apk: null, settle: 60, video: false, headless: false };
   for (let index = 0; index < argv.length; index++) {
     const value = argv[index];
     if (value === '--apk' || value === '--console') options[value.slice(2)] = argv[++index];
     else if (value === '--settle') options.settle = Number(argv[++index]);
     else if (value === '--video') options.video = true;
+    else if (value === '--headless') options.headless = true;
     else if (value.startsWith('--')) throw new Error(`Unknown option ${value}.`);
     else options.avds.push(value);
   }
@@ -55,9 +57,9 @@ function buildApk() {
   return join(dir, 'build/app/outputs/flutter-apk/app-debug.apk');
 }
 
-async function boot(avd) {
+async function boot(avd, headless) {
   const before = new Set(emulators());
-  const child = spawn(emulatorBinary, ['-avd', avd, '-no-window', '-no-snapshot-save', '-no-boot-anim',
+  const child = spawn(emulatorBinary, ['-avd', avd, ...(headless ? ['-no-window'] : []), '-no-snapshot-save', '-no-boot-anim',
     '-camera-front', 'emulated', '-camera-back', 'emulated'], { stdio: 'ignore', detached: true });
   child.unref();
   for (let second = 0; second < 240; second += 2) {
@@ -111,8 +113,8 @@ async function waitForRegistration(consoleUrl, seconds, staleTokens) {
   return false;
 }
 
-async function runOne(avd, apk, consoleUrl, settle, video) {
-  const serial = await boot(avd);
+async function runOne(avd, apk, consoleUrl, settle, video, headless) {
+  const serial = await boot(avd, headless);
   const api = adb(['shell', 'getprop', 'ro.build.version.sdk'], serial).stdout.trim();
   try {
     adb(['shell', 'wm', 'dismiss-keyguard'], serial);
@@ -154,7 +156,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const rows = [];
   for (const avd of options.avds) {
     console.log(`\n▶ ${avd}`);
-    try { rows.push(await runOne(avd, apk, options.console, options.settle, options.video)); }
+    try { rows.push(await runOne(avd, apk, options.console, options.settle, options.video, options.headless)); }
     catch (error) { rows.push({ avd, api: '?', result: 'error', detail: error.message }); }
   }
   console.log('\nAVD | API | Result | First failure');
