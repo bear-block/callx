@@ -5,12 +5,18 @@ description: "The complete TypeScript API of @bear-block/callx and @bear-block/c
 
 # JavaScript API
 
+::: info Development reference
+This page describes the development source. Published 0.1.3 packages ship contract 0.1.0;
+video and Android PiP are unreleased. See [status](/project/status) and [changelog](/project/changelog).
+:::
+
+
 ```ts
 import {Callx} from '@bear-block/callx';
 ```
 
-The package ships TypeScript types. Every value below is exported from `@bear-block/callx`; the
-simulator is in `@bear-block/callx/preview`.
+The package ships TypeScript types. Core values are exported from `@bear-block/callx`; the simulator is in
+`@bear-block/callx/preview`, and video/PiP exports are in `@bear-block/callx/video`.
 
 ## `Callx`
 
@@ -212,6 +218,19 @@ import {CallxVideoView} from '@bear-block/callx/video';
 Plus the usual `ViewProps` such as `style`. A Fabric component, with a legacy view manager for
 the old architecture on iOS. The view stays empty until the source exists. See
 [video calls](/guide/video).
+
+## Android picture in picture
+
+Import these functions from `@bear-block/callx/video`:
+
+| Export | Behaviour |
+|---|---|
+| `configurePictureInPicture({automatic: boolean}): void` | Enables auto-entry on Android 12+ while an answered video call is live |
+| `enterPictureInPicture(): Promise<boolean>` | Requests entry; false when the activity or device cannot enter PiP |
+| `addPictureInPictureListener(listener: (inPiP: boolean) => void): () => void` | Reports mode changes; returns an unsubscribe function |
+
+iOS configuration has no effect and entry returns false. PiP uses the entire Android activity;
+your app renders the video or its own branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
 ## `@bear-block/callx-livekit`
 

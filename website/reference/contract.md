@@ -5,6 +5,12 @@ description: "The framework-neutral contract that the Swift, Kotlin, Dart and Ty
 
 # Contract v0.2
 
+::: info Development reference
+This page describes the development source. Published 0.1.3 packages ship contract 0.1.0;
+video and Android PiP are unreleased. See [status](/project/status) and [changelog](/project/changelog).
+:::
+
+
 The contract defines the vocabulary every Callx layer speaks: states, commands, results, events
 and limits. Swift, Kotlin, Dart and TypeScript implement it, and shared executable fixtures check
 each of them. Contract version `0.2.0` is independent of package versions; 0.2 added video

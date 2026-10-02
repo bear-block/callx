@@ -25,7 +25,7 @@ range of the same major version.
 ### Implement the adapter
 
 ```kotlin
-class AcmeMediaAdapter(private val ctx: CallxAdapterContext) : CallxMediaAdapter {
+class ExampleMediaAdapter(private val ctx: CallxAdapterContext) : CallxMediaAdapter {
     override val apiVersion = 1
 
     override fun start(callId: String, sink: CallxMediaSink) {
@@ -47,16 +47,16 @@ class AcmeMediaAdapter(private val ctx: CallxAdapterContext) : CallxMediaAdapter
 ### Declare a factory
 
 ```kotlin
-class AcmeAdapterFactory : CallxMediaAdapterFactory {   // public no-argument constructor
-    override fun create(context: CallxAdapterContext): CallxMediaAdapter = AcmeMediaAdapter(context)
+class ExampleAdapterFactory : CallxMediaAdapterFactory {   // public no-argument constructor
+    override fun create(context: CallxAdapterContext): CallxMediaAdapter = ExampleMediaAdapter(context)
 }
 ```
 
 ```xml
 <!-- The adapter library's AndroidManifest.xml -->
 <application>
-    <meta-data android:name="dev.callx.media.acme"
-               android:value="com.acme.callx.AcmeAdapterFactory" />
+    <meta-data android:name="dev.callx.media.example"
+               android:value="com.example.callx.ExampleAdapterFactory" />
 </application>
 ```
 
@@ -68,7 +68,7 @@ merged manifest. The bootstrap finds it; the host writes nothing.
 ### Implement the adapter
 
 ```swift
-final class AcmeMediaAdapter: CallxMediaAdapter {
+final class ExampleMediaAdapter: CallxMediaAdapter {
     func start(callID: String, sink: any CallxMediaSink) {
         Task { try await room.connect(callID: callID,
                                       onRemoteAudio: sink.connected,
@@ -89,11 +89,11 @@ against.
 ### Declare a factory
 
 ```swift
-@objc(AcmeCallxAdapterFactory)
-public final class AcmeCallxAdapterFactory: NSObject, CallxMediaAdapterFactory {
+@objc(ExampleCallxAdapterFactory)
+public final class ExampleCallxAdapterFactory: NSObject, CallxMediaAdapterFactory {
     public required override init() {}
     public func makeAdapter(context: CallxAdapterContext) throws -> any CallxMediaAdapter {
-        AcmeMediaAdapter()
+        ExampleMediaAdapter()
     }
 }
 ```
@@ -107,7 +107,7 @@ An adapter that carries video implements `CallxVideoAdapter` (adapter API 2) ins
 adapters stay at API 1 and keep working. See [video calls](/guide/video) and ADR-0010.
 
 ```kotlin
-class AcmeMediaAdapter(private val ctx: CallxAdapterContext) : CallxVideoAdapter {   // apiVersion 2
+class ExampleMediaAdapter(private val ctx: CallxAdapterContext) : CallxVideoAdapter {   // apiVersion 2
     // start, stop and setMuted as above, plus:
 
     override suspend fun setCamera(callId: String, on: Boolean, facing: CameraFacing): CallxCameraError? {

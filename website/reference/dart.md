@@ -5,6 +5,12 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
+::: info Development reference
+This page describes the development source. Published 0.1.3 packages ship contract 0.1.0;
+video and Android PiP are unreleased. See [status](/project/status) and [changelog](/project/changelog).
+:::
+
+
 ```dart
 import 'package:callx/callx.dart';
 ```
@@ -127,6 +133,17 @@ final preview = CallxPreview();
 
 `simulator` offers `incoming(CallInput)`, `remoteAnswered()`, `mediaConnected()`,
 `remoteEnded()` and `reset()`.
+
+## `CallxPictureInPicture`
+
+| Member | Behaviour |
+|---|---|
+| `configure({required bool automatic})` | Configures auto-entry on Android 12+ during a live answered video call |
+| `enter(): Future<bool>` | Requests entry; false when unsupported |
+| `changes: Stream<bool>` | Reports PiP mode changes on Android |
+
+Other platforms have no configuration effect, entry returns false and `changes` emits nothing.
+The app supplies its compact layout and branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
 ## `callx_livekit`
 

@@ -12,8 +12,11 @@ views come on top, through the same native connection the media adapter already 
 </p>
 
 ::: warning Status
-Video is new in contract 0.2 and the LiveKit adapter. It has been checked on Android
-emulators, not yet on physical devices. See the [status page](/project/status).
+Video and Android PiP are available in the development source and are unreleased. Published
+0.1.3 packages ship contract 0.1.0 and do not include these APIs. Flutter Android video has
+passed emulator conformance; Flutter and RN PiP have Android 16 UI trials covering video,
+camera continuity and branded fallback. Physical devices and iOS video remain
+unverified. See the [status page](/project/status).
 :::
 
 ## What changes and what does not
@@ -30,8 +33,9 @@ emulators, not yet on physical devices. See the [status page](/project/status).
 
 ## Requirements
 
-- A media adapter that carries video. The [LiveKit adapter](/guide/livekit) does from version
-  0.2. Check `capabilities.video` after `setup()`.
+- A media adapter that carries video. The development [LiveKit adapter](/guide/livekit)
+  implements media adapter API 2. Use matching development core and adapter packages;
+  check `capabilities.video` after `setup()`.
 - The camera permission:
   - **Expo:** add `video: true` and, if you like, `cameraPermission` to Callx's plugin. It adds
     `NSCameraUsageDescription`, Android's `CAMERA` permission and an optional camera feature,
@@ -49,7 +53,7 @@ Add `"video": true` to the invitation your backend sends ([backend guide](/guide
 
 ```json
 {"schemaVersion": 1, "type": "call.invited", "callId": "85a4fd88-…", "displayName": "Alex",
- "handle": "acme:user-a", "expiresAtMs": 1790000030000, "video": true}
+ "handle": "callx:user-a", "expiresAtMs": 1790000030000, "video": true}
 ```
 
 The call rings with the system's video call UI: CallKit shows it as a video call, and
@@ -59,12 +63,12 @@ Core-Telecom registers it as `CALL_TYPE_VIDEO_CALL`. To start one, pass `video: 
 ::: code-group
 
 ```ts [JavaScript]
-await callx.startCall({callId, displayName: 'Alex', handle: 'acme:user-a', video: true});
+await callx.startCall({callId, displayName: 'Alex', handle: 'callx:user-a', video: true});
 ```
 
 ```dart [Dart]
 await callx.startCall(
-  CallInput(callId: callId, displayName: 'Alex', handle: 'acme:user-a', video: true),
+  CallInput(callId: callId, displayName: 'Alex', handle: 'callx:user-a', video: true),
 );
 ```
 
@@ -148,6 +152,82 @@ When your app goes to the background with the camera on, the OS stops the camera
 shows `localVideo: 'blocked'`. The call itself continues with audio. When the app comes back,
 the adapter resumes the camera and `localVideo` returns to `on`. Turning the camera off from
 `blocked` is a normal `setCamera(false)`.
+
+## Picture in picture on Android
+
+Enable PiP on the host activity with `android:supportsPictureInPicture="true"` and
+`android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"`, preserving
+any existing configuration flags. With Expo, use `pictureInPicture: true` in the Callx plugin.
+
+::: code-group
+
+```ts [React Native]
+import {configurePictureInPicture, enterPictureInPicture,
+  addPictureInPictureListener} from '@bear-block/callx/video';
+
+configurePictureInPicture({automatic: true});
+const stop = addPictureInPictureListener(inPiP => {
+  // Render only the remote video (or your local preview) while inPiP is true.
+});
+await enterPictureInPicture(); // false if the activity or device cannot enter PiP
+// On screen cleanup: stop(); configurePictureInPicture({automatic: false});
+```
+
+```dart [Flutter]
+await CallxPictureInPicture.configure(automatic: true);
+final subscription = CallxPictureInPicture.changes.listen((inPiP) {
+  // Render only the remote video (or your local preview) while inPiP is true.
+});
+await CallxPictureInPicture.enter();
+// On screen cleanup: subscription.cancel();
+// CallxPictureInPicture.configure(automatic: false);
+```
+
+:::
+
+The whole activity shrinks into the PiP window. Keep its layout compact even if the call ends
+while the window is open. Automatic entry is available on Android 12 and later, and only
+while an answered video call is live. On Android 10 and 11, use the explicit entry button.
+The camera continues while the activity is visible in PiP; when the activity stops, the
+adapter blocks it as described above. PiP is separate from the call contract.
+
+### A branded fallback
+
+The examples prefer remote video, then the local camera. When neither source is available,
+render your app's background colour and logo. This also works for a connected call before the
+other side publishes video, or after the call ends while PiP is still open.
+
+Android PiP displays your activity, so branding belongs to your Flutter/RN layout. No extra
+native PiP configuration is needed. Use your app's theme and image asset, or expose
+`backgroundColor` and `logo` props if you build a reusable call-screen component.
+
+Both examples use an app-owned `CallBrand` in their separate call-screen component. The
+remote video fills the call screen, the local preview sits at the top right, and diagnostics
+have their own screen. Use those components as a starting point and replace the colors/logo
+with your own app's branding.
+
+::: code-group
+
+```tsx [React Native]
+// appLogo is your image source; brandColor comes from your theme.
+<View style={{flex: 1, backgroundColor: brandColor,
+  alignItems: 'center', justifyContent: 'center'}}>
+  <Image source={appLogo} resizeMode="contain" style={{width: 64, height: 64}} />
+</View>
+```
+
+```dart [Flutter]
+// appLogo is your logo widget or image asset.
+ColoredBox(
+  color: Theme.of(context).colorScheme.primary,
+  child: SizedBox.expand(child: Center(child: appLogo)),
+)
+```
+
+:::
+
+On iOS, configuration does nothing, entry returns `false`, and the listener emits no events.
+iOS PiP is not implemented yet. Device verification follows the [Android PiP guide](https://developer.android.com/develop/ui/views/picture-in-picture).
 
 ## Platform notes
 

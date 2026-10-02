@@ -22,7 +22,7 @@ fix it.
 
 | | Frameworks | Latest version (date) | License |
 |---|---|---|---|
-| **Callx** | Flutter, React Native, Expo | 0.1.0 | MIT |
+| **Callx** | Flutter, React Native, Expo | 0.1.3 | MIT |
 | [react-native-callkeep](https://github.com/react-native-webrtc/react-native-callkeep) | React Native | 4.3.16 (2024-11) | ISC / MIT |
 | [expo-callkit-telecom](https://github.com/mfairley/expo-callkit-telecom) | Expo modules | 0.5.0 (2026-09) | MIT |
 | [flutter_callkit_incoming](https://github.com/hiennguyen92/flutter_callkit_incoming) | Flutter | 3.1.6 (2026-09) | MIT |
@@ -118,8 +118,9 @@ for the other platform and framework.
 
 ## When it is not (yet)
 
-- You need **video in the system call UI, DTMF or multiple calls** today. See the
-  [roadmap](/project/roadmap).
+- You need **DTMF or multiple calls** today. See the [roadmap](/project/roadmap).
+- You need **video from a published package** today: native video is implemented on the
+  development branch and is still unreleased. See [video](/guide/video) and [status](/project/status).
 - You need a **hosted service** rather than a library.
 - You need **verified behaviour on a specific device family** that the
   [status page](/project/status) does not list yet. Test it, or help us test it.

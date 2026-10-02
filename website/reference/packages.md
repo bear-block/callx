@@ -23,8 +23,9 @@ those choices, and installing Callx adds no third-party service.
 - All packages release together with the **same version number**.
 - Adapters depend on the core with a caret range (`^0.1.0`), and check the media interface's
   `apiVersion` at bootstrap.
-- The [contract version](/reference/contract) (`0.2.0`) is separate from package versions; it
-  changes only when the cross-layer vocabulary changes.
+- Published 0.1.3 packages ship contract `0.1.0`. The development branch uses
+  [contract `0.2.0`](/reference/contract), with native video and Android PiP still unreleased.
+  Contract versions and media adapter API versions are separate from package versions.
 - Until 1.0, minor versions may contain breaking changes, always listed in the
   [changelog](/project/changelog).
 

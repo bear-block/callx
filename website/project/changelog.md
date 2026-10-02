@@ -5,6 +5,9 @@ description: "Release notes for all Callx packages, which share one version numb
 
 # Changelog
 
+This page is the public release history; publishing a package does not require a GitHub Release.
+Development changes stay under **Unreleased** until the package version is published.
+
 All Callx packages release together with one version number. Each package also keeps its own
 `CHANGELOG.md` with package-specific details:
 [callx](https://github.com/bear-block/callx/blob/main/packages/callx/CHANGELOG.md),
@@ -14,6 +17,26 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
 ## Unreleased
+
+- **Optional call UI** ([guide](/guide/call-ui)): exported root overlay, call screen,
+  branded mini-call and presentation controller for Flutter and React Native. Incoming calls
+  stay on Home until accepted; Back minimizes inside the app, while leaving the app can use
+  Android system PiP. Native owns call state and commands; presentation does not add contract fields.
+
+- **Example apps:** a separate full-screen call view, camera preview at the top right, and
+  call controls at the bottom. Diagnostics and simulated remote actions have their own screen.
+  PiP uses remote video, then local video, then the app's configurable background and logo.
+- **React Native video:** Metro consumes the typed video entry point for native component
+  codegen. Fabric continues mounting UI updates while the Activity is visible in PiP.
+- **LiveKit video:** remote camera mute/unmute updates video availability on Android and iOS;
+  muted tracks no longer leave a frozen remote preview or prevent the app's video fallback.
+
+- **Android picture in picture** ([guide](/guide/video#picture-in-picture-on-android)): configuration,
+  explicit entry and mode notifications in Flutter and React Native. Automatic entry on Android
+  12+ follows live video calls; native observers are removed on activity/runtime replacement.
+  Activity layout observation also detects PiP window changes on Android 10/11.
+  Expo gains `pictureInPicture`. Both examples render a compact layout; RN includes camera
+  controls and keeps its web preview separate from native video. iOS PiP remains unsupported.
 
 - **Video calls** ([guide](/guide/video), ADR-0010). Contract 0.2.0 adds `video`,
   `localVideo`, `cameraFacing` and `remoteVideo` to calls, and `setCamera` and `switchCamera`

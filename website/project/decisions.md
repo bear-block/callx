@@ -18,6 +18,8 @@ states the context, the decision and its consequences. This page summarizes them
 | 0007 | Library-owned incoming path | Callx receives pushes, decides whether to ring and reports to the OS, so no framework code is on the critical path |
 | 0008 | LiveKit as the first media adapter | It carries only media, so Callx keeps the incoming path and the host keeps signaling |
 | 0009 | Package ecosystem | A provider-free core plus independent adapters that install with no host code |
+| 0011 | Optional call presentation | Root overlay and mini-call are app UI state, with native-owned calls and unchanged contract |
+| 0010 | Video | Video fields and camera commands extend the existing call lifecycle; adapters render through shared native surfaces. Android PiP is activity state outside the call contract |
 
 ## Principles that run through them
 

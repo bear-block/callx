@@ -14,6 +14,10 @@ and where it has not been yet.
 
 **Last updated:** 2026-10-02 · **Packages:** `0.1.3` · **Contract:** `0.2.0` (unreleased; 0.1.3 ships `0.1.0`)
 
+The development source includes native video and Android PiP, both unreleased. Published
+0.1.3 packages do not include them. The results below describe
+the source that was checked, rather than every released package.
+
 ## How we verify
 
 | Level | What it proves | Where it runs |
@@ -45,7 +49,11 @@ as a device pass.
 | iOS: lock-screen answer | n/a | n/a | <span class="no">○</span> |
 | LiveKit adapter: two-way audio, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | LiveKit adapter: audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| Video calls on Android (LiveKit): ring as video, video both ways, `CallxVideoView`, camera commands, background pause | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Flutter video calls on Android (LiveKit): ring as video, video both ways, `CallxVideoView`, camera commands, background pause | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Flutter Android PiP: manual and automatic entry, compact layout, camera continues, auto-entry disabled after end (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| RN Android PiP: manual and automatic entry, compact layout, camera continuity and call-end cleanup (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Optional root call overlay / mini-call: Home until accept, Back minimizes, same call expands, terminal cleanup (Flutter/RN API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| iOS PiP | Not implemented | n/a | n/a |
 | Video calls (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Adapter discovery (Flutter and React Native) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
@@ -81,6 +89,33 @@ switching camera, and the camera pausing in the background and resuming in front
 | 13 | 33 | 15/15 (Telecom's video registration needs API 34) | 2026-10-02 |
 | 16 | 36 | 16/16 | 2026-10-02 |
 
+### Android PiP smoke test
+
+On 2026-10-02 both development examples with LiveKit passed a separate UI trial on Android 16
+(API 36). The RN example used a release APK; Flutter used a debug APK. Checks covered:
+
+- A local video invitation answered from the notification, with video in both directions.
+- Manual PiP with changing video frames, app controls hidden and camera continuing.
+- Closing PiP pauses the camera; returning to the app resumes it.
+- Remote video → local-only video → the app background and logo when both cameras are off.
+- Automatic entry on Home and automatic entry disabled after ending the call, with no crash.
+
+The examples now separate the call overlay from diagnostics, with the local preview at the top
+right. The root overlay/mini-call continuation passed Android 16 trials for both frameworks:
+incoming stays on Home, notification accept opens the overlay, Back shows a live mini-call,
+and expanding it does not answer again or pause the camera. These are local signaling UI trials using `tool/pip-smoke.mjs`, separate from FCM
+conformance and `callx-conformance --video`.
+
+| Example | Android / API | PiP result |
+|---|---|---|
+| Flutter debug | 16 / 36 | Manual/automatic, dismiss/resume, video and branded fallback, end cleanup |
+| RN release | 16 / 36 | Manual/automatic, dismiss/resume, video and branded fallback, end cleanup |
+| RN release | 10 / 29 | Manual, video and branded fallback, end cleanup |
+| Flutter debug and RN release | 11 / 30 | Manual, dismiss/resume, video and branded fallback, end cleanup |
+
+The API 29/30 PiP trials predate the optional root overlay integration; the updated root UI
+was checked on API 36. Automatic entry correctly stays disabled below API 31. Physical-device PiP remains pending.
+
 <SponsorCallout reason="verify" />
 
 ## Known issues
@@ -107,7 +142,7 @@ trials pass.
 | iOS | Results from iPhones on iOS 15 or later, and an Apple Developer Program membership | PushKit and APNs need a paid membership, and the Simulator neither receives VoIP pushes nor keeps CallKit calls |
 | Android | Results from the vendors users have: Samsung and Xiaomi first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
 
-Until then, Android emulators cover several API levels on every change. The fastest way to fill
+The recorded Android emulator runs cover several API levels; their dates are listed above. The fastest way to fill
 this table is results from phones people already own: if you run the
 [acceptance checklist](/guides/testing#acceptance-checklist) on yours, please
 [share the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml). They are listed here with credit.

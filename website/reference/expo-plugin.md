@@ -5,6 +5,12 @@ description: "Every option of the @bear-block/callx and @bear-block/callx-liveki
 
 # Expo config plugin
 
+::: info Development reference
+This page describes the development source. Published 0.1.3 packages ship contract 0.1.0;
+video and Android PiP are unreleased. See [status](/project/status) and [changelog](/project/changelog).
+:::
+
+
 ```json
 {
   "expo": {
@@ -29,6 +35,7 @@ Use the explicit `app.plugin` path. The plugin rejects unknown options.
 | `androidPush` | `"none"` \| `"fcm"` | `"none"` | `"fcm"` generates `CallxMessagingService`, adds Firebase Messaging and declares the service. Requires `android.googleServicesFile` |
 | `video` | `boolean` | `false` | Video calls: declares `CAMERA` with an optional camera feature, and adds `NSCameraUsageDescription`. See [video calls](/guide/video) |
 | `cameraPermission` | `string` | Keeps existing text, or an English default | `NSCameraUsageDescription`. Requires `video: true` |
+| `pictureInPicture` | `boolean` | `false` | Enables Android activity PiP and its layout configuration flags; see [video calls](/guide/video#picture-in-picture-on-android) |
 | `bootstrap` | `boolean` | `true` | Starts the native core from `MainApplication.onCreate` and `didFinishLaunchingWithOptions`. Set `false` when your own native code bootstraps |
 
 Always applied:

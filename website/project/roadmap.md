@@ -10,7 +10,7 @@ Callx grows in small, verified steps. Each milestone ships when it passes automa
 device checks; dates depend on device coverage and funding. Vote or comment on items in
 [GitHub Discussions](https://github.com/bear-block/callx/discussions).
 
-## Now: 0.1
+## Released: 0.1.3
 
 - [x] Shared Swift and Kotlin core with contract `0.1.0`
 - [x] Flutter and React Native packages, New Architecture TurboModule
@@ -22,7 +22,20 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 - [x] Testkit: call console, test pushes, adapter conformance
 - [ ] Physical-device acceptance across iPhone, Pixel, Samsung and Xiaomi ([status](/project/status))
 
-## Next: 0.2
+## Implemented in development, unreleased
+
+- [x] Contract 0.2.0: video fields and camera commands
+- [x] Video reporting to CallKit and Telecom; native video views for Flutter and React Native
+- [x] LiveKit video, media adapter API 2
+- [x] Flutter Android video conformance on API 33 and 36
+- [x] Android PiP APIs and compact layouts in both examples
+- [x] Optional root call overlay and in-app mini-call exports; incoming stays on Home until accepted
+- [x] Flutter Android PiP smoke test on API 36
+- [x] RN PiP UI trial on Android 16 emulator, including camera continuity and branded fallback
+- [ ] iOS video and physical-device acceptance
+- [ ] Release the development changes
+
+## Remaining core work
 
 | Item | Why |
 |---|---|
@@ -34,8 +47,9 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 
 ## Providers, in order
 
-After the device trials, Callx grows provider by provider. Each one ships for Flutter and
-React Native together and passes the conformance suite before release.
+Callx grows provider by provider. Each one ships for Flutter and React Native together and
+passes conformance before release. Physical-device acceptance remains a release gate;
+development and emulator checks can proceed while those trials are pending.
 
 | # | Provider | Scope | Depends on |
 |---|---|---|---|
@@ -51,7 +65,7 @@ SIP stacks. Tell us what you need in [GitHub Discussions](https://github.com/bea
 
 | Item | Depends on |
 |---|---|
-| **Multiple calls**: call waiting, hold-and-swap | Contract `0.2` |
+| **Multiple calls**: call waiting, hold-and-swap | A future contract extension; contract 0.2 still allows one live call |
 | **`@bear-block/callx-server`**: payload builders and push helpers for Node.js backends | Stable invitation schema |
 | **DTMF** | Provider support |
 

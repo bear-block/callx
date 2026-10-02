@@ -42,7 +42,7 @@ Add a microphone description to `ios/Runner/Info.plist`:
 
 ```xml
 <key>NSMicrophoneUsageDescription</key>
-<string>Acme uses the microphone for calls.</string>
+<string>Example uses the microphone for calls.</string>
 ```
 
 ### Android
@@ -68,8 +68,8 @@ engine exists. That is why this step is native code. It is short.
 ### Android: `Application`
 
 ```kotlin
-// android/app/src/main/kotlin/com/acme/calls/App.kt
-package com.acme.calls
+// android/app/src/main/kotlin/com/example/calls/App.kt
+package com.example.calls
 
 import android.app.Application
 import com.google.firebase.messaging.FirebaseMessaging
@@ -98,8 +98,8 @@ Register it with `android:name=".App"` on the `<application>` element.
 ### Android: forward FCM messages
 
 ```kotlin
-// android/app/src/main/kotlin/com/acme/calls/MessagingService.kt
-package com.acme.calls
+// android/app/src/main/kotlin/com/example/calls/MessagingService.kt
+package com.example.calls
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -223,7 +223,7 @@ npx -p @bear-block/callx-testkit callx-push android \
 # iOS (APNs VoIP): your APNs auth key and the VoIP token
 npx -p @bear-block/callx-testkit callx-push ios \
   --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
-  --bundle-id com.acme.calls --token <VoIP token>
+  --bundle-id com.example.calls --token <VoIP token>
 ```
 
 The [backend guide](/guides/backend) has the exact APNs and FCM payloads. Kill the app, send
@@ -235,3 +235,11 @@ the push, and the phone rings with the system call UI.
 - [Connect your own media](/guides/own-media) from the native callbacks.
 - [Commands and results](/concepts/commands): retries, deadlines and operation lookup.
 - [Dart API reference](/reference/dart).
+
+
+## Optional call overlay and mini-call
+
+The development source also exports an optional app UI layer. Incoming stays on Home until
+accepted, an expanded call overlays navigation, and Back minimizes to an in-app mini-call.
+The native core remains the call-state owner. See [call UI](/guide/call-ui) for the exports
+and integration; published 0.1.3 packages do not include these components.

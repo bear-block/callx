@@ -31,7 +31,7 @@ npx callx-push android ... --message end --call-id <id> --reason callerCancelled
 
 # iOS
 npx callx-push ios --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
-  --bundle-id com.acme.calls --token <VoIP token> [--production]
+  --bundle-id com.example.calls --token <VoIP token> [--production]
 ```
 
 Options: `--call-id`, `--name`, `--handle`, `--expires-in <seconds>` (default 30) and `--dry-run`
@@ -70,6 +70,33 @@ With the console and LiveKit running and the app installed with microphone permi
 5. The caller returns: media reconnects.
 6. The remote side ends the call.
 7. Logcat shows no crash.
+
+With matching development packages, add `--video` to run video conformance on Android:
+
+```sh
+npx callx-conformance android --video --device <serial>
+# From this repository, run the Flutter example across AVDs:
+npm run conformance:matrix -- --video callx_api33 callx_api36
+```
+
+The video steps check camera publishing, remote video, visible frames, camera switching and
+background/foreground recovery. PiP is a separate UI trial; `--video` does not test PiP.
+
+For PiP, test explicit entry, automatic entry on Home (Android 12+), compact video or branded
+fallback, camera continuity, fullscreen return, closing PiP and disabling auto-entry after end.
+Run those trials in both framework apps. See [recorded results](/project/status).
+
+From the development repository, the shared Flutter/RN example UI trial is:
+
+```sh
+node tool/pip-smoke.mjs --device <serial> --output /tmp/callx-pip-trial \
+  --dismiss true --fallback true
+```
+
+It requires an installed example with camera, microphone and notification permissions, the
+local console and LiveKit server. It restarts the example, uses fresh accessibility windows,
+and records OS window state, video frame changes, screenshots and results. Setup details are
+in [`tool/android-ui/README.md`](https://github.com/bear-block/callx/blob/main/tool/android-ui/README.md).
 
 iOS conformance needs an iPhone, because the Simulator ends CallKit calls immediately.
 

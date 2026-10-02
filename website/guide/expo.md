@@ -28,15 +28,15 @@ Expo SDK 57.
 ```json
 {
   "expo": {
-    "name": "Acme",
-    "ios": {"bundleIdentifier": "com.acme.calls"},
+    "name": "Example",
+    "ios": {"bundleIdentifier": "com.example.calls"},
     "android": {
-      "package": "com.acme.calls",
+      "package": "com.example.calls",
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       ["@bear-block/callx/app.plugin", {
-        "microphonePermission": "Acme uses the microphone for calls.",
+        "microphonePermission": "Example uses the microphone for calls.",
         "iosVoip": true,
         "apsEnvironment": "production",
         "androidNotifications": true,

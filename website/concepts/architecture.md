@@ -96,12 +96,23 @@ flowchart LR
 
 - The core depends on nothing but the platform: no Firebase, no media SDK.
 - An adapter depends on the core and one provider SDK, pinned.
-- Adapters find the core through a versioned interface (`apiVersion` 1) and are discovered
+- Adapters find the core through a versioned interface (`apiVersion` 1 for audio; 2 for video) and are discovered
   from their manifest (Android) or `Info.plist` (iOS). More than one media adapter is refused
   at bootstrap rather than guessed.
 - All packages release together with the same version number.
 
 ## Scope of this version
 
-One live call at a time, voice, iOS and Android. Web runs only the simulator. See the
-[roadmap](/project/roadmap) for multi-call, video and more adapters.
+One live call at a time on iOS and Android. Published 0.1.3 packages support voice; the
+development branch adds native video and Android PiP. Web runs only the simulator. See
+[status](/project/status) for verification and the [roadmap](/project/roadmap) for remaining work.
+
+
+## Optional app presentation
+
+`callx_ui.dart` and `@bear-block/callx/ui` are opt-in UI entry points. Their controller tracks
+only hidden/expanded/minimized presentation from observed native call snapshots. It does not
+ring, answer, end, join media or add a call state. The root overlay preserves app navigation;
+the mini-call stays inside the app, and system PiP remains Activity window state. Commands
+are explicit app callbacks. Media rendering remains with existing video surfaces/adapters.
+See [call overlay and mini-call](/guide/call-ui).

@@ -12,7 +12,8 @@ the adapter joins the call's room natively. Audio starts even if Dart or JavaScr
 loaded yet.
 
 ::: info Audio and video
-The adapter carries audio, and from version 0.2 one-to-one video too: see
+Published 0.1.3 adapters carry audio. The unreleased development adapter also carries
+one-to-one video through adapter API 2: see
 [video calls](/guide/video). If your app needs LiveKit features beyond that, such as screen
 sharing or many participant tiles, use Callx alone and
 [connect LiveKit yourself](/guides/own-media) when the call is answered.
@@ -100,7 +101,7 @@ Keystore, iOS keychain).
 import {configureLiveKit, resetLiveKit} from '@bear-block/callx-livekit';
 
 await configureLiveKit({
-  tokenUrl: 'https://api.acme.com/calls/livekit-token',
+  tokenUrl: 'https://api.example.com/calls/livekit-token',
   headers: {authorization: `Bearer ${sessionToken}`},
 });
 
@@ -112,7 +113,7 @@ await resetLiveKit();
 import 'package:callx_livekit/callx_livekit.dart';
 
 await CallxLiveKit.configure(LiveKitConfig(
-  tokenUrl: 'https://api.acme.com/calls/livekit-token',
+  tokenUrl: 'https://api.example.com/calls/livekit-token',
   headers: {'authorization': 'Bearer $sessionToken'},
 ));
 
@@ -137,7 +138,7 @@ content-type: application/json
 Your backend authenticates the user, checks that they belong to that call, and answers:
 
 ```json
-{"url": "wss://livekit.acme.com", "token": "<LiveKit access token>"}
+{"url": "wss://livekit.example.com", "token": "<LiveKit access token>"}
 ```
 
 Issue a short-lived token for the room `call-<callId>` with permission to publish and

@@ -46,7 +46,8 @@ flowchart LR
 | React Native | 0.76 (New Architecture or legacy), React 18 |
 | Expo | SDK 57 with a development build (not Expo Go) |
 
-Real calls need a physical device for push delivery. The iOS Simulator cannot receive VoIP
+iOS push delivery needs a physical device. Android emulators with Google Play services can
+receive FCM, though physical phones are still required for vendor and real-audio acceptance. The iOS Simulator cannot receive VoIP
 pushes and ends CallKit calls immediately; the Android emulator works for most flows.
 
 ## Choose your path

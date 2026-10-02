@@ -44,6 +44,11 @@ features:
 
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
+::: info Release and development
+Published packages are 0.1.3 with contract 0.1.0. The development source adds native video and
+Android PiP; these features are unreleased. See [status](/project/status) for what has been verified.
+:::
+
 ## The same call, in either framework
 
 ::: code-group

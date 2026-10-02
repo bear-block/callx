@@ -73,7 +73,9 @@ Pass your own `CXProviderConfiguration` through `config.providerConfiguration` t
 - `includesCallsInRecents`: whether calls appear in the Phone app's Recents.
 - `supportsVideo`, `maximumCallGroups`, `supportedHandleTypes`.
 
-Callx's default is voice only, one call, generic handles.
+Callx uses one call and generic handles by default. In the development branch, bootstrap
+enables `supportsVideo` when the installed adapter supports video. Published 0.1.3 packages
+are voice-only. iOS video still needs an iPhone trial; iOS PiP is not implemented.
 
 ## The Simulator
 

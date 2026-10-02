@@ -22,7 +22,7 @@ const stop = callx.observe(snapshot => console.log(snapshot.sequence, snapshot.c
 await callx.setup();
 
 // What a push would do in production:
-await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'});
+await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'callx:alex'});
 // state: incoming
 
 const result = await callx.answer('demo-1');
@@ -54,7 +54,7 @@ await callx.setup();
 
 // What a push would do in production:
 await preview.simulator.incoming(
-  const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'),
+  const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'callx:alex'),
 );
 
 final result = await callx.answer('demo-1'); // connecting

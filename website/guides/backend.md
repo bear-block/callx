@@ -63,7 +63,7 @@ A call snapshot:
   "callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750",
   "revision": "1",
   "state": "ringing",
-  "caller": {"userId": "user-a", "displayName": "Alex", "handle": "acme:user-a"},
+  "caller": {"userId": "user-a", "displayName": "Alex", "handle": "callx:user-a"},
   "calleeUserId": "user-b",
   "createdAtMs": 1790000000000,
   "expiresAtMs": 1790000030000
@@ -90,7 +90,7 @@ POST /3/device/VOIP_DEVICE_TOKEN HTTP/2
 host: api.push.apple.com
 authorization: bearer APNS_PROVIDER_JWT
 apns-push-type: voip
-apns-topic: com.acme.calls.voip
+apns-topic: com.example.calls.voip
 apns-priority: 10
 apns-expiration: 0
 content-type: application/json
@@ -104,7 +104,7 @@ content-type: application/json
     "callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750",
     "revision": "1",
     "displayName": "Alex",
-    "handle": "acme:user-a",
+    "handle": "callx:user-a",
     "issuedAtMs": 1790000000000,
     "expiresAtMs": 1790000030000
   }
@@ -135,7 +135,7 @@ content-type: application/json
     "token": "ANDROID_FCM_TOKEN",
     "android": {"priority": "HIGH", "ttl": "30s"},
     "data": {
-      "callx": "{\"schemaVersion\":1,\"eventId\":\"evt-invite-001\",\"type\":\"call.invited\",\"callId\":\"85a4fd88-b5c3-4f79-a2cf-a7db9df06750\",\"revision\":\"1\",\"displayName\":\"Alex\",\"handle\":\"acme:user-a\",\"issuedAtMs\":1790000000000,\"expiresAtMs\":1790000030000}"
+      "callx": "{\"schemaVersion\":1,\"eventId\":\"evt-invite-001\",\"type\":\"call.invited\",\"callId\":\"85a4fd88-b5c3-4f79-a2cf-a7db9df06750\",\"revision\":\"1\",\"displayName\":\"Alex\",\"handle\":\"callx:user-a\",\"issuedAtMs\":1790000000000,\"expiresAtMs\":1790000030000}"
     }
   }
 }
@@ -159,7 +159,7 @@ content-type: application/json
 | `type` | Yes | `call.invited` |
 | `callId` | Yes | The call's ID (UUID recommended); same format as any Callx ID |
 | `displayName` | Yes | Shown on the incoming-call UI; 1–256 UTF-8 bytes |
-| `handle` | Yes | Your app's address for the caller, for example `acme:user-a`; 1–256 bytes |
+| `handle` | Yes | Your app's address for the caller, for example `callx:user-a`; 1–256 bytes |
 | `eventId` | No | Unique per message; recommended so hosts can deduplicate |
 | `revision` | No | The call's revision when sent, as a decimal string |
 | `issuedAtMs` | No | When the backend sent it |

@@ -45,7 +45,7 @@ Add a microphone description to `Info.plist`:
 
 ```xml
 <key>NSMicrophoneUsageDescription</key>
-<string>Acme uses the microphone for calls.</string>
+<string>Example uses the microphone for calls.</string>
 ```
 
 ### Android
@@ -71,7 +71,7 @@ loads.
 ### Android: `MainApplication`
 
 ```kotlin
-// android/app/src/main/java/com/acme/calls/MainApplication.kt
+// android/app/src/main/java/com/example/calls/MainApplication.kt
 import com.google.firebase.messaging.FirebaseMessaging
 import dev.callx.reactnative.CallxModule
 import dev.callx.telecom.CallxPushTokens
@@ -96,7 +96,7 @@ or your own media. See [native host integration](/guides/native-host).
 ### Android: forward FCM messages
 
 ```kotlin
-// android/app/src/main/java/com/acme/calls/MessagingService.kt
+// android/app/src/main/java/com/example/calls/MessagingService.kt
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dev.callx.telecom.CallxBootstrap
@@ -134,7 +134,7 @@ Add two lines at the top of `application(_:didFinishLaunchingWithOptions:)`, bef
 template starts React Native:
 
 ```swift
-// ios/Acme/AppDelegate.swift
+// ios/Example/AppDelegate.swift
 import callx_react_native
 
 func application(
@@ -208,3 +208,11 @@ payloads your server sends in production.
 - [Add LiveKit audio](/guide/livekit).
 - [Connect your own media](/guides/own-media).
 - [JavaScript API reference](/reference/javascript).
+
+
+## Optional call overlay and mini-call
+
+The development source also exports an optional app UI layer. Incoming stays on Home until
+accepted, an expanded call overlays navigation, and Back minimizes to an in-app mini-call.
+The native core remains the call-state owner. See [call UI](/guide/call-ui) for the exports
+and integration; published 0.1.3 packages do not include these components.

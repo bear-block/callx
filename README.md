@@ -15,8 +15,9 @@ Bring your own media with the core alone, or install an adapter
 ## Status
 
 Version `0.1.3` on [pub.dev](https://pub.dev/packages/callx) and
-[npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.1.0`. Automated, emulator and
-simulator checks pass; physical-device verification is tracked on the
+[npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.1.0`. The development branch
+adds contract `0.2.0`, native video with LiveKit, Android picture-in-picture and optional call UI; these additions
+are unreleased. Automated, emulator and simulator results and remaining physical-device checks are on the
 [status page](https://bear-block.github.io/callx/project/status).
 
 Callx does not supply a media server, signaling backend or push credentials. The
@@ -26,7 +27,7 @@ signaling, and either installs a media adapter or connects media from the core's
 ## Documentation
 
 **[bear-block.github.io/callx](https://bear-block.github.io/callx/)**: guides, API reference,
-comparison with other libraries and project status. Its source is in [`website/`](website)
+comparison with other libraries, [release notes](https://bear-block.github.io/callx/project/changelog) and project status. Its source is in [`website/`](website)
 (`npm run docs:dev`).
 
 1. [Architecture and ownership](https://bear-block.github.io/callx/concepts/architecture).
@@ -43,7 +44,11 @@ Both also have a Device mode wired to native CallKit/Core-Telecom, with optional
 (FCM on Android for both; PushKit on iOS for Flutter only) and a local call console
 (`npm run call:console`). On Android, with `npm run media:server` (a local LiveKit server in
 Docker), answered calls carry real two-way audio between the device and the console page;
-without it media is simulated. iOS media is still simulated. Web is a demo
+without it media is simulated. Both iOS hosts also integrate the LiveKit audio adapter, but
+call lifecycle and two-way audio still need an iPhone trial. Android video has passed Flutter
+emulator conformance; both frameworks passed Android 16 UI trials for root call overlay,
+in-app mini-call and system PiP. See the [call UI guide](https://bear-block.github.io/callx/guide/call-ui)
+for the optional exports and the status page for the OS/build matrix. Web is a demo
 target, not a native calling platform.
 
 ## Support and services
