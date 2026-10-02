@@ -14,9 +14,15 @@ scheme=${2:-CallxCore}
 output_dir=${CALLX_IOS_TEST_OUTPUT_DIR:-${TMPDIR:-/tmp}/callx-ios-results}
 mkdir -p "$output_dir"
 result_dir=$(mktemp -d "$output_dir/$scheme.XXXXXX")
+# Keep package resolution independent of the runner's shared SwiftPM repository cache.
+# CI has failed before tests when that cache referenced a repository that no longer existed.
+# Keep downloads outside the evidence directory so CI uploads only logs and test results.
+packages_dir=$(mktemp -d "${TMPDIR:-/tmp}/callx-ios-packages-$scheme.XXXXXX")
+trap 'rm -rf "$packages_dir"' EXIT
 echo "Simulator test evidence: $result_dir"
 if xcodebuild -scheme "$scheme" -destination "platform=iOS Simulator,id=$id" \
   -derivedDataPath "${TMPDIR:-/tmp}/callx-ios-tests-${2:-CallxCore}" -parallel-testing-enabled NO \
+  -clonedSourcePackagesDirPath "$packages_dir" -disablePackageRepositoryCache \
   -resultBundlePath "$result_dir/result.xcresult" CODE_SIGNING_ALLOWED=NO test \
   > "$result_dir/xcodebuild.log" 2>&1; then
   cat "$result_dir/xcodebuild.log"
