@@ -95,7 +95,8 @@ object CallxBootstrap {
             ?: File(app.filesDir, "callx/${config.accountGeneration}/coordinator.json").toPath()
         val coordinator = CallCoordinator(CoordinatorFileStore(path))
         val runtime = BridgeRuntime(coordinator, executor, BridgeCapabilities(config.accountGeneration,
-            durableReplay = true, providerManagedSignaling = false, hold = true, mute = media != null))
+            durableReplay = true, providerManagedSignaling = false, hold = true, mute = media != null,
+            video = ingress.supportsVideo))
         ingress.attach(runtime, sessions)
         // New process only: persist termination and remove stale UI before a push can ring.
         val recovered = runBlocking { ingress.recoverAfterProcessDeath() }

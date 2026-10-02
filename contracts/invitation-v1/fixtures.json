@@ -3,33 +3,229 @@
   "valid": [
     {
       "name": "full recipe payload",
-      "payload": {"schemaVersion": 1, "eventId": "evt-invite-001", "type": "call.invited",
-        "callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750", "revision": "1", "displayName": "Alex",
-        "handle": "callx:user-a", "issuedAtMs": 1790000000000, "expiresAtMs": 1790000030000},
-      "expected": {"callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750", "displayName": "Alex", "handle": "callx:user-a",
-        "eventId": "evt-invite-001", "revision": "1", "issuedAtMs": 1790000000000, "expiresAtMs": 1790000030000}
+      "payload": {
+        "schemaVersion": 1,
+        "eventId": "evt-invite-001",
+        "type": "call.invited",
+        "callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750",
+        "revision": "1",
+        "displayName": "Alex",
+        "handle": "callx:user-a",
+        "issuedAtMs": 1790000000000,
+        "expiresAtMs": 1790000030000
+      },
+      "expected": {
+        "callId": "85a4fd88-b5c3-4f79-a2cf-a7db9df06750",
+        "displayName": "Alex",
+        "handle": "callx:user-a",
+        "eventId": "evt-invite-001",
+        "revision": "1",
+        "issuedAtMs": 1790000000000,
+        "expiresAtMs": 1790000030000
+      }
     },
     {
       "name": "required fields only, unknown field ignored",
-      "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "hao.dev7",
-        "handle": "+84901234567", "future": {"nested": true}},
-      "expected": {"callId": "call-1", "displayName": "hao.dev7", "handle": "+84901234567"}
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "hao.dev7",
+        "handle": "+84901234567",
+        "future": {
+          "nested": true
+        }
+      },
+      "expected": {
+        "callId": "call-1",
+        "displayName": "hao.dev7",
+        "handle": "+84901234567"
+      }
+    },
+    {
+      "name": "video call",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-video-1",
+        "displayName": "Alex",
+        "handle": "callx:user-a",
+        "video": true
+      },
+      "expected": {
+        "callId": "call-video-1",
+        "displayName": "Alex",
+        "handle": "callx:user-a",
+        "video": true
+      }
     }
   ],
   "invalid": [
-    {"name": "wrong schema", "payload": {"schemaVersion": 2, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h"}},
-    {"name": "schema as string", "payload": {"schemaVersion": "1", "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h"}},
-    {"name": "schema as boolean", "payload": {"schemaVersion": true, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h"}},
-    {"name": "cancel is signaling, not an invitation", "payload": {"schemaVersion": 1, "type": "call.cancelled", "callId": "call-1", "displayName": "A", "handle": "h"}},
-    {"name": "missing callId", "payload": {"schemaVersion": 1, "type": "call.invited", "displayName": "A", "handle": "h"}},
-    {"name": "callId with space", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call 1", "displayName": "A", "handle": "h"}},
-    {"name": "empty displayName", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "", "handle": "h"}},
-    {"name": "missing handle", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A"}},
-    {"name": "revision not canonical", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "revision": "01"}},
-    {"name": "revision as number", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "revision": 1}},
-    {"name": "fractional expiry", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "expiresAtMs": 1.5}},
-    {"name": "negative expiry", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "expiresAtMs": -1}},
-    {"name": "expiry beyond JS-safe range", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "expiresAtMs": 9007199254740992}},
-    {"name": "eventId invalid", "payload": {"schemaVersion": 1, "type": "call.invited", "callId": "call-1", "displayName": "A", "handle": "h", "eventId": "-bad"}}
+    {
+      "name": "wrong schema",
+      "payload": {
+        "schemaVersion": 2,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "schema as string",
+      "payload": {
+        "schemaVersion": "1",
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "schema as boolean",
+      "payload": {
+        "schemaVersion": true,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "cancel is signaling, not an invitation",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.cancelled",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "missing callId",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "callId with space",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call 1",
+        "displayName": "A",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "empty displayName",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "",
+        "handle": "h"
+      }
+    },
+    {
+      "name": "missing handle",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A"
+      }
+    },
+    {
+      "name": "revision not canonical",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "revision": "01"
+      }
+    },
+    {
+      "name": "revision as number",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "revision": 1
+      }
+    },
+    {
+      "name": "fractional expiry",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "expiresAtMs": 1.5
+      }
+    },
+    {
+      "name": "negative expiry",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "expiresAtMs": -1
+      }
+    },
+    {
+      "name": "expiry beyond JS-safe range",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "expiresAtMs": 9007199254740992
+      }
+    },
+    {
+      "name": "eventId invalid",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "eventId": "-bad"
+      }
+    },
+    {
+      "name": "video as string",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "video": "true"
+      }
+    },
+    {
+      "name": "video as number",
+      "payload": {
+        "schemaVersion": 1,
+        "type": "call.invited",
+        "callId": "call-1",
+        "displayName": "A",
+        "handle": "h",
+        "video": 1
+      }
+    }
   ]
 }

@@ -8,7 +8,7 @@ public struct CallxBootstrapConfig {
     public var accountGeneration = "default"
     /// Application-private checkpoint; defaults to `Application Support/callx/<accountGeneration>/coordinator.json`.
     public var checkpointURL: URL?
-    /// Defaults to voice-only, one call, generic handles.
+    /// Defaults to one call, generic handles, and video when the media adapter carries video.
     public var providerConfiguration: CXProviderConfiguration?
     public var listener: (any CallKitIngressListener)?
     /// Backend and signaling work for each CallKit action; defaults to accepting them.
@@ -79,13 +79,15 @@ public final class CallxBootstrap: @unchecked Sendable {
     private init(_ config: CallxBootstrapConfig, install: @escaping @Sendable (BridgeRuntime) -> Void) throws {
         let nowMs: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
         let (adapter, status) = try Self.resolveMedia(config)
-        let provider = CXProvider(configuration: config.providerConfiguration ?? Self.defaultConfiguration())
+        let video = adapter as? any CallxVideoAdapter
+        let provider = CXProvider(configuration: config.providerConfiguration ?? Self.defaultConfiguration(video: video != nil))
         let uuids = CallUUIDMap()
         let actionIndex = CallKitActionIndex()
         let registry = PlatformActionRegistry()
         let lifecycle = CallKitActionLifecycle(index: actionIndex, registry: registry, nowMs: nowMs)
-        let executor = RegistryBackedPlatformExecutor(
-            submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs), registry: registry)
+        let executor = CallxCameraExecutor(inner: RegistryBackedPlatformExecutor(
+            submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs), registry: registry),
+            video: video, nowMs: nowMs)
         let hostPerformer = config.performer ?? AcceptingPerformer()
         let performer: any CallKitActionPerforming = adapter.map {
             MediaRoutingPerformer(performer: hostPerformer, media: $0, uuids: uuids)
@@ -98,12 +100,15 @@ public final class CallxBootstrap: @unchecked Sendable {
         let coordinator = try CallCoordinator(store: CoordinatorFileStore(url: url))
         let runtime = BridgeRuntime(coordinator: coordinator, executor: executor,
             capabilities: .init(accountGeneration: config.accountGeneration, durableReplay: true,
-                providerManagedSignaling: false, hold: true, mute: adapter != nil || config.audio != nil),
+                providerManagedSignaling: false, hold: true, mute: adapter != nil || config.audio != nil,
+                video: video != nil),
             nowMs: nowMs)
         // The ingress holds its listener weakly; this bootstrap retains the recorder.
         let recorder = PushTokenRecorder(forwardingTo: config.listener)
         let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids, lifecycle: lifecycle,
             listener: recorder, media: adapter, nowMs: nowMs)
+        executor.setCurrentCall { await runtime.currentCall() }
+        executor.onCameraApplied { [weak ingress] callID, on in ingress?.cameraChanged(callID: callID, on: on) }
         let probe = config.reconciliationProbe ?? UnavailableProbe(nowMs: nowMs)
         let startPush = config.startPushRegistry
         self.runtime = runtime; self.ingress = ingress; self.provider = provider; self.uuids = uuids
@@ -137,9 +142,9 @@ public final class CallxBootstrap: @unchecked Sendable {
         return (nil, config.audio == nil ? .none(reason: nil) : .hostControlled)
     }
 
-    private static func defaultConfiguration() -> CXProviderConfiguration {
+    private static func defaultConfiguration(video: Bool) -> CXProviderConfiguration {
         let configuration = CXProviderConfiguration()
-        configuration.supportsVideo = false
+        configuration.supportsVideo = video
         configuration.maximumCallGroups = 1
         configuration.maximumCallsPerCallGroup = 1
         configuration.supportedHandleTypes = [.generic]

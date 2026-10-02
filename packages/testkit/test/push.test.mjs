@@ -64,3 +64,8 @@ test('arguments are parsed and validated', () => {
   assert.throws(() => parseArguments(['web', '--token', 'x']), /android or ios/);
   assert.throws(() => parseArguments(['ios']), /--token/);
 });
+
+test('a video invitation carries video: true; an audio one leaves it out', () => {
+  assert.equal(invitation({ video: true }).video, true);
+  assert.equal('video' in invitation({}), false);
+});

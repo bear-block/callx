@@ -35,6 +35,7 @@ public protocol CallKitIncomingReporting: AnyObject {
     func reportNewIncomingCall(with uuid: UUID, update: CXCallUpdate) async throws
     func reportCall(with uuid: UUID, endedAt: Date?, reason: CXCallEndedReason)
     func reportOutgoingCall(with uuid: UUID, connectedAt: Date?)
+    func reportCall(with uuid: UUID, updated update: CXCallUpdate)
 }
 extension CXProvider: CallKitIncomingReporting {}
 
@@ -67,8 +68,8 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         media: (any CallxMediaAdapter)? = nil,
         ringTimeoutMs: Int64 = 45_000, nowMs: @escaping @Sendable () -> Int64,
         decode: @escaping @Sendable ([AnyHashable: Any]) throws -> Invitation? = InvitationCodec.decode(pushPayload:)) {
-        precondition(media.map(Self.supports) ?? true,
-            "Media adapter API \(media?.apiVersion ?? 0) is not supported; this Callx supports \(callxMediaAPIVersion).")
+        precondition(media.map(Self.supports) ?? true, "Media adapter API \(media?.apiVersion ?? 0) is not supported; " +
+            "this Callx supports \(callxMediaAPIVersion), and \(callxVideoAPIVersion) for video adapters.")
         self.runtime = runtime; self.reporter = reporter; self.uuids = uuids; self.listener = listener
         self.media = media
         self.ringTimeoutMs = ringTimeoutMs; self.nowMs = nowMs; self.decode = decode
@@ -78,7 +79,14 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     }
 
     /// True when this core can drive `adapter`. Check before passing it to `init`.
-    public static func supports(_ adapter: any CallxMediaAdapter) -> Bool { adapter.apiVersion == callxMediaAPIVersion }
+    public static func supports(_ adapter: any CallxMediaAdapter) -> Bool { callxSupportsMediaAdapter(adapter) }
+
+    /// Tells CallKit whether the call shows video, after the camera turned on or off (ADR-0010).
+    public func cameraChanged(callID: String, on: Bool) {
+        let update = CXCallUpdate()
+        update.hasVideo = on
+        reporter.reportCall(with: uuids.uuid(for: callID), updated: update)
+    }
 
     /// Registers for VoIP pushes. Call once, early in application launch.
     public func startPushRegistry(queue: DispatchQueue = .main) {
@@ -163,7 +171,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         do {
             outcome = try await runtime.reportIncoming(callID: invitation.callID, displayName: invitation.displayName,
                 handle: invitation.handle, observedAtMs: now, ringDeadlineAtMs: now + ringTimeoutMs,
-                expiresAtMs: invitation.expiresAtMs)
+                expiresAtMs: invitation.expiresAtMs, video: invitation.video)
         } catch {
             await apply(.reportEnded(reason: "failed"), mustReport: mustReport, callID: nil, update: nil)
             listener?.invitationRejected(invitation, outcome: nil)
@@ -327,7 +335,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         let update = CXCallUpdate()
         update.remoteHandle = CXHandle(type: .generic, value: invitation.handle)
         update.localizedCallerName = invitation.displayName
-        update.hasVideo = false
+        update.hasVideo = invitation.video
         return update
     }
 

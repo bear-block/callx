@@ -44,6 +44,9 @@ fun interface MediaMuteController {
 
 fun interface OutgoingCallStarter {
     suspend fun start(callId: String, displayName: String, handle: String): TelecomActionResult
+    /** Starts a video call; starters without video support start an audio call. */
+    suspend fun start(callId: String, displayName: String, handle: String, video: Boolean): TelecomActionResult =
+        start(callId, displayName, handle)
 }
 
 class CoreTelecomCallHandle internal constructor(
@@ -53,8 +56,9 @@ class CoreTelecomCallHandle internal constructor(
     private val isIncomingRinging: () -> Boolean,
     private val changeEndpoint: suspend (CallEndpointCompat) -> TelecomActionResult = { TelecomActionResult.Rejected() },
 ) : TelecomCallHandle {
-    constructor(control: CallControlScope, isIncomingRinging: () -> Boolean) : this(
-        answerCall = { control.answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL).toActionResult() },
+    constructor(control: CallControlScope, isIncomingRinging: () -> Boolean,
+        callType: Int = CallAttributesCompat.CALL_TYPE_AUDIO_CALL) : this(
+        answerCall = { control.answer(callType).toActionResult() },
         disconnectCall = { code -> control.disconnect(DisconnectCause(code)).toActionResult() },
         changeHold = { held -> (if (held) control.setInactive() else control.setActive()).toActionResult() },
         isIncomingRinging = isIncomingRinging,
@@ -140,7 +144,7 @@ class TelecomPlatformExecutor(
                     ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
                 val handle = command.handle
                     ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
-                outgoing?.start(command.callId, displayName, handle)
+                outgoing?.start(command.callId, displayName, handle, command.video)
                     ?: return PlatformOutcome.Rejected("unsupported", nowMs())
             }
             CommandType.answer -> calls.resolve(command.callId)?.answer()
@@ -150,7 +154,7 @@ class TelecomPlatformExecutor(
                     ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
                 calls.resolve(command.callId)?.setHeld(value)
             }
-            // Camera commands need a video media adapter (ADR-0010); none is wired yet.
+            // TelecomIngress.executor routes camera commands to a video adapter (ADR-0010).
             CommandType.setCamera, CommandType.switchCamera -> return PlatformOutcome.Rejected("unsupported", nowMs())
         } ?: return PlatformOutcome.Rejected("callNotFound", nowMs())
 

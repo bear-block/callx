@@ -14,7 +14,8 @@ class InvitationFixtureTest {
             fun text(key: String) = expected[key]?.jsonPrimitive?.content
             fun number(key: String) = expected[key]?.jsonPrimitive?.long
             val wanted = Invitation(text("callId")!!, text("displayName")!!, text("handle")!!, text("eventId"),
-                text("revision"), number("issuedAtMs"), number("expiresAtMs"))
+                text("revision"), number("issuedAtMs"), number("expiresAtMs"),
+                expected["video"]?.jsonPrimitive?.boolean ?: false)
             // FCM data values are strings, so the invitation arrives as JSON text under "callx".
             val data = mapOf("callx" to fixture.getValue("payload").toString(), "other" to "ignored")
             assertEquals(wanted, InvitationCodec.decodeData(data), fixture.getValue("name").jsonPrimitive.content)

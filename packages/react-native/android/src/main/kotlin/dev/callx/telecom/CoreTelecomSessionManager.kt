@@ -35,6 +35,9 @@ interface TelecomCallAudioObserver {
 /** Telecom registration for incoming calls; [CoreTelecomSessionManager] implements it. */
 interface IncomingTelecomSessions : TelecomCallResolver {
     suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult
+    /** Registers a video call; implementations without video register an audio call. */
+    suspend fun reportIncoming(callId: String, displayName: String, handle: String, video: Boolean): TelecomActionResult =
+        reportIncoming(callId, displayName, handle)
 }
 
 /**
@@ -53,25 +56,34 @@ class CoreTelecomSessionManager(
     override fun resolve(callId: String): TelecomCallHandle? = sessions[callId]
 
     override suspend fun start(callId: String, displayName: String, handle: String): TelecomActionResult =
-        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_OUTGOING)
+        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_OUTGOING, video = false)
+
+    override suspend fun start(callId: String, displayName: String, handle: String, video: Boolean): TelecomActionResult =
+        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_OUTGOING, video)
 
     override suspend fun reportIncoming(callId: String, displayName: String, handle: String): TelecomActionResult =
-        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_INCOMING)
+        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_INCOMING, video = false)
+
+    override suspend fun reportIncoming(callId: String, displayName: String, handle: String, video: Boolean): TelecomActionResult =
+        add(callId, displayName, handle, CallAttributesCompat.DIRECTION_INCOMING, video)
 
     private suspend fun add(
         callId: String,
         displayName: String,
         handle: String,
         direction: Int,
+        video: Boolean,
     ): TelecomActionResult {
         if (sessions.containsKey(callId) || !starting.add(callId)) return TelecomActionResult.Rejected()
         val ready = CompletableDeferred<TelecomActionResult>()
         val incomingRinging = AtomicBoolean(direction == CallAttributesCompat.DIRECTION_INCOMING)
+        // Core-Telecom 1.0 cannot change the type later, so a video call stays one (ADR-0010).
+        val callType = if (video) CallAttributesCompat.CALL_TYPE_VIDEO_CALL else CallAttributesCompat.CALL_TYPE_AUDIO_CALL
         val attributes = CallAttributesCompat(
             displayName,
             Uri.parse(handle),
             direction,
-            CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
+            callType,
             CallAttributesCompat.SUPPORTS_SET_INACTIVE,
         )
         val job = applicationScope.launch {
@@ -87,9 +99,7 @@ class CoreTelecomSessionManager(
                         onSetActive = { systemActions.setActive(callId) },
                         onSetInactive = { systemActions.setInactive(callId) },
                         block = {
-                            sessions[callId] = CoreTelecomCallHandle(this) {
-                                incomingRinging.get()
-                            }
+                            sessions[callId] = CoreTelecomCallHandle(this, { incomingRinging.get() }, callType)
                             // These collectors live in the call scope and stop when the call ends.
                             audio?.let { observer ->
                                 launch { isMuted.collect { observer.onMuteChanged(callId, it) } }

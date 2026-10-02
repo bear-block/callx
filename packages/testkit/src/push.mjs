@@ -10,7 +10,7 @@
 //     callx-push ios --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
 //       --bundle-id dev.callx.preview.callxFlutterExample --token <VoIP token> [--production]
 //
-// Common options: --call-id, --name, --handle, --expires-in <seconds> (default 30), --dry-run.
+// Common options: --call-id, --name, --handle, --expires-in <seconds> (default 30), --video, --dry-run.
 // Keep credentials outside the repository; nothing here stores them.
 import { createPrivateKey, randomUUID, sign } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -45,6 +45,7 @@ export function invitation(options, nowMs = Date.now()) {
     handle: options.handle ?? 'callx:test-caller',
     issuedAtMs: nowMs,
     expiresAtMs: nowMs + expiresIn * 1000,
+    ...(options.video ? { video: true } : {}),
   };
 }
 

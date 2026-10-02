@@ -1,8 +1,10 @@
 package dev.callx.telecom
 
+import android.app.ActivityManager
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallEndpointCompat
 import dev.callx.core.BridgeRuntime
+import dev.callx.core.CameraFacing
 import dev.callx.core.CallState
 import dev.callx.core.CallRecord
 import dev.callx.core.CommandType
@@ -12,16 +14,20 @@ import dev.callx.core.IncomingReportPolicy
 import dev.callx.core.Invitation
 import dev.callx.core.InvitationCodec
 import dev.callx.core.InvitationViolation
+import dev.callx.core.LocalVideo
 import dev.callx.core.NativeCommand
 import dev.callx.core.OperationStatus
 import dev.callx.core.PlatformCommandExecutor
 import dev.callx.core.PlatformOutcome
+import java.util.concurrent.CompletionStage
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.future.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -87,6 +93,8 @@ class TelecomIngress(
     /** Telecom tears a call down if a system callback takes longer than five seconds. */
     private val systemActionBudgetMs: Long = 4_000,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    /** Whether the app is in front, which the camera needs (ADR-0010). Replaceable for tests. */
+    private val isForeground: () -> Boolean = ::processIsForeground,
 ) {
     companion object {
         const val ACTION_ANSWER = "dev.callx.telecom.ANSWER"
@@ -100,11 +108,15 @@ class TelecomIngress(
     }
 
     init {
-        val version = (media as? CallxMediaAdapter)?.apiVersion
-        require(version == null || version == CALLX_MEDIA_API_VERSION) {
-            "Media adapter API $version is not supported; this Callx supports $CALLX_MEDIA_API_VERSION."
+        val adapter = media as? CallxMediaAdapter
+        require(adapter == null || callxSupportsMediaAdapter(adapter)) {
+            "Media adapter API ${adapter?.apiVersion} is not supported; this Callx supports " +
+                "$CALLX_MEDIA_API_VERSION, and $CALLX_VIDEO_API_VERSION for video adapters."
         }
     }
+
+    /** The installed media adapter carries video; reported as the `video` capability. */
+    val supportsVideo: Boolean get() = media is CallxVideoAdapter
 
     private lateinit var runtime: BridgeRuntime
     private lateinit var sessions: IncomingTelecomSessions
@@ -149,11 +161,42 @@ class TelecomIngress(
         }
     }
 
-    /** Wrap your [TelecomPlatformExecutor] so the notification follows commands from Dart/JS and native UI. */
+    /**
+     * Wrap your [TelecomPlatformExecutor] so the notification follows commands from Dart/JS and
+     * native UI, and camera commands reach a [CallxVideoAdapter].
+     */
     fun executor(inner: PlatformCommandExecutor) = PlatformCommandExecutor { command ->
-        inner.perform(command).whenComplete { outcome, _ ->
+        if (command.type == CommandType.setCamera || command.type == CommandType.switchCamera) camera(command)
+        else inner.perform(command).whenComplete { outcome, _ ->
             if (outcome is PlatformOutcome.Applied) runCatching { commandApplied(command) }
         }
+    }
+
+    /**
+     * `setCamera` and `switchCamera`. Switching while the camera is off only records the choice
+     * for the next `setCamera(true)`, so it needs no adapter call.
+     */
+    private fun camera(command: NativeCommand): CompletionStage<PlatformOutcome> = scope.future {
+        val video = media as? CallxVideoAdapter ?: return@future PlatformOutcome.Rejected("unsupported", nowMs())
+        val call = runtime.currentCall()?.takeIf { it.callId == command.callId }
+            ?: return@future PlatformOutcome.Rejected("callNotFound", nowMs())
+        val cameraLive = call.localVideo != LocalVideo.off
+        val (on, facing) = when (command.type) {
+            CommandType.setCamera -> (command.value ?: return@future PlatformOutcome.Rejected("invalidArgument", nowMs())) to
+                (call.cameraFacing ?: CameraFacing.front)
+            else -> {
+                val facing = command.facing ?: return@future PlatformOutcome.Rejected("invalidArgument", nowMs())
+                if (!cameraLive) return@future PlatformOutcome.Applied(nowMs())
+                true to facing
+            }
+        }
+        if (on && !cameraLive && !isForeground()) return@future PlatformOutcome.Rejected("mediaNotReady", nowMs())
+        withTimeoutOrNull((command.deadlineAtMs - nowMs()).coerceAtLeast(1)) {
+            val error = try { video.setCamera(command.callId, on, facing) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Throwable) { CallxCameraError.platformRejected }
+            if (error == null) PlatformOutcome.Applied(nowMs()) else PlatformOutcome.Rejected(error.name, nowMs())
+        } ?: PlatformOutcome.TimedOut(nowMs())
     }
 
     /** Completes construction once the runtime exists; the runtime's executor needs [sessions] first. */
@@ -267,7 +310,7 @@ class TelecomIngress(
         val now = nowMs()
         val outcome = try {
             runtime.reportIncoming(invitation.callId, invitation.displayName, invitation.handle, now,
-                ringDeadlineAtMs = now + ringTimeoutMs, expiresAtMs = invitation.expiresAtMs)
+                ringDeadlineAtMs = now + ringTimeoutMs, expiresAtMs = invitation.expiresAtMs, video = invitation.video)
         } catch (_: Exception) {
             listener?.onInvitationRejected(invitation, null); return null
         }
@@ -276,7 +319,8 @@ class TelecomIngress(
             listener?.onInvitationRejected(invitation, outcome); return outcome
         }
         synchronized(presentationLock) { registrations[invitation.callId] = Registration() }
-        if (sessions.reportIncoming(invitation.callId, invitation.displayName, invitation.handle) != TelecomActionResult.Applied) {
+        if (sessions.reportIncoming(invitation.callId, invitation.displayName, invitation.handle, invitation.video)
+            != TelecomActionResult.Applied) {
             synchronized(presentationLock) { registrations.remove(invitation.callId) }
             runtime.platformEnded(invitation.callId, "failed")
             listener?.onInvitationRejected(invitation, null); return outcome
@@ -359,6 +403,9 @@ class TelecomIngress(
     private fun sinkFor(callId: String) = object : CallxMediaSink {
         override fun connected() = runtime.mediaConnected(callId)
         override fun interrupted() { runtime.mediaInterrupted(callId) }
+        override fun videoChanged(localVideo: LocalVideo?, remoteVideo: Boolean?) {
+            runtime.videoObserved(callId, localVideo, remoteVideo)
+        }
     }
     private fun answeredAt(callId: String) = runtime.currentCall()?.takeIf { it.callId == callId }?.acceptedAtMs
 
@@ -371,3 +418,7 @@ class TelecomIngress(
     /** CallControlScope.disconnect accepts only LOCAL, REMOTE, REJECTED and MISSED. */
     private fun causeFor(reason: String) = if (reason == "unanswered") DisconnectCause.MISSED else DisconnectCause.REMOTE
 }
+
+/** The camera needs the app in front: iOS and Android 14+ refuse it from the background. */
+private fun processIsForeground(): Boolean = ActivityManager.RunningAppProcessInfo()
+    .also(ActivityManager::getMyMemoryState).importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND

@@ -5,7 +5,9 @@ import kotlinx.serialization.json.*
 /** A `call.invited` event (schema v1 of the signaling recipe) after validation. */
 data class Invitation(val callId: String, val displayName: String, val handle: String,
     val eventId: String? = null, val revision: String? = null,
-    val issuedAtMs: Long? = null, val expiresAtMs: Long? = null)
+    val issuedAtMs: Long? = null, val expiresAtMs: Long? = null,
+    /** Report the call to the OS as a video call (ADR-0010). */
+    val video: Boolean = false)
 
 class InvitationViolation(message: String) : IllegalArgumentException(message)
 
@@ -32,6 +34,7 @@ object InvitationCodec {
             revision = text(payload, "revision")?.also { if (!DECIMAL.matches(it)) invalid("revision is invalid") },
             issuedAtMs = timestamp(payload, "issuedAtMs"),
             expiresAtMs = timestamp(payload, "expiresAtMs"),
+            video = flag(payload, "video"),
         )
     }
 
@@ -55,6 +58,12 @@ object InvitationCodec {
     }
     private fun timestamp(payload: JsonObject, key: String) = integer(payload, key)?.also {
         if (it < 0 || it > MAX_SAFE) invalid("$key is out of range")
+    }
+    private fun flag(payload: JsonObject, key: String): Boolean {
+        val value = payload[key] ?: return false
+        val primitive = value as? JsonPrimitive
+        if (primitive == null || primitive.isString) invalid("$key must be a boolean")
+        return primitive.booleanOrNull ?: invalid("$key must be a boolean")
     }
     private fun invalid(message: String): Nothing = throw InvitationViolation(message)
 }

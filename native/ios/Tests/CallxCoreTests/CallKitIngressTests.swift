@@ -28,6 +28,7 @@ private final class FakeReporter: CallKitIncomingReporting, @unchecked Sendable 
     func reportOutgoingCall(with uuid: UUID, connectedAt: Date?) {
         lock.lock(); _connected.append(uuid); lock.unlock()
     }
+    func reportCall(with uuid: UUID, updated update: CXCallUpdate) {}
 }
 
 private final class Listener: CallKitIngressListener, @unchecked Sendable {

@@ -9,10 +9,12 @@ public struct Invitation: Equatable, Sendable {
     public let revision: String?
     public let issuedAtMs: Int64?
     public let expiresAtMs: Int64?
+    /// Report the call to the OS as a video call (ADR-0010).
+    public let video: Bool
     public init(callID: String, displayName: String, handle: String, eventID: String? = nil,
-        revision: String? = nil, issuedAtMs: Int64? = nil, expiresAtMs: Int64? = nil) {
+        revision: String? = nil, issuedAtMs: Int64? = nil, expiresAtMs: Int64? = nil, video: Bool = false) {
         self.callID = callID; self.displayName = displayName; self.handle = handle; self.eventID = eventID
-        self.revision = revision; self.issuedAtMs = issuedAtMs; self.expiresAtMs = expiresAtMs
+        self.revision = revision; self.issuedAtMs = issuedAtMs; self.expiresAtMs = expiresAtMs; self.video = video
     }
 }
 
@@ -49,7 +51,7 @@ public enum InvitationCodec {
         if let revision, !matches(decimal, revision) { throw InvitationViolation("revision is invalid") }
         return Invitation(callID: callID, displayName: displayName, handle: handle, eventID: try id(payload, "eventId"),
             revision: revision, issuedAtMs: try timestamp(payload, "issuedAtMs"),
-            expiresAtMs: try timestamp(payload, "expiresAtMs"))
+            expiresAtMs: try timestamp(payload, "expiresAtMs"), video: try flag(payload, "video"))
     }
 
     private static func text(_ payload: [String: Any], _ key: String) throws -> String? {
@@ -80,6 +82,13 @@ public enum InvitationCodec {
         guard let value = try integer(payload, key) else { return nil }
         guard value >= 0, value <= maxSafe else { throw InvitationViolation("\(key) is out of range") }
         return value
+    }
+    private static func flag(_ payload: [String: Any], _ key: String) throws -> Bool {
+        guard let value = payload[key] else { return false }
+        guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else {
+            throw InvitationViolation("\(key) must be a boolean")
+        }
+        return number.boolValue
     }
     private static func matches(_ expression: NSRegularExpression, _ text: String) -> Bool {
         let range = NSRange(text.startIndex..<text.endIndex, in: text)

@@ -15,7 +15,8 @@ private func invitationFixtures() throws -> [String: Any] {
         let wanted = Invitation(callID: expected["callId"] as! String, displayName: expected["displayName"] as! String,
             handle: expected["handle"] as! String, eventID: expected["eventId"] as? String,
             revision: expected["revision"] as? String, issuedAtMs: (expected["issuedAtMs"] as? NSNumber)?.int64Value,
-            expiresAtMs: (expected["expiresAtMs"] as? NSNumber)?.int64Value)
+            expiresAtMs: (expected["expiresAtMs"] as? NSNumber)?.int64Value,
+            video: (expected["video"] as? Bool) ?? false)
         // APNs delivers the invitation as a nested object under "callx".
         let payload: [AnyHashable: Any] = ["aps": [String: Any](), "callx": fixture["payload"]!]
         #expect(try InvitationCodec.decode(pushPayload: payload) == wanted, "\(fixture["name"]!)")

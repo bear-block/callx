@@ -68,9 +68,9 @@ object CallxMediaAdapters {
         val adapter = try { create(factory) } catch (error: Throwable) {
             return CallxMediaAdapterResolution.Unavailable(key, "$className failed to create an adapter: $error")
         }
-        if (adapter.apiVersion != CALLX_MEDIA_API_VERSION) {
-            return CallxMediaAdapterResolution.Unavailable(key,
-                "$className implements media adapter API ${adapter.apiVersion}; this Callx supports $CALLX_MEDIA_API_VERSION.")
+        if (!callxSupportsMediaAdapter(adapter)) {
+            return CallxMediaAdapterResolution.Unavailable(key, "$className implements media adapter API " +
+                "${adapter.apiVersion}; this Callx supports $CALLX_MEDIA_API_VERSION, and $CALLX_VIDEO_API_VERSION for video adapters.")
         }
         return CallxMediaAdapterResolution.Resolved(adapter, key)
     }
