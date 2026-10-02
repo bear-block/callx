@@ -1,7 +1,9 @@
 #if os(iOS)
 import AVFAudio
+import AVFoundation
 import Foundation
 import LiveKit
+import UIKit
 // One canonical source serves every package; the Callx Swift module is named per framework.
 #if canImport(callx)
 import callx
@@ -15,14 +17,18 @@ import CallxCore
 /// when it ends. It follows ADR-0004 and Apple's CallKit rules: CallKit owns the audio session,
 /// so LiveKit's automatic session configuration is off and its audio engine may run only between
 /// `didActivate` and `didDeactivate`. Joining the room and publishing the microphone can happen
-/// earlier; audio starts when CallKit activates the session. It implements `CallxMediaAdapter`
-/// (ADR-0009): the ingress starts and stops it, and it reports readiness and interruptions
-/// through the call's sink, never a call end.
-public final class LiveKitMediaAdapter: NSObject, CallxMediaAdapter, @unchecked Sendable {
+/// earlier; audio starts when CallKit activates the session. It implements `CallxVideoAdapter`
+/// (ADR-0009, ADR-0010): the ingress starts and stops it, it reports readiness, interruptions and
+/// video through the call's sink, never a call end, and it renders video with LiveKit's
+/// `VideoView` in the surfaces `CallxVideoView` attaches.
+public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked Sendable {
   private let credentials: @Sendable (String) async throws -> LiveKitCredentials
   private let log: @Sendable (String) -> Void
   private let lock = NSLock()
   private var sessions: [String: Session] = [:]
+  /// Surfaces `CallxVideoView` attached, with the LiveKit view added to each. Main actor only.
+  @MainActor private var bindings: [ObjectIdentifier: Binding] = [:]
+  private var observers: [NSObjectProtocol] = []
 
   public init(credentials: @escaping @Sendable (String) async throws -> LiveKitCredentials,
        log: @escaping @Sendable (String) -> Void) {
@@ -32,6 +38,25 @@ public final class LiveKitMediaAdapter: NSObject, CallxMediaAdapter, @unchecked 
     AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
     do { try AudioManager.shared.setEngineAvailability(.none) }
     catch { log("media: could not hold the audio engine for CallKit: \(error)") }
+    // iOS interrupts the camera in the background and LiveKit resumes it in front; report both.
+    let center = NotificationCenter.default
+    observers = [
+      center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
+        self?.cameraAvailability(.blocked)
+      },
+      center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in
+        self?.cameraAvailability(.on)
+      },
+    ]
+  }
+
+  deinit { observers.forEach(NotificationCenter.default.removeObserver) }
+
+  private func cameraAvailability(_ state: LocalVideo) {
+    for session in lock.withLock({ Array(sessions.values) }) where session.localVideo != nil {
+      log("media: camera \(state == .blocked ? "paused in the background" : "resumed") for \(session.callID)")
+      session.sink.videoChanged(localVideo: state, remoteVideo: nil)
+    }
   }
 
   /// Joins the call's room. Returns at once; idempotent per call.
@@ -61,7 +86,81 @@ public final class LiveKitMediaAdapter: NSObject, CallxMediaAdapter, @unchecked 
     lock.lock(); let session = sessions.removeValue(forKey: callID); lock.unlock()
     guard let session else { return }
     session.task?.cancel()
+    session.localVideo = nil; session.remoteVideo = nil
+    Task { @MainActor in self.refresh(callID) }
     Task { await session.room.disconnect() }
+  }
+
+  /// Publishes, switches or stops the camera. The core already checked that the app is in front.
+  public func setCamera(callID: String, on: Bool, facing: CameraFacing) async -> CallxCameraError? {
+    guard let session = lock.withLock({ sessions[callID] }), session.room.connectionState == .connected else {
+      return .mediaNotReady
+    }
+    let position: AVCaptureDevice.Position = facing == .back ? .back : .front
+    if on, AVCaptureDevice.authorizationStatus(for: .video) != .authorized {
+      log("media: no camera permission for \(callID)"); return .permissionDenied
+    }
+    do {
+      if on, let track = session.localVideo {
+        _ = try await (track.capturer as? CameraCapturer)?.set(cameraPosition: position)
+      } else if on {
+        let publication = try await session.room.localParticipant.setCamera(enabled: true,
+          captureOptions: CameraCaptureOptions(position: position))
+        guard let track = publication?.track as? LocalVideoTrack else { return .platformRejected }
+        session.localVideo = track
+      } else {
+        try await session.room.localParticipant.setCamera(enabled: false)
+        session.localVideo = nil
+      }
+      log("media: camera \(on ? "on (\(facing.rawValue))" : "off") for \(callID)")
+      await refresh(callID)
+      return nil
+    } catch {
+      log("media: camera failed for \(callID): \(error)"); return .platformRejected
+    }
+  }
+
+  @MainActor public func attach(callID: String, source: VideoSource, surface: CallxVideoSurface) {
+    detach(callID: callID, surface: surface)
+    bindings[ObjectIdentifier(surface)] = Binding(callID: callID, source: source, surface: surface)
+    refresh(callID)
+  }
+
+  @MainActor public func detach(callID: String, surface: CallxVideoSurface) {
+    guard let binding = bindings.removeValue(forKey: ObjectIdentifier(surface)) else { return }
+    binding.view?.track = nil
+    binding.view?.removeFromSuperview()
+  }
+
+  /// Puts each surface of `callID` in step with the track it should show.
+  @MainActor fileprivate func refresh(_ callID: String) {
+    let session = lock.withLock { sessions[callID] }
+    for binding in bindings.values where binding.callID == callID {
+      let track: VideoTrack? = binding.source == .local ? session?.localVideo : session?.remoteVideo
+      guard let track else { binding.view?.track = nil; continue }
+      let view = binding.view ?? {
+        let view = VideoView(frame: binding.surface.container.bounds)
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.layoutMode = binding.surface.fit == .contain ? .fit : .fill
+        view.mirrorMode = binding.surface.mirror ? .mirror : .off
+        binding.surface.container.addSubview(view)
+        binding.view = view
+        return view
+      }()
+      // VideoView holds its track weakly; the session keeps it.
+      if view.track !== track { view.track = track }
+    }
+  }
+
+  /// A surface and the LiveKit view added to it.
+  @MainActor private final class Binding {
+    let callID: String
+    let source: VideoSource
+    let surface: CallxVideoSurface
+    var view: VideoView?
+    init(callID: String, source: VideoSource, surface: CallxVideoSurface) {
+      self.callID = callID; self.source = source; self.surface = surface
+    }
   }
 
   /// Mute from the app or from CallKit. Before joining, applies on join.
@@ -130,20 +229,48 @@ public final class LiveKitMediaAdapter: NSObject, CallxMediaAdapter, @unchecked 
     private weak var owner: LiveKitMediaAdapter?
     private let lock = NSLock()
     private var hearing: Set<String> = []
+    private var _remoteVideo: VideoTrack?
+    private var _localVideo: LocalVideoTrack?
+    /// The remote video shown in remote surfaces: the first subscribed video track.
+    var remoteVideo: VideoTrack? {
+      get { lock.withLock { _remoteVideo } }
+      set { lock.withLock { _remoteVideo = newValue } }
+    }
+    /// The local camera while it is published.
+    var localVideo: LocalVideoTrack? {
+      get { lock.withLock { _localVideo } }
+      set { lock.withLock { _localVideo = newValue } }
+    }
 
     init(callID: String, sink: any CallxMediaSink, owner: LiveKitMediaAdapter) {
       self.callID = callID; self.sink = sink; self.owner = owner
     }
 
     func room(_ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication) {
-      guard publication.kind == .audio, let owner, owner.isCurrent(self) else { return }
+      guard let owner, owner.isCurrent(self) else { return }
+      if publication.kind == .video, remoteVideo == nil, let track = publication.track as? VideoTrack {
+        remoteVideo = track
+        owner.log("media: remote video for \(callID) from \(participant.identity?.stringValue ?? "?")")
+        sink.videoChanged(localVideo: nil, remoteVideo: true)
+        Task { @MainActor [callID] in owner.refresh(callID) }
+        return
+      }
+      guard publication.kind == .audio else { return }
       lock.lock(); hearing.insert(publication.sid.stringValue); lock.unlock()
       owner.log("media connected (LiveKit) for \(callID): hearing \(participant.identity?.stringValue ?? "?")")
       sink.connected()
     }
 
     func room(_ room: Room, participant: RemoteParticipant, didUnsubscribeTrack publication: RemoteTrackPublication) {
-      guard publication.kind == .audio, let owner, owner.isCurrent(self) else { return }
+      guard let owner, owner.isCurrent(self) else { return }
+      if publication.kind == .video, let track = remoteVideo, publication.track === track || publication.track == nil {
+        remoteVideo = nil
+        owner.log("media: remote video for \(callID) stopped")
+        sink.videoChanged(localVideo: nil, remoteVideo: false)
+        Task { @MainActor [callID] in owner.refresh(callID) }
+        return
+      }
+      guard publication.kind == .audio else { return }
       lock.lock(); hearing.remove(publication.sid.stringValue); let silent = hearing.isEmpty; lock.unlock()
       if silent {
         owner.log("media interrupted for \(callID): \(participant.identity?.stringValue ?? "?") is no longer heard")
