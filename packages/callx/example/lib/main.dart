@@ -149,8 +149,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
       if (!mounted) return;
       setState(() {
         if (value.call != null &&
+            value.call!.state != CallState.incoming &&
             value.call!.state != CallState.ended &&
-            value.call!.callId != snapshot.call?.callId) {
+            (value.call!.callId != snapshot.call?.callId ||
+                snapshot.call?.state == CallState.incoming)) {
           showCall = true;
         }
         snapshot = value;
@@ -303,6 +305,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
         runSpacing: 8,
         children: [
           button('Permissions', host.requestPermissions),
+          if (call?.state == CallState.incoming)
+            button('Answer', () => device.answer(call!.callId)),
           button(
             'Incoming (local signaling)',
             () => host.incoming(newCallId(), 'hao.dev7'),
@@ -525,7 +529,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 24),
-                  if (live)
+                  if (live && call.state != CallState.incoming)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 24),
                       child: Semantics(
@@ -539,6 +543,15 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           ),
                         ),
                       ),
+                    ),
+                  if (call?.state == CallState.incoming &&
+                      mode == Mode.simulator)
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        button('Answer', () => callx.answer(call!.callId)),
+                        button('Decline', () => callx.end(call!.callId)),
+                      ],
                     ),
                   if (!live && call?.state == CallState.ended)
                     const Text('Last call ended'),

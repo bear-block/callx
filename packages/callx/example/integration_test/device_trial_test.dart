@@ -74,6 +74,7 @@ void main() {
       debugPrint('CALLX_TRIAL ringing');
       await tester.pump(const Duration(seconds: 6));
 
+      await tap(tester, 'Diagnostics');
       await tap(tester, 'Answer');
       await waitFor(tester, find.text('Connecting…'));
       await tap(tester, 'Test controls');

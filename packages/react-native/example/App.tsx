@@ -48,7 +48,14 @@ export default function App() {
   const inFlight = useRef(false);
   const [showCall, setShowCall] = useState(false);
   const [diagnostics, setDiagnostics] = useState(false);
-  useEffect(() => { if (snapshot.call && snapshot.call.state !== 'ended') setShowCall(true); }, [snapshot.call?.callId]);
+  const presentedCall = useRef<string | null>(null);
+  useEffect(() => {
+    const call = snapshot.call;
+    if (call && call.state !== 'incoming' && call.state !== 'ended' && presentedCall.current !== call.callId) {
+      presentedCall.current = call.callId;
+      setShowCall(true);
+    }
+  }, [snapshot.call?.callId, snapshot.call?.state]);
 
   useEffect(() => {
     let mounted = true;
@@ -158,9 +165,13 @@ export default function App() {
         </Pressable>
       </View>
       <Text style={styles.subtitle}>{diagnostics ? 'Test controls' : 'React Native example'}</Text>
-      {call && live && <Pressable accessibilityRole="button" accessibilityLabel="Return to call" onPress={() => setShowCall(true)} style={styles.ongoing}>
+      {call && live && call.state !== 'incoming' && <Pressable accessibilityRole="button" accessibilityLabel="Return to call" onPress={() => setShowCall(true)} style={styles.ongoing}>
         <Text style={styles.ongoingText}>{call.displayName} · Return to call</Text>
       </Pressable>}
+      {call?.state === 'incoming' && mode === 'simulator' && <View style={styles.buttons}>
+        {button('Answer', p => p.callx.answer(call.callId))}
+        {button('Decline', p => p.callx.end(call.callId), true, 'danger')}
+      </View>}
       {!live && call?.state === 'ended' && <Text style={styles.body}>Last call ended</Text>}
       <View style={styles.buttons}>
         {(['simulator', 'device'] as const).map(next => <Pressable key={next} accessibilityRole="button" accessibilityLabel={next === 'device' ? 'Device' : 'Simulator'}
@@ -180,6 +191,7 @@ export default function App() {
       {diagnostics && <>
         <Text style={styles.sectionTitle}>Call simulation</Text>
         <View style={styles.buttons}>
+          {call?.state === 'incoming' && mode === 'device' && button('Answer', p => p.callx.answer(call.callId))}
           {button('Remote answers', p => p.simulator.remoteAnswered(), call?.state === 'outgoing')}
           {button('Connect media', p => p.simulator.mediaConnected(), call?.state === 'connecting')}
           {button('Remote ends', p => p.simulator.remoteEnded(), live)}

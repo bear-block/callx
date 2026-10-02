@@ -62,9 +62,12 @@ void main() {
 
     await tap('Incoming call');
     expect(find.text('Incoming call'), findsOneWidget);
+    expect(find.byType(CallScreen), findsNothing);
+    expect(find.text('Simulated calls'), findsOneWidget);
     expect(find.text('Event log'), findsNothing);
     await tap('Answer');
     expect(find.text('Connecting…'), findsOneWidget);
+    expect(find.byType(CallScreen), findsOneWidget);
     await tap('Test controls');
     await tap('Connect media');
     await tap('hao.dev7 · Return to call');
