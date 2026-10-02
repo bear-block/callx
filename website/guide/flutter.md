@@ -178,7 +178,7 @@ import 'package:callx/callx.dart';
 final callx = Callx();
 
 Future<void> startCalling() async {
-  final capabilities = await callx.setup(const CallxConfig(appName: 'Acme'));
+  final capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return; // Bootstrap failed or the device has no Telecom.
 
   // Send this to your backend so it can push invitations to this device.

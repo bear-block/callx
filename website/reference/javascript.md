@@ -25,11 +25,13 @@ by default it uses the native module.
 
 | Method | Returns | Description |
 |---|---|---|
-| `setup(config: CallxConfig)` | `Promise<Capabilities>` | Validates `appName` and returns what the runtime supports |
+| `setup(config?: CallxConfig)` | `Promise<Capabilities>` | Connects to the native core and returns what the runtime supports; takes no required arguments |
 | `getSnapshot()` | `Promise<Snapshot>` | The current call, once |
 | `observe(listener)` | `() => void` | Calls `listener(snapshot)` now and on every change; returns an unsubscribe function |
 | `getPushToken()` | `Promise<PushToken \| null>` | The device's call push token: `{type: 'voip', token}` on iOS, `{type: 'fcm', token}` on Android |
 | `dispose()` | `void` | Releases this instance. Does not hang up |
+
+`setup()` takes no arguments. The incoming and ongoing call screens show your app's display name: `CFBundleDisplayName` on iOS (change the CallKit icon and ringtone through `providerConfiguration`, see [iOS](/platforms/ios#provider-configuration)) and `android:label` on Android. `CallxConfig.appName` is deprecated and ignored; passing it still compiles.
 
 ### Commands
 
@@ -59,7 +61,7 @@ See [observation and replay](/concepts/observation).
 ## Types
 
 ```ts
-interface CallxConfig { appName: string }
+interface CallxConfig { /** @deprecated Ignored. */ appName?: string }
 
 interface CallInput { callId: string; displayName: string; handle: string }
 

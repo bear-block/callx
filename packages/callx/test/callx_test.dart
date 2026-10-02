@@ -34,7 +34,7 @@ void main() {
       final preview = CallxPreview();
       final callx = preview.callx;
       final simulator = preview.simulator;
-      await callx.setup(const CallxConfig(appName: 'Acme'));
+      await callx.setup();
       const input = CallInput(
         callId: 'call-1',
         displayName: 'hao.dev7',
@@ -73,7 +73,7 @@ void main() {
   }
   test('native mode never silently mocks', () async {
     await expectLater(
-      Callx().setup(const CallxConfig(appName: 'Acme')),
+      Callx().setup(),
       throwsA(
         isA<CallxException>().having(
           (e) => e.code,
@@ -89,8 +89,10 @@ void main() {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     Map<Object?, Object?>? captured;
+    Map<Object?, Object?>? setupArguments;
     messenger.setMockMethodCallHandler(channel, (call) async {
       if (call.method == 'setup') {
+        setupArguments = (call.arguments as Map).cast<Object?, Object?>();
         return <String, Object?>{
           'coreVersion': '0.1.0',
           'execution': 'native',
@@ -113,9 +115,14 @@ void main() {
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     final callx = Callx();
     expect(
-      (await callx.setup(const CallxConfig(appName: 'Acme'))).execution,
+      (await callx.setup()).execution,
       ExecutionMode.native,
     );
+    expect(setupArguments, {'contractVersion': '0.1.0'});
+    // The deprecated appName still compiles and is not sent.
+    // ignore: deprecated_member_use_from_same_package
+    await callx.setup(const CallxConfig(appName: 'Acme'));
+    expect(setupArguments, {'contractVersion': '0.1.0'});
     await callx.startCall(
       const CallInput(
         callId: 'call-1',
@@ -130,7 +137,7 @@ void main() {
   });
   test('caller operationId survives wrapper and result', () async {
     final preview = CallxPreview();
-    await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+    await preview.callx.setup();
     await preview.simulator.incoming(
       const CallInput(
         callId: 'a',
@@ -149,9 +156,7 @@ void main() {
   });
   test('same operation is idempotent and its result is queryable', () async {
     final preview = CallxPreview();
-    final capabilities = await preview.callx.setup(
-      const CallxConfig(appName: 'Acme'),
-    );
+    final capabilities = await preview.callx.setup();
     await preview.simulator.incoming(
       const CallInput(
         callId: 'a',
@@ -188,7 +193,7 @@ void main() {
     'reusing operationId with different arguments returns conflict',
     () async {
       final preview = CallxPreview();
-      await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+      await preview.callx.setup();
       await preview.simulator.incoming(
         const CallInput(
           callId: 'a',
@@ -212,7 +217,7 @@ void main() {
     'observation session snapshots, replays and acknowledges events',
     () async {
       final preview = CallxPreview();
-      await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+      await preview.callx.setup();
       final fresh = await preview.callx.openSession();
       expect(fresh.status, SessionOpenStatus.fresh);
       expect(fresh.replay, isEmpty);
@@ -253,7 +258,7 @@ void main() {
   );
   test('empty operationId fails before transport execution', () async {
     final preview = CallxPreview();
-    await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+    await preview.callx.setup();
     await expectLater(
       preview.callx.startCall(
         const CallInput(
@@ -286,7 +291,7 @@ void main() {
       preview.simulator.incoming(input),
       error('notConfigured'),
     );
-    await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+    await preview.callx.setup();
     await preview.simulator.incoming(input);
     await expectLater(preview.simulator.incoming(input), error('busy'));
     await expectLater(preview.callx.answer('wrong'), error('callNotFound'));
@@ -297,7 +302,7 @@ void main() {
     'new subscription receives snapshot; cancelling does not end call',
     () async {
       final preview = CallxPreview();
-      await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+      await preview.callx.setup();
       await preview.simulator.incoming(
         const CallInput(
           callId: 'a',

@@ -19,7 +19,7 @@ import {createCallxPreview} from '@bear-block/callx/preview';
 
 const {callx, simulator} = createCallxPreview();
 const stop = callx.observe(snapshot => console.log(snapshot.sequence, snapshot.call?.state));
-await callx.setup({appName: 'Acme'});
+await callx.setup();
 
 // What a push would do in production:
 await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'});
@@ -50,7 +50,7 @@ final callx = preview.callx;
 final subscription = callx.snapshots.listen(
   (snapshot) => print('${snapshot.sequence}: ${snapshot.call?.state.name}'),
 );
-await callx.setup(const CallxConfig(appName: 'Acme'));
+await callx.setup();
 
 // What a push would do in production:
 await preview.simulator.incoming(

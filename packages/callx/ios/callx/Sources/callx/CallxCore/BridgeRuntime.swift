@@ -51,7 +51,7 @@ public actor BridgeRuntime {
     }
 
     public func setup(_ value: BridgeObject) throws -> BridgeObject {
-        try requireVersion(value); _ = try requiredText(value, "appName", maxBytes: 128)
+        try requireVersion(value)
         _ = try requiredID(["accountGeneration": .string(capabilities.accountGeneration)], "accountGeneration")
         return [
         "contractVersion": .string(Self.version), "coreVersion": .string(Self.version),

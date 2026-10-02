@@ -48,7 +48,7 @@ export class NativeCallxBackend implements CallxBackend {
     }
   }
   private binding() { return this.loaded ??= this.native(); }
-  async setup(config: CallxConfig) { return (await this.binding()).module.setup({contractVersion: CONTRACT_VERSION, ...config}); }
+  async setup(_config?: CallxConfig) { return (await this.binding()).module.setup({contractVersion: CONTRACT_VERSION}); }
   async execute(command: Command) { return (await this.binding()).module.execute(command); }
   async queryOperation(operationId: string, accountGeneration: string) {
     return (await this.binding()).module.queryOperation({contractVersion: CONTRACT_VERSION, operationId, accountGeneration});

@@ -21,9 +21,8 @@ class PreviewBackend implements CallxBackend {
     if (this.disposed) throw new CallxError('disposed', 'Preview has been disposed.');
     if (requireSetup && !this.ready) throw new CallxError('notConfigured', 'Call setup first.');
   }
-  async setup(config: CallxConfig): Promise<Capabilities> {
+  async setup(_config?: CallxConfig): Promise<Capabilities> {
     this.guard(false);
-    if (!config.appName.trim()) throw new CallxError('invalidArgument', 'appName is required.');
     this.ready = true;
     return {contractVersion: CONTRACT_VERSION, coreVersion: 'preview', execution: 'preview',
       accountGeneration: this.accountGeneration,

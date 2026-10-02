@@ -27,7 +27,7 @@ class BridgeRuntime(
     private var eventListener: ((Map<String, Any?>) -> Unit)? = null
 
     fun setup(value: Map<String, Any?>): Map<String, Any?> {
-        requireVersion(value); requiredText(value, "appName", 128)
+        requireVersion(value)
         requiredId(mapOf("accountGeneration" to capabilities.accountGeneration), "accountGeneration")
         return mapOf(
         "contractVersion" to VERSION, "coreVersion" to VERSION, "execution" to "native",

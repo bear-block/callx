@@ -13,6 +13,12 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
+## Unreleased
+
+- **`setup()` takes no arguments.** `appName` was validated and never used; the call screens show
+  your app's display name (`CFBundleDisplayName` on iOS, `android:label` on Android).
+  `appName` is deprecated and ignored, so existing calls keep working.
+
 ## 0.1.3
 
 A fix release; update if you support Android 10–12. There is no 0.1.2: npm used that number for

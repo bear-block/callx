@@ -68,7 +68,7 @@ import 'package:callx/callx.dart';
 final callx = Callx();
 
 Future<void> start() async {
-  final capabilities = await callx.setup(const CallxConfig(appName: 'Acme'));
+  final capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return;
 
   // Send this to your backend so it can push invitations to this device.
@@ -94,7 +94,7 @@ Your backend sends an APNs VoIP push or an FCM data message with a `callx` invit
 import 'package:callx/callx_preview.dart';
 
 final preview = CallxPreview();
-await preview.callx.setup(const CallxConfig(appName: 'Acme'));
+await preview.callx.setup();
 await preview.simulator.incoming(
   const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'));
 await preview.callx.answer('demo-1'); // connecting

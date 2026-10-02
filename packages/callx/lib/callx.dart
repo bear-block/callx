@@ -69,8 +69,15 @@ final class PushToken {
 }
 
 final class CallxConfig {
-  const CallxConfig({required this.appName});
-  final String appName;
+  const CallxConfig({
+    @Deprecated('Ignored. The system call screen shows the app display name.')
+    this.appName,
+  });
+
+  /// Ignored; kept so `CallxConfig(appName: ...)` keeps compiling. The system call screen shows
+  /// the app's display name on both platforms.
+  @Deprecated('Ignored. The system call screen shows the app display name.')
+  final String? appName;
 }
 
 final class Call {
@@ -285,7 +292,7 @@ final class CallCommand {
 
 /// The default backend delegates to the configured native runtime.
 abstract interface class CallxBackend {
-  Future<CallxCapabilities> setup(CallxConfig config);
+  Future<CallxCapabilities> setup([CallxConfig config = const CallxConfig()]);
   Future<CommandResult> execute(CallCommand command);
   Future<OperationLookup> queryOperation(
     String operationId,
@@ -306,8 +313,9 @@ final class Callx {
   final CallxBackend _transport;
   int _operationCounter = 0;
   CallxBackend get _backend => _transport;
-  Future<CallxCapabilities> setup(CallxConfig config) async =>
-      _backend.setup(config);
+  Future<CallxCapabilities> setup([
+    CallxConfig config = const CallxConfig(),
+  ]) async => _backend.setup(config);
   ({String operationId, int? deadlineAtMs}) _operation(
     CommandOptions? options,
   ) {

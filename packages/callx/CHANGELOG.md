@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `setup()` takes no arguments. `appName` was validated and then never used: the call screens
+  show the app's display name (`CFBundleDisplayName`, `android:label`). `CallxConfig.appName` is
+  deprecated and ignored, so existing `setup(CallxConfig(appName: ...))` calls keep working.
+
 ## 0.1.3
 
 - Android 10–12: calls rang only on Android 13 and later. The Telecom check looked for

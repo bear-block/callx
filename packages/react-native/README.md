@@ -91,7 +91,7 @@ import {Callx} from '@bear-block/callx';
 export const callx = new Callx();
 
 export async function start() {
-  const capabilities = await callx.setup({appName: 'Acme'});
+  const capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return;
 
   // Send this to your backend so it can push invitations to this device.
@@ -117,7 +117,7 @@ Your backend sends an APNs VoIP push or an FCM data message with a `callx` invit
 import {createCallxPreview} from '@bear-block/callx/preview';
 
 const {callx, simulator} = createCallxPreview();
-await callx.setup({appName: 'Acme'});
+await callx.setup();
 await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'});
 await callx.answer('demo-1'); // connecting
 await simulator.mediaConnected(); // active

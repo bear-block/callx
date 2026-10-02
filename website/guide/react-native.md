@@ -163,7 +163,7 @@ import {Callx} from '@bear-block/callx';
 export const callx = new Callx();
 
 export async function startCalling() {
-  const capabilities = await callx.setup({appName: 'Acme'});
+  const capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return; // Bootstrap failed or no Telecom.
 
   // Send this to your backend so it can push invitations to this device.

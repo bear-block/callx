@@ -24,7 +24,7 @@ native code, so the main change is deleting code rather than rewriting it.
 
 | react-native-callkeep | Callx |
 |---|---|
-| `RNCallKeep.setup(options)` | `CallxBootstrap` (native) + `callx.setup({appName})` |
+| `RNCallKeep.setup(options)` | `CallxBootstrap` (native) + `callx.setup()`. The call screen shows your app's name; CallKit options go in `providerConfiguration` |
 | `displayIncomingCall(uuid, handle, name)` | Not needed: send a Callx invitation push. While running: `ingress.handleInvitation` (native) |
 | `startCall(uuid, handle, name)` | `callx.startCall({callId, displayName, handle})` |
 | `answerIncomingCall(uuid)` | `callx.answer(callId)` |

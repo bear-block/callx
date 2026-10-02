@@ -21,8 +21,11 @@ test('native transport preserves envelopes and filters session events', async ()
   class Emitter { addListener(_name, listener) { eventListener = listener; return {remove(){ eventListener = undefined; }}; } }
   const backend = new NativeCallxBackend({module, rn:{NativeModules:{Callx:module}, NativeEventEmitter:Emitter}});
   const callx = new Callx(backend);
-  assert.equal((await callx.setup({appName:'Acme'})).nativeCalling, true);
-  assert.deepEqual(captured, {contractVersion:'0.1.0', appName:'Acme'});
+  assert.equal((await callx.setup()).nativeCalling, true);
+  assert.deepEqual(captured, {contractVersion:'0.1.0'});
+  // The deprecated appName still compiles and is not sent.
+  await callx.setup({appName:'Acme'});
+  assert.deepEqual(captured, {contractVersion:'0.1.0'});
   await callx.startCall({callId:'call-1', displayName:'hao.dev7', handle:'sip:hao.dev7@example.invalid'},
     {operationId:'op-1', deadlineAtMs:5000});
   assert.deepEqual(captured, {contractVersion:'0.1.0', operationId:'op-1', deadlineAtMs:5000,

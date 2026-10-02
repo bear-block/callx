@@ -86,7 +86,13 @@ export interface ObservationSession {
   readonly replay: readonly CallEvent[];
 }
 export interface CallInput { callId: string; displayName: string; handle: string }
-export interface CallxConfig { appName: string }
+export interface CallxConfig {
+  /**
+   * @deprecated Ignored; kept so `setup({appName})` keeps compiling. The system call screen shows
+   * your app's display name on both platforms.
+   */
+  appName?: string;
+}
 export interface Capabilities {
   readonly contractVersion: typeof CONTRACT_VERSION;
   readonly coreVersion: string;
@@ -116,7 +122,7 @@ export class CallxError extends Error {
 }
 /** Transport seam. Production will delegate to native, not the preview reducer. */
 export interface CallxBackend {
-  setup(config: CallxConfig): Promise<Capabilities>;
+  setup(config?: CallxConfig): Promise<Capabilities>;
   execute(command: Command): Promise<CommandResult>;
   queryOperation(operationId: string, accountGeneration: string): Promise<OperationLookup>;
   openSession(afterSequence?: string): Promise<ObservationSession>;
@@ -135,7 +141,7 @@ export class Callx {
   private get backend(): CallxBackend {
     return this.transport;
   }
-  async setup(config: CallxConfig): Promise<Capabilities> { return this.backend.setup(config); }
+  async setup(config: CallxConfig = {}): Promise<Capabilities> { return this.backend.setup(config); }
   private operation(options?: CommandOptions): {operationId: string; deadlineAtMs?: number} {
     const operationId = options?.operationId ?? `callx-op-${Date.now()}-${++this.operationCounter}`;
     if (!operationId.trim()) throw new CallxError('invalidArgument', 'operationId is required.');

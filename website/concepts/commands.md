@@ -78,7 +78,6 @@ seconds for `startCall` and 4 seconds for the others.
 |---|---|
 | `operationId`, `callId` | `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`, at most 128 bytes |
 | `displayName`, `handle` | Non-empty, at most 256 UTF-8 bytes |
-| `appName` | Non-empty, at most 128 UTF-8 bytes |
 
 Use a UUID for `callId`. It also maps cleanly to CallKit's UUIDs.
 
@@ -87,7 +86,7 @@ Use a UUID for `callId`. It also maps cleanly to CallKit's UUIDs.
 `setup()` returns what the installed runtime supports:
 
 ```ts
-const caps = await callx.setup({appName: 'Acme'});
+const caps = await callx.setup();
 // {contractVersion, coreVersion, execution, accountGeneration, nativeCalling,
 //  durableReplay, providerManagedSignaling, hold, mute}
 ```

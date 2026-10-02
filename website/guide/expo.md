@@ -82,7 +82,7 @@ import {Callx} from '@bear-block/callx';
 export const callx = new Callx();
 
 export async function startCalling() {
-  const capabilities = await callx.setup({appName: 'Acme'});
+  const capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return;
 
   const token = await callx.getPushToken(); // {type: 'voip' | 'fcm', token}

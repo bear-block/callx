@@ -25,11 +25,13 @@ tests; by default it uses the native plugin.
 
 | Member | Type | Description |
 |---|---|---|
-| `setup(CallxConfig config)` | `Future<CallxCapabilities>` | Validates `appName`, returns what the runtime supports |
+| `setup([CallxConfig config])` | `Future<CallxCapabilities>` | Connects to the native core and returns what the runtime supports; takes no required arguments |
 | `getSnapshot()` | `Future<CallSnapshot>` | The current call, once |
 | `snapshots` | `Stream<CallSnapshot>` | The current call now and on every change |
 | `pushToken()` | `Future<PushToken?>` | `PushToken(type: 'voip' \| 'fcm', token: …)` |
 | `dispose()` | `Future<void>` | Releases this instance. Does not hang up |
+
+`setup()` takes no arguments. The incoming and ongoing call screens show your app's display name: `CFBundleDisplayName` on iOS (change the CallKit icon and ringtone through `providerConfiguration`, see [iOS](/platforms/ios#provider-configuration)) and `android:label` on Android. `CallxConfig.appName` is deprecated and ignored; passing it still compiles.
 
 ### Commands
 
@@ -57,7 +59,7 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 
 | Type | Fields |
 |---|---|
-| `CallxConfig` | `appName` |
+| `CallxConfig` | `appName?` (deprecated, ignored) |
 | `CallInput` | `callId`, `displayName`, `handle` |
 | `CommandOptions` | `operationId?`, `deadlineAtMs?` |
 | `CallxCapabilities` | `coreVersion`, `execution`, `accountGeneration`, `nativeCalling`, `durableReplay`, `providerManagedSignaling`, `hold`, `mute` |

@@ -48,11 +48,10 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   }
 
   @override
-  Future<CallxCapabilities> setup(CallxConfig config) async {
+  Future<CallxCapabilities> setup([
+    CallxConfig config = const CallxConfig(),
+  ]) async {
     _guard(requireSetup: false);
-    if (config.appName.trim().isEmpty) {
-      throw const CallxException('invalidArgument', 'appName is required.');
-    }
     _ready = true;
     return const CallxCapabilities(
       coreVersion: 'preview',

@@ -69,7 +69,6 @@ while `active` or `held` with `mediaReady`.
 |---|---|
 | IDs (`callId`, `operationId`, `eventId`) | 1–128 bytes, `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$` |
 | `displayName`, `handle` | 1–256 UTF-8 bytes |
-| `appName` | 1–128 UTF-8 bytes |
 | Error message | 512 bytes |
 | Platform `domain`, `code` | 128 bytes each |
 | Deadline | At most 30 s ahead; default 10 s for `startCall`, 4 s otherwise |

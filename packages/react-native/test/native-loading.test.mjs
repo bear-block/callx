@@ -14,7 +14,7 @@ test('lazy native loading finds Callx through the TurboModule registry', async (
     return next(specifier, context);
   }});
   try {
-    const capabilities = await new Callx().setup({appName:'Loading regression'});
+    const capabilities = await new Callx().setup();
     assert.equal(capabilities.nativeCalling, true);
     assert.equal(capabilities.execution, 'native');
   } finally { hook.deregister(); }

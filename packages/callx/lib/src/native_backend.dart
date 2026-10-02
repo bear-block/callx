@@ -52,12 +52,10 @@ final class NativeCallxBackend implements CallxBackend {
   }
 
   @override
-  Future<CallxCapabilities> setup(CallxConfig config) async => _capabilities(
-    await _invoke('setup', {
-      'contractVersion': contractVersion,
-      'appName': config.appName,
-    }),
-  );
+  Future<CallxCapabilities> setup([
+    CallxConfig config = const CallxConfig(),
+  ]) async =>
+      _capabilities(await _invoke('setup', {'contractVersion': contractVersion}));
 
   @override
   Future<CommandResult> execute(CallCommand command) async =>

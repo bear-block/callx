@@ -52,7 +52,7 @@ features:
 import {Callx} from '@bear-block/callx';
 
 const callx = new Callx();
-await callx.setup({appName: 'Acme Support'});
+await callx.setup();
 
 // Incoming calls ring natively. Your UI follows the native state.
 callx.observe(({call}) => render(call));
@@ -65,7 +65,7 @@ await callx.answer(callId);
 import 'package:callx/callx.dart';
 
 final callx = Callx();
-await callx.setup(const CallxConfig(appName: 'Acme Support'));
+await callx.setup();
 
 // Incoming calls ring natively. Your UI follows the native state.
 callx.snapshots.listen((snapshot) => render(snapshot.call));

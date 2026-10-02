@@ -11,7 +11,7 @@ class BridgeRuntimeTest {
 
     @Test fun roundTripsCommandSnapshotLookupAndObservation() {
         val bridge = runtime()
-        assertEquals(true, bridge.setup(mapOf("contractVersion" to "0.1.0", "appName" to "Acme"))["nativeCalling"])
+        assertEquals(true, bridge.setup(mapOf("contractVersion" to "0.1.0"))["nativeCalling"])
         val opened = bridge.openSession(mapOf("contractVersion" to "0.1.0"))
         val events = mutableListOf<Map<String, Any?>>()
         bridge.setEventListener(events::add)
@@ -69,7 +69,9 @@ class BridgeRuntimeTest {
         assertEquals("generationMismatch", bridge.queryOperation(mapOf("contractVersion" to "0.1.0",
             "operationId" to "op-1", "accountGeneration" to "generation-old"))["status"])
         assertFailsWith<BridgeViolation> { bridge.execute(mapOf("contractVersion" to "9.0.0")) }
-        assertFailsWith<BridgeViolation> { bridge.setup(mapOf("contractVersion" to "0.1.0", "appName" to "")) }
+        // appName is no longer read: older wrappers that still send it keep working.
+        assertEquals(true, bridge.setup(mapOf("contractVersion" to "0.1.0", "appName" to ""))["nativeCalling"])
+        assertFailsWith<BridgeViolation> { bridge.setup(mapOf("contractVersion" to "9.0.0")) }
     }
 
     @Test fun hostIngressAndEveryCommandReachCanonicalMilestones() {

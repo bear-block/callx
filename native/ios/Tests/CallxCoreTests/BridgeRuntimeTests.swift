@@ -13,8 +13,10 @@ private final class EventReceiver: BridgeEventReceiving, @unchecked Sendable {
     let bridge = BridgeRuntime(coordinator: CallCoordinator(), executor: AppliedExecutor(), capabilities:
         BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true,
             providerManagedSignaling: false, hold: true, mute: true), nowMs: { 1_000 })
+    #expect(try await bridge.setup(["contractVersion": .string("0.1.0")])["nativeCalling"] == .bool(true))
+    // appName is no longer read: older wrappers that still send it keep working.
     #expect(try await bridge.setup(["contractVersion": .string("0.1.0"),
-        "appName": .string("Acme")])["nativeCalling"] == .bool(true))
+        "appName": .string("")])["nativeCalling"] == .bool(true))
     let opened = try await bridge.openSession(["contractVersion": .string("0.1.0")])
     let receiver = EventReceiver(); await bridge.setEventReceiver(receiver)
     let result = try await bridge.execute(["contractVersion": .string("0.1.0"),

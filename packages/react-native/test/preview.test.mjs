@@ -7,7 +7,7 @@ import {createCallxPreview} from '../lib/preview.js';
 const scenarios = JSON.parse(readFileSync(new URL('../../../contracts/preview-scenarios.json', import.meta.url), 'utf8'));
 for (const scenario of scenarios) test(scenario.name, async () => {
   const {callx, simulator} = createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   const input = {callId:'call-1',displayName:'hao.dev7',handle:'sip:hao.dev7@example.invalid'};
   const actions = {
     incoming:()=>simulator.incoming(input), startCall:()=>callx.startCall(input),
@@ -29,7 +29,7 @@ for (const scenario of scenarios) test(scenario.name, async () => {
   callx.dispose();
 });
 test('native mode never silently mocks', async () => {
-  await assert.rejects(new Callx().setup({appName:'Acme'}), {code:'nativeUnavailable'});
+  await assert.rejects(new Callx().setup(), {code:'nativeUnavailable'});
 });
 test('public vocabulary matches the canonical v0 manifest', () => {
   const manifest = JSON.parse(readFileSync(new URL('../../../contracts/v0/manifest.json', import.meta.url), 'utf8'));
@@ -41,7 +41,7 @@ test('public vocabulary matches the canonical v0 manifest', () => {
 });
 test('caller operationId survives the wrapper and result', async () => {
   const {callx,simulator}=createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   await simulator.incoming({callId:'a',displayName:'A',handle:'sip:a@example.invalid'});
   const result=await callx.answer('a',{operationId:'retry-safe-answer-1'});
   assert.equal(result.operationId,'retry-safe-answer-1');
@@ -51,7 +51,7 @@ test('caller operationId survives the wrapper and result', async () => {
 });
 test('same operation is idempotent and its terminal result is queryable', async () => {
   const {callx,simulator}=createCallxPreview();
-  const capabilities=await callx.setup({appName:'Acme'});
+  const capabilities=await callx.setup();
   await simulator.incoming({callId:'a',displayName:'A',handle:'sip:a@example.invalid'});
   const options={operationId:'answer-once'};
   const first=await callx.answer('a',options);
@@ -65,7 +65,7 @@ test('same operation is idempotent and its terminal result is queryable', async 
 });
 test('reusing operationId with different arguments returns conflict', async () => {
   const {callx,simulator}=createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   await simulator.incoming({callId:'a',displayName:'A',handle:'sip:a@example.invalid'});
   await callx.answer('a',{operationId:'reused'});
   const result=await callx.end('a',{operationId:'reused'});
@@ -74,7 +74,7 @@ test('reusing operationId with different arguments returns conflict', async () =
 });
 test('observation session snapshots, replays and acknowledges ordered events', async () => {
   const {callx,simulator}=createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   const fresh=await callx.openSession();
   assert.equal(fresh.status,'fresh');
   assert.deepEqual(fresh.replay,[]);
@@ -97,14 +97,14 @@ test('observation session snapshots, replays and acknowledges ordered events', a
 });
 test('empty operationId fails before transport execution', async () => {
   const {callx}=createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   await assert.rejects(callx.startCall({callId:'a',displayName:'A',handle:'sip:a@example.invalid'},{operationId:' '}),
     {code:'invalidArgument'});
   assert.equal((await callx.getSnapshot()).call,null);
 });
 test('reentrant observer commands preserve snapshot order for other observers', async () => {
   const {callx,simulator}=createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   callx.observe(s=>{if(s.call?.state==='incoming') void callx.answer(s.call.callId);});
   const seen=[];
   const off=callx.observe(s=>seen.push(s.sequence));
@@ -115,7 +115,7 @@ test('reentrant observer commands preserve snapshot order for other observers', 
 test('setup, busy, stale ID, immutable state, disposal', async () => {
   const {callx, simulator} = createCallxPreview();
   await assert.rejects(simulator.incoming({callId:'a',displayName:'A',handle:'sip:a@example.invalid'}), {code:'notConfigured'});
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   await simulator.incoming({callId:'a',displayName:'A',handle:'sip:a@example.invalid'});
   await assert.rejects(simulator.incoming({callId:'b',displayName:'B',handle:'sip:b@example.invalid'}), {code:'busy'});
   await assert.rejects(callx.answer('wrong'), {code:'callNotFound'});
@@ -126,7 +126,7 @@ test('setup, busy, stale ID, immutable state, disposal', async () => {
 });
 test('unsubscribe preserves call, observer exceptions do not fail applied command', async () => {
   const {callx,simulator} = createCallxPreview();
-  await callx.setup({appName:'Acme'});
+  await callx.setup();
   const seen=[];
   const off=callx.observe(s=>seen.push(s.sequence));
   callx.observe(s=>{if(s.call) throw new Error('UI failure');});

@@ -145,7 +145,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   Future<void> initialize() async {
     try {
-      await preview.callx.setup(const CallxConfig(appName: 'Acme Support'));
+      await preview.callx.setup();
       if (mounted) setState(() => ready = true);
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
@@ -154,9 +154,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       // Native cold-process recovery must finish before installing/using the runtime.
       await host.status();
-      final capabilities = await device.setup(
-        const CallxConfig(appName: 'Acme Support'),
-      );
+      final capabilities = await device.setup();
       if (capabilities.nativeCalling && mounted) {
         setState(() => deviceAvailable = true);
         switchMode(Mode.device);

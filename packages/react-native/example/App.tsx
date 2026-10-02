@@ -49,7 +49,7 @@ export default function App() {
         current = mode === 'device' ? await createDeviceDemo() : createCallxPreview();
         if (!mounted) { current.callx.dispose(); return; }
         preview.current = current;
-        const capabilities = await current.callx.setup({appName:'Acme Support'});
+        const capabilities = await current.callx.setup();
         if (!mounted) return;
         if (mode === 'device' && !capabilities.nativeCalling) throw new Error('Native host is not configured.');
         stop = current.callx.observe(value => {
