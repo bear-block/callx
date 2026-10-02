@@ -25,6 +25,8 @@ jobs:
     name: Build the documentation site
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      pages_ready: ${{ steps.pages.outputs.ready }}
     defaults:
       run:
         working-directory: website
@@ -43,8 +45,22 @@ jobs:
         env:
           SPONSORS_GITHUB_TOKEN: ${{ secrets.SPONSORS_GITHUB_TOKEN }}
           SPONSORS_BMC_TOKEN: ${{ secrets.SPONSORS_BMC_TOKEN }}
-      - uses: actions/configure-pages@v5
+      - name: Check Pages deployment configuration
+        id: pages
+        uses: actions/github-script@v8
         if: github.event_name != 'pull_request'
+        with:
+          script: |
+            try {
+              const {data} = await github.rest.repos.getPages(context.repo);
+              const ready = data.build_type === 'workflow';
+              core.setOutput('ready', String(ready));
+              if (!ready) core.warning('Docs built. To deploy, set Settings → Pages → Source to GitHub Actions.');
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              core.setOutput('ready', 'false');
+              core.warning('Docs built; GitHub Pages is not enabled. Enable Settings → Pages → Source: GitHub Actions to publish the site.');
+            }
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
@@ -52,12 +68,13 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.build.outputs.pages_ready == 'true'
     needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/configure-pages@v5
       - id: deployment
         uses: actions/deploy-pages@v4

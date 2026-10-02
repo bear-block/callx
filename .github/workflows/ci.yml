@@ -95,6 +95,8 @@ jobs:
     # https://github.blog/changelog/2026-07-16-xcode-27-runner-image-now-in-public-preview/
     runs-on: xcode-27
     timeout-minutes: 90
+    env:
+      CALLX_IOS_TEST_OUTPUT_DIR: ${{ runner.temp }}/callx-ios-results
     steps:
       - uses: actions/checkout@v5
       # Pin the Xcode the project is developed with; the image also ships 27.0 and a 27.2 beta.
@@ -129,6 +131,14 @@ jobs:
           (cd packages/react-native-livekit && npm ci --legacy-peer-deps && npm run build)
           (cd packages/react-native/example && npm ci)
           node tool/app.mjs rn ios --build-only
+      - name: Simulator test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-test-evidence
+          path: ${{ runner.temp }}/callx-ios-results
+          if-no-files-found: ignore
+          retention-days: 7
 
   release-dry-run:
     name: Release dry run
