@@ -24,7 +24,7 @@ hero:
 features:
   - icon: 📲
     title: Native owns the call
-    details: The push is received, the call reported to CallKit or Telecom, and every answer and hang-up recorded natively, before Dart or JavaScript starts. Nothing is lost while your app is killed, locked or loading.
+    details: The push is received, the call reported to CallKit or Telecom, and every answer and hang-up recorded natively, before Dart or JavaScript starts. Your UI observes the recorded result when its runtime starts; delivery and recovery limits are documented.
   - icon: 🧭
     title: One contract, two frameworks
     details: The same Swift and Kotlin core runs under Flutter and React Native. Same states, same results, same error codes, checked by shared fixtures.
@@ -46,7 +46,7 @@ features:
 
 ::: info Release and development
 Published packages are 0.1.3 with contract 0.1.0. The development source adds native video and
-Android PiP; these features are unreleased. See [status](/project/status) for what has been verified.
+Android PiP and optional call overlays with an in-app mini-call; these features are unreleased. See [status](/project/status) for what has been verified.
 :::
 
 ## The same call, in either framework
@@ -88,6 +88,27 @@ await callx.answer(callId);
 | Core: CallKit and Telecom, push ingress, incoming UI, recovery | [`callx`](https://pub.dev/packages/callx) | [`@bear-block/callx`](https://www.npmjs.com/package/@bear-block/callx) |
 | LiveKit audio adapter (optional) | [`callx_livekit`](https://pub.dev/packages/callx_livekit) | [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) |
 | Device-trial tools: call console, test pushes, conformance | | [`@bear-block/callx-testkit`](https://www.npmjs.com/package/@bear-block/callx-testkit) |
+
+## Choose your call UI
+
+Keep your own Dart or TypeScript screens, or use the development
+[call overlay and mini-call components](/guide/call-ui) with your colors, logo and controls.
+Native code owns the call lifecycle in either case. Android system PiP keeps a compact
+video or branded layout visible when leaving the app; iOS system PiP is not implemented.
+A unified configuration for native, custom and supplied UI is [planned](/project/roadmap).
+
+## Provider adapters
+
+| Provider | Status | Scope |
+|---|---|---|
+| [LiveKit](/guide/livekit) | **Audio released · video in development** | Native media adapter for Flutter and React Native |
+| Twilio Video / Programmable Voice | **Planned next** | Media adapter and a separate provider-managed signaling adapter |
+| Zoom Video SDK | **Planned** | Audio/video media adapter |
+| Agora | **Planned** | Audio/video media adapter |
+
+Only LiveKit has a Callx adapter today. Planned adapters have no installable Callx package
+or release date. See the [provider roadmap](/project/roadmap#providers-in-order) for dependencies
+and the providers queued by demand.
 
 ## What Callx is not
 

@@ -33,7 +33,7 @@ flowchart LR
 |---|---|
 | A backend that creates calls and sends an APNs VoIP push or an FCM data message | Receiving that push natively, deciding whether it may ring, reporting it to the OS |
 | A media engine, or the [LiveKit adapter](/guide/livekit) | Starting and stopping media at the right moment, from any surface |
-| Your call screens | A snapshot of the call, typed commands, replay after a crash or reload |
+| Your call screens, or branding and controls for the development UI components | A snapshot of the call, typed commands, replay, and optional [overlay/mini-call UI](/guide/call-ui) |
 | APNs and Firebase credentials, on your server | The incoming-call screen and notification on Android, CallKit on iOS |
 
 ## Requirements
@@ -77,7 +77,7 @@ Then add audio: install the [LiveKit adapter](/guide/livekit), or
 ## A complete first call, step by step
 
 1. **Install and bootstrap** Callx for your framework (the quick starts above).
-2. **Register the push token**: `callx.getPushToken()` (JavaScript) or `Callx.pushToken()`
+2. **Register the push token**: `callx.getPushToken()` (TypeScript) or `Callx.pushToken()`
    (Dart) returns `{type: 'voip' | 'fcm', token}`. Send it to your backend.
 3. **Send an invitation** from your backend: an APNs VoIP push or an FCM data message with a
    `callx` payload. [Payload reference →](/guides/backend#ios-apns-voip-invitation)

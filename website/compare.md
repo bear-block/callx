@@ -30,6 +30,35 @@ fix it.
 | Vendor SDKs: [Twilio Voice](https://github.com/twilio/twilio-voice-react-native), [Stream Video](https://github.com/GetStream/stream-video-js) | Per vendor | Active | Vendor terms |
 | Writing CallKit and Telecom code yourself | Any | | Yours |
 
+## Callx development features
+
+The comparison table below describes published Callx 0.1.3. Development source adds:
+
+| Feature | Callx development status |
+|---|---|
+| Video reporting to CallKit/Telecom and native video surfaces | Implemented, unreleased; platform verification varies |
+| Android system PiP | Implemented, unreleased; emulator evidence for Flutter and React Native |
+| In-app mini-call and root call overlay | Implemented, unreleased; optional Dart/TypeScript UI with branding and controls |
+| iOS system PiP | Not implemented |
+| Unified native/custom/supplied UI configuration | Planned |
+
+System video-call reporting is separate from rendering video or supporting PiP.
+See [verification status](/project/status) and [call UI](/guide/call-ui) for limits.
+Other libraries' PiP and supplied-UI capabilities have not been evaluated in this table.
+
+## Provider ecosystem
+
+| Callx adapter | Status | Integration scope |
+|---|---|---|
+| [LiveKit](/guide/livekit) | Audio released; video implemented, unreleased | Media |
+| Twilio Video | Planned next | Media |
+| Twilio Programmable Voice | Planned next; signaling interface required | Provider-managed signaling |
+| Zoom Video SDK | Planned | Media |
+| Agora | Planned | Media |
+
+Planned adapters are not available packages. Callx's provider roadmap is separate from using
+those vendors' own SDKs today. See [provider priorities](/project/roadmap#providers-in-order).
+
 ## Feature comparison
 
 <span class="ok">●</span> built in · <span class="part">◐</span> partly, or with your own native
@@ -49,7 +78,7 @@ code · <span class="no">○</span> not provided · – not documented (tell us 
 | Expo config plugin | <span class="ok">●</span> | – | <span class="ok">●</span> | n/a |
 | Bare React Native | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> Expo modules | n/a |
 | Native Android incoming screen | <span class="ok">●</span> | <span class="part">◐</span> system UI in phone-account mode | <span class="ok">●</span> | <span class="ok">●</span> highly customizable |
-| Video calls in the system UI | <span class="no">○</span> roadmap | <span class="ok">●</span> | <span class="ok">●</span> | <span class="ok">●</span> |
+| Video calls in the system UI | <span class="no">○</span> published; implemented in development | <span class="ok">●</span> | <span class="ok">●</span> | <span class="ok">●</span> |
 | DTMF | <span class="no">○</span> roadmap | <span class="ok">●</span> | <span class="ok">●</span> | <span class="part">◐</span> event only |
 | Multiple simultaneous calls | <span class="no">○</span> roadmap | <span class="ok">●</span> | – | – |
 | Siri and Recents call intents (iOS) | <span class="no">○</span> | <span class="part">◐</span> start-call action | <span class="ok">●</span> | – |

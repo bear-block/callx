@@ -9,33 +9,38 @@ Callx is one native core per platform, Swift on iOS and Kotlin on Android, with 
 Dart and TypeScript. Both framework packages ship the same native sources, so a call behaves the
 same way in a Flutter app and in a React Native app.
 
+The diagram separates app presentation from native call ownership. Solid arrows carry
+commands or actions; dotted arrows carry observed results and lifecycle updates.
+
 ```mermaid
-flowchart TD
-  subgraph App["Your app"]
-    Dart[Flutter: Dart API]
-    TS[React Native: TypeScript API]
+flowchart TB
+  subgraph App["App presentation — Dart or TypeScript"]
+    UI["Your screens or optional Callx UI<br/>Navigation · overlay · mini-call"]
+    Bridge["Framework bridge"]
+    UI -->|commands| Bridge
+    Bridge -.->|snapshots and results| UI
   end
-  Dart --> FB[MethodChannel / EventChannel]
-  TS --> RB[TurboModule / event emitter]
-  FB --> Runtime
-  RB --> Runtime
-  subgraph Core["Callx native core"]
-    Runtime[BridgeRuntime]
-    Coord[Coordinator<br/>state + durable journal]
-    Disp[Command dispatcher]
-    Ingress[Ingress<br/>CallKit or Telecom]
-    Exec[Platform executor]
+  subgraph Native["Native call ownership — Swift or Kotlin"]
+    Runtime["BridgeRuntime<br/>Commands and observations"]
+    Coord["Coordinator<br/>Call state and durable journal"]
+    Platform["Ingress and platform executor<br/>System actions and call reporting"]
+    Media["Media adapter<br/>Audio and camera lifecycle"]
+    Runtime --> Coord
+    Coord -->|platform operations| Platform
+    Platform -.->|observed outcomes| Runtime
+    Platform -->|answer and end| Media
+    Media -.->|media updates| Runtime
   end
-  Runtime --> Coord
-  Runtime --> Disp --> Exec
-  Push[PushKit VoIP push /<br/>forwarded FCM message] --> Ingress
-  Ingress --> Coord
-  Ingress --> Exec
-  Exec --> OS[CallKit / Core-Telecom]
-  Ingress -- answered / ended --> Media[Media adapter<br/>or your media code]
-  Media -- connected / interrupted --> Runtime
-  Ingress -- listener --> Host[Your native host:<br/>backend calls]
+  Bridge --> Runtime
+  Runtime -.-> Bridge
+  Push["PushKit / FCM invitation"] --> Platform
+  Platform <-->|reports and system actions| OS["CallKit / Core-Telecom"]
+  Media -.->|native video surfaces| UI
 ```
+
+Only the coordinator writes durable call state. UI presentation has its own transient
+hidden/expanded/minimized state; it never becomes a second call-state owner.
+
 
 ## Components
 
@@ -116,3 +121,29 @@ ring, answer, end, join media or add a call state. The root overlay preserves ap
 the mini-call stays inside the app, and system PiP remains Activity window state. Commands
 are explicit app callbacks. Media rendering remains with existing video surfaces/adapters.
 See [call overlay and mini-call](/guide/call-ui).
+
+## From Home to a compact call
+
+This is the current example flow, with native incoming presentation and framework UI after
+acceptance. A custom foreground incoming screen requires coordinating with the native presenter.
+
+```mermaid
+flowchart TB
+  Home["Home stays mounted"] -->|invitation| Incoming["Native incoming presentation<br/>Overlay stays hidden"]
+  Incoming -->|declined, cancelled or expired| Home
+  Incoming -->|accepted; native snapshot confirms| Expanded["Expanded call overlay"]
+  Expanded -->|Back / minimize| Mini["In-app mini-call over Home"]
+  Mini -->|tap to expand| Expanded
+  Expanded -->|leave app; eligible Android video call| PiP["Android system PiP<br/>Compact Activity layout"]
+  Mini -->|leave app; eligible Android video call| PiP
+  PiP -->|return to app| Restore["Restore expanded or minimized UI"]
+  Restore -->|previously expanded| Expanded
+  Restore -->|previously minimized| Mini
+  Expanded -->|call ended| End["Hide call UI; keep navigation"]
+  Mini -->|call ended| End
+```
+
+Mini-call is app UI; system PiP is an Android window mode. Automatic PiP requires Android
+12+ and a live eligible video call. The app supplies compact video or branding, and also
+handles a call ending while the PiP window remains open. iOS system PiP is not implemented.
+Lock-screen video acceptance is still unverified; this flow does not imply that it has passed.
