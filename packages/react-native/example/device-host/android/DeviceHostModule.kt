@@ -30,7 +30,8 @@ class DeviceHostModule(context: ReactApplicationContext) : ReactContextBaseJavaM
                     ))
                     "incoming" -> DeviceHost.ingress.handleInvitation(Invitation(callId(),
                         arguments.getString("displayName") ?: "Caller",
-                        arguments.getString("handle") ?: "callx:caller"))?.toString()
+                        arguments.getString("handle") ?: "callx:caller",
+                        video = arguments.hasKey("video") && arguments.getBoolean("video")))?.toString()
                     "remoteAnswered" -> { DeviceHost.ingress.remoteAnswered(callId()); null }
                     "remoteEnded" -> {
                         val reason = if (arguments.hasKey("reason")) arguments.getString("reason") else null

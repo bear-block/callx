@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'call_screen.dart';
 
 import 'package:callx/callx.dart';
 import 'package:callx/callx_preview.dart';
@@ -18,11 +20,17 @@ class DeviceHost {
   );
   Future<void> requestPermissions() async =>
       _channel.invokeMethod<void>('requestPermissions');
-  Future<String?> incoming(String callId, String displayName) =>
-      _channel.invokeMethod<String>('incoming', {
-        'callId': callId,
-        'displayName': displayName,
-      });
+  Future<void> requestCameraPermission() async =>
+      _channel.invokeMethod<void>('requestCameraPermission');
+  Future<String?> incoming(
+    String callId,
+    String displayName, {
+    bool video = false,
+  }) => _channel.invokeMethod<String>('incoming', {
+    'callId': callId,
+    'displayName': displayName,
+    'video': video,
+  });
   Future<void> remoteAnswered(String callId) async =>
       _channel.invokeMethod<void>('remoteAnswered', {'callId': callId});
   Future<void> remoteEnded(String callId, String reason) async => _channel
@@ -80,7 +88,7 @@ class CallxDemoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: 'Callx / Flutter preview',
+    title: 'Callx',
     theme: ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: const Color(0xfff5f4ef),
@@ -117,6 +125,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
   bool ready = false;
   bool busy = false;
   int counter = 0;
+  bool showCall = false;
+  bool diagnostics = false;
+  bool pictureInPicture = false;
+  bool autoPictureInPicture = false;
+  StreamSubscription<bool>? pipSubscription;
 
   Callx get callx => mode == Mode.device ? device : preview.callx;
 
@@ -125,6 +138,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
     super.initState();
     observe();
     unawaited(initialize());
+    pipSubscription = CallxPictureInPicture.changes.listen((value) {
+      if (mounted) setState(() => pictureInPicture = value);
+    });
   }
 
   void observe() {
@@ -132,6 +148,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
     subscription = callx.snapshots.listen((value) {
       if (!mounted) return;
       setState(() {
+        if (value.call != null &&
+            value.call!.state != CallState.ended &&
+            value.call!.callId != snapshot.call?.callId) {
+          showCall = true;
+        }
         snapshot = value;
         journal.insert(
           0,
@@ -182,6 +203,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
       error = null;
     });
     observe();
+    unawaited(
+      CallxPictureInPicture.configure(
+        automatic: next == Mode.device && autoPictureInPicture,
+      ),
+    );
     statusTimer?.cancel();
     if (next == Mode.device) {
       unawaited(refreshStatus());
@@ -225,8 +251,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
     }
   }
 
-  CallInput nextInput() => CallInput(
+  CallInput nextInput({bool video = false}) => CallInput(
     callId: 'demo-${++counter}',
+    video: video,
     displayName: 'hao.dev7',
     handle: 'sip:hao.dev7@example.invalid',
   );
@@ -235,6 +262,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
   void dispose() {
     statusTimer?.cancel();
     unawaited(subscription?.cancel());
+    unawaited(pipSubscription?.cancel());
+    unawaited(CallxPictureInPicture.configure(automatic: false));
     unawaited(preview.callx.dispose());
     super.dispose();
   }
@@ -253,11 +282,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
     const heading = TextStyle(fontSize: 20, fontWeight: FontWeight.w700);
     const mono = TextStyle(fontFamily: 'monospace', fontSize: 12, height: 1.6);
     return [
-      const Text('01 / Drive the device trial', style: heading),
+      const Text('Call simulation', style: heading),
       const SizedBox(height: 8),
       const Text(
-        'Invitations here use the same native path as a push. The remote side and media are '
-        'simulated by the example host; see the example README to send real pushes.',
+        'Local signaling uses native ingress. Connect the local media server for real audio and video.',
       ),
       if (status?.simulator == true) ...[
         const SizedBox(height: 8),
@@ -360,40 +388,161 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final live = call != null && call.state != CallState.ended;
     final media =
         call?.state == CallState.active || call?.state == CallState.held;
-    // The camera works once the call is answered (ADR-0010).
     final answered = media || call?.state == CallState.connecting;
-    final cameraOn = call != null && call.localVideo != LocalVideo.off;
+    final cameraOn = call?.localVideo == LocalVideo.on;
     final showVideo = live && (call.video || call.remoteVideo || cameraOn);
+    if (pictureInPicture) {
+      return Stack(
+        children: [
+          const Positioned.fill(child: CallBackdrop()),
+          if (showVideo && (call.remoteVideo || cameraOn))
+            Positioned.fill(
+              child: CallxVideoView(
+                callId: call.callId,
+                source: call.remoteVideo
+                    ? VideoSource.remote
+                    : VideoSource.local,
+                mirror:
+                    !call.remoteVideo &&
+                    call.cameraFacing == CameraFacing.front,
+              ),
+            ),
+        ],
+      );
+    }
+    void back() => setState(() {
+      showCall = false;
+      diagnostics = live;
+    });
+    if (showCall && call != null) {
+      return CallScreen(
+        call: call,
+        nativeVideo: mode == Mode.device,
+        onBack: back,
+        error: error,
+        elapsed: call.acceptedAtMs != null
+            ? CallTimer(startedAtMs: call.acceptedAtMs!)
+            : null,
+        localControls: IconButton.filledTonal(
+          tooltip: 'Switch camera',
+          icon: const Icon(Icons.cameraswitch),
+          onPressed: busy
+              ? null
+              : () => run(
+                  () => callx.switchCamera(
+                    call.callId,
+                    call.cameraFacing == CameraFacing.back
+                        ? CameraFacing.front
+                        : CameraFacing.back,
+                  ),
+                ),
+        ),
+        controls: [
+          if (call.state == CallState.incoming)
+            FilledButton(
+              onPressed: busy
+                  ? null
+                  : () => run(() => callx.answer(call.callId)),
+              child: const Text('Answer'),
+            ),
+          if (answered) ...[
+            button(
+              call.muted ? 'Unmute' : 'Mute',
+              () => callx.setMuted(call.callId, !call.muted),
+              enabled: media,
+            ),
+            button(
+              call.state == CallState.held ? 'Resume' : 'Hold',
+              () => callx.setHeld(call.callId, call.state != CallState.held),
+              enabled: media,
+            ),
+            button(cameraOn ? 'Camera off' : 'Camera on', () async {
+              if (!cameraOn &&
+                  mode == Mode.device &&
+                  defaultTargetPlatform == TargetPlatform.iOS) {
+                await host.requestCameraPermission();
+              }
+              return callx.setCamera(call.callId, !cameraOn);
+            }),
+            if (cameraOn && !call.remoteVideo)
+              button(
+                'Switch camera',
+                () => callx.switchCamera(
+                  call.callId,
+                  call.cameraFacing == CameraFacing.back
+                      ? CameraFacing.front
+                      : CameraFacing.back,
+                ),
+              ),
+            if ((hostStatus?.endpoints.length ?? 0) > 1)
+              button('Audio output', () {
+                final endpoints = hostStatus!.endpoints;
+                return host.selectAudioEndpoint(
+                  (endpoints.indexWhere((e) => e.current) + 1) %
+                      endpoints.length,
+                );
+              }),
+          ],
+          if (mode == Mode.device &&
+              defaultTargetPlatform == TargetPlatform.android &&
+              showVideo)
+            button('Picture in picture', CallxPictureInPicture.enter),
+          if (live)
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xffb53936),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: busy ? null : () => run(() => callx.end(call.callId)),
+              child: Text(
+                call.state == CallState.incoming ? 'Decline' : 'End call',
+              ),
+            ),
+        ],
+      );
+    }
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Callx'),
+        actions: [
+          TextButton(
+            onPressed: () => setState(() => diagnostics = !diagnostics),
+            child: Text(diagnostics ? 'Calls' : 'Diagnostics'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1120),
+              constraints: const BoxConstraints(maxWidth: 640),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'callx / playground',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  Text(
+                    diagnostics ? 'Test controls' : 'Flutter example',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 34),
-                  const Text(
-                    'One call. Every state.',
-                    style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.5,
+                  const SizedBox(height: 24),
+                  if (live)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Semantics(
+                        label: 'Return to call',
+                        button: true,
+                        onTap: () => setState(() => showCall = true),
+                        child: ExcludeSemantics(
+                          child: FilledButton(
+                            onPressed: () => setState(() => showCall = true),
+                            child: Text('${call.displayName} · Return to call'),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Flutter SDK · Acme Support\nExplore native calling and the shared call contract.',
-                    style: TextStyle(fontSize: 16, height: 1.6),
-                  ),
-                  const SizedBox(height: 20),
-                  if (deviceAvailable) ...[
+                  if (!live && call?.state == CallState.ended)
+                    const Text('Last call ended'),
+                  if (deviceAvailable)
                     SegmentedButton<Mode>(
                       segments: const [
                         ButtonSegment(
@@ -406,380 +555,164 @@ class _PreviewScreenState extends State<PreviewScreen> {
                         ),
                       ],
                       selected: {mode},
-                      onSelectionChanged: (value) => switchMode(value.single),
+                      onSelectionChanged: live || busy
+                          ? null
+                          : (value) => switchMode(value.single),
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: mode == Mode.device
-                          ? const Color(0xffd7e9de)
-                          : const Color(0xffffebcf),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      mode == Mode.device
-                          ? 'DEVICE TRIAL  ·  Real push, CallKit/Telecom and notifications. '
-                                'Android audio is real with the media server (LiveKit); otherwise simulated.'
-                          : 'PREVIEW ONLY  ·  No real calls, microphone, push or system call UI.',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
+                  const SizedBox(height: 20),
+                  Text(
+                    mode == Mode.device
+                        ? 'Calls on this device'
+                        : 'Simulated calls',
                   ),
-                  const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final callPanel = Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: const Color(0xff172c2a),
-                          borderRadius: BorderRadius.circular(24),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      button(
+                        'Incoming call',
+                        () => mode == Mode.device
+                            ? host.incoming(newCallId(), 'hao.dev7')
+                            : preview.simulator.incoming(nextInput()),
+                        enabled: !live,
+                      ),
+                      button(
+                        'Incoming video',
+                        () => mode == Mode.device
+                            ? host.incoming(
+                                newCallId(),
+                                'hao.dev7',
+                                video: true,
+                              )
+                            : preview.simulator.incoming(
+                                nextInput(video: true),
+                              ),
+                        enabled: !live,
+                      ),
+                      button(
+                        'Start outgoing',
+                        () => callx.startCall(
+                          mode == Mode.device
+                              ? CallInput(
+                                  callId: newCallId(),
+                                  displayName: 'hao.dev7',
+                                  handle: 'callx:hao.dev7',
+                                )
+                              : nextInput(),
                         ),
-                        child: Column(
-                          children: [
-                            Text(
-                              call?.state.name.toUpperCase() ??
-                                  'READY FOR A CALL',
-                              style: const TextStyle(
-                                color: Color(0xff9bddc5),
-                                letterSpacing: 2,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            const CircleAvatar(
-                              radius: 38,
-                              backgroundColor: Color(0xffd7e9de),
-                              child: Text(
-                                'HD',
-                                style: TextStyle(
-                                  fontSize: 26,
-                                  color: Color(0xff172c2a),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(
-                              call?.displayName ?? 'Your next conversation',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              call == null
-                                  ? 'Trigger an invitation from the simulator.'
-                                  : '${call.callId} · ${call.direction.name}',
-                              style: const TextStyle(color: Color(0xffb7c9c4)),
-                            ),
-                            if (call?.acceptedAtMs != null &&
-                                call?.state != CallState.ended)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: CallTimer(
-                                  startedAtMs: call!.acceptedAtMs!,
-                                ),
-                              ),
-                            const SizedBox(height: 24),
-                            Text(
-                              call?.mediaInterrupted == true
-                                  ? '◌ Media interrupted — reconnecting'
-                                  : call?.mediaReady == true
-                                  ? '● Media ready'
-                                  : '○ Media not connected',
-                              style: const TextStyle(color: Color(0xffb7c9c4)),
-                            ),
-                            if (call?.endReason != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  'Reason: ${call!.endReason!.name}',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                            const SizedBox(height: 24),
-                            FilledButton(
-                              onPressed:
-                                  ready &&
-                                      !busy &&
-                                      call?.state == CallState.incoming
-                                  ? () => run(() => callx.answer(call!.callId))
-                                  : null,
-                              child: const Text('Answer'),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              alignment: WrapAlignment.center,
-                              children: [
-                                FilledButton.tonal(
-                                  onPressed: media && !busy
-                                      ? () => run(
-                                          () => callx.setMuted(
-                                            call!.callId,
-                                            !call.muted,
-                                          ),
-                                        )
-                                      : null,
-                                  child: Text(
-                                    call?.muted == true ? 'Unmute' : 'Mute',
-                                  ),
-                                ),
-                                FilledButton.tonal(
-                                  onPressed: media && !busy
-                                      ? () => run(
-                                          () => callx.setHeld(
-                                            call!.callId,
-                                            call.state != CallState.held,
-                                          ),
-                                        )
-                                      : null,
-                                  child: Text(
-                                    call?.state == CallState.held
-                                        ? 'Resume'
-                                        : 'Hold',
-                                  ),
-                                ),
-                                FilledButton.tonal(
-                                  onPressed: answered && live && !busy
-                                      ? () => run(
-                                          () => callx.setCamera(
-                                            call.callId,
-                                            !cameraOn,
-                                          ),
-                                        )
-                                      : null,
-                                  child: Text(
-                                    cameraOn ? 'Camera off' : 'Camera on',
-                                  ),
-                                ),
-                                FilledButton.tonal(
-                                  onPressed: cameraOn && !busy
-                                      ? () => run(
-                                          () => callx.switchCamera(
-                                            call.callId,
-                                            call.cameraFacing ==
-                                                    CameraFacing.back
-                                                ? CameraFacing.front
-                                                : CameraFacing.back,
-                                          ),
-                                        )
-                                      : null,
-                                  child: const Text('Switch camera'),
-                                ),
-                                FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: const Color(0xffa94135),
-                                  ),
-                                  onPressed: live && !busy
-                                      ? () => run(() => callx.end(call.callId))
-                                      : null,
-                                  child: Text(
-                                    call?.state == CallState.incoming
-                                        ? 'Decline'
-                                        : 'End call',
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (showVideo)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16),
-                                child: AspectRatio(
-                                  aspectRatio: 3 / 4,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: ColoredBox(
-                                            color: Colors.black,
-                                            child: call.remoteVideo
-                                                ? CallxVideoView(
-                                                    callId: call.callId,
-                                                  )
-                                                : const Center(
-                                                    child: Text(
-                                                      'Waiting for video',
-                                                      style: TextStyle(
-                                                        color: Color(
-                                                          0xffb7c9c4,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                          ),
-                                        ),
-                                        if (cameraOn)
-                                          Positioned(
-                                            right: 12,
-                                            bottom: 12,
-                                            width: 96,
-                                            height: 128,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              child: CallxVideoView(
-                                                callId: call.callId,
-                                                source: VideoSource.local,
-                                                mirror:
-                                                    call.cameraFacing ==
-                                                    CameraFacing.front,
-                                              ),
-                                            ),
-                                          ),
-                                        if (call.localVideo ==
-                                            LocalVideo.blocked)
-                                          const Positioned(
-                                            left: 12,
-                                            top: 12,
-                                            child: Text(
-                                              'Camera paused',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
+                        enabled: !live,
+                      ),
+                      button(
+                        'Start outgoing video',
+                        () => callx.startCall(
+                          mode == Mode.device
+                              ? CallInput(
+                                  callId: newCallId(),
+                                  displayName: 'hao.dev7',
+                                  handle: 'callx:hao.dev7',
+                                  video: true,
+                                )
+                              : nextInput(video: true),
                         ),
-                      );
-                      final controls = Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (mode == Mode.device)
-                            ...deviceControls(call, live)
-                          else ...[
-                            const Text(
-                              '01 / Simulate the outside world',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'These controls belong to the test harness, not your production app.',
-                            ),
-                            const SizedBox(height: 16),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                button(
-                                  'Incoming call',
-                                  () => preview.simulator.incoming(nextInput()),
-                                  enabled: !live,
-                                ),
-                                button(
-                                  'Start outgoing',
-                                  () => preview.callx.startCall(nextInput()),
-                                  enabled: !live,
-                                ),
-                                button(
-                                  'Remote answers',
-                                  preview.simulator.remoteAnswered,
-                                  enabled: call?.state == CallState.outgoing,
-                                ),
-                                button(
-                                  'Connect media',
-                                  preview.simulator.mediaConnected,
-                                  enabled: call?.state == CallState.connecting,
-                                ),
-                                button(
-                                  'Remote ends',
-                                  preview.simulator.remoteEnded,
-                                  enabled: live,
-                                ),
-                                button(
-                                  'Reset preview',
-                                  preview.simulator.reset,
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 20),
-                          const Text(
-                            '02 / Observe the contract',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'sequence  ${snapshot.sequence}\nmuted  ${call?.muted ?? false}\nexecution  ${mode == Mode.device ? 'native' : 'preview'}',
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              height: 1.8,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          if (error != null)
-                            Text(
-                              error!,
-                              style: const TextStyle(color: Color(0xffa94135)),
-                            ),
-                          Text(
-                            !ready
-                                ? 'Configuring SDK…'
-                                : mode == Mode.device
-                                ? 'SDK configured · native runtime, durable journal'
-                                : 'SDK configured · memory only',
-                          ),
-                        ],
-                      );
-                      if (constraints.maxWidth < 760) {
-                        return Column(
-                          children: [
-                            callPanel,
-                            const SizedBox(height: 28),
-                            controls,
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: callPanel),
-                          const SizedBox(width: 36),
-                          Expanded(child: controls),
-                        ],
-                      );
-                    },
+                        enabled: !live,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'Event timeline',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  ...journal.map(
-                    (line) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
                       child: Text(
+                        error!,
+                        style: const TextStyle(color: Color(0xffb53936)),
+                      ),
+                    ),
+                  if (diagnostics) ...[
+                    const SizedBox(height: 28),
+                    if (mode == Mode.device)
+                      ...deviceControls(call, live)
+                    else ...[
+                      const Text(
+                        'Call simulation',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          button(
+                            'Remote answers',
+                            preview.simulator.remoteAnswered,
+                            enabled: call?.state == CallState.outgoing,
+                          ),
+                          button(
+                            'Connect media',
+                            preview.simulator.mediaConnected,
+                            enabled: call?.state == CallState.connecting,
+                          ),
+                          button(
+                            'Remote ends',
+                            preview.simulator.remoteEnded,
+                            enabled: live,
+                          ),
+                          button('Reset preview', preview.simulator.reset),
+                        ],
+                      ),
+                    ],
+                    if (mode == Mode.device &&
+                        defaultTargetPlatform == TargetPlatform.android)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: button(
+                          autoPictureInPicture ? 'Auto PiP on' : 'Auto PiP off',
+                          () async {
+                            setState(
+                              () =>
+                                  autoPictureInPicture = !autoPictureInPicture,
+                            );
+                            await CallxPictureInPicture.configure(
+                              automatic: autoPictureInPicture,
+                            );
+                            return null;
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'State',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      '${call?.state.name.toUpperCase() ?? "READY"} · sequence ${snapshot.sequence}',
+                    ),
+                    if (call != null) SelectableText(call.callId),
+                    if (call?.endReason != null)
+                      Text('Reason: ${call!.endReason!.name}'),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'Event log',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    for (final line in journal)
+                      Text(
                         line,
                         style: const TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 12,
+                          height: 1.6,
                         ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'callx 0.1.3  /  Flutter + shared contract  /  Not a native-call certification',
-                  ),
+                  ],
                 ],
               ),
             ),

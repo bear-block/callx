@@ -30,6 +30,11 @@ export async function requestPermissions(): Promise<void> {
   await PermissionsAndroid.requestMultiple(permissions);
 }
 
+export async function requestCameraPermission(): Promise<void> {
+  if (Platform.OS === 'android') await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+  else if (Platform.OS === 'ios' && nativeHost) await invoke('requestCameraPermission');
+}
+
 /** The host readiness call waits for native cold-process recovery; errors never select a mock. */
 export async function createDeviceDemo(): Promise<Demo> {
   await hostStatus();

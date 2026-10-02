@@ -61,7 +61,7 @@ class MainActivity : FlutterActivity() {
                 "incoming" -> reply {
                     // Same path as a push, without FCM: an invitation arriving over signaling.
                     CallHost.ingress.handleInvitation(Invitation(callId!!, call.argument<String>("displayName")!!,
-                        "callx:${call.argument<String>("displayName")}"))?.toString()
+                        "callx:${call.argument<String>("displayName")}", video = call.argument<Boolean>("video") == true))?.toString()
                 }
                 "remoteAnswered" -> reply { CallHost.ingress.remoteAnswered(callId!!) }
                 "remoteEnded" -> reply { CallHost.ingress.remoteEnded(callId!!, call.argument<String>("reason") ?: "remoteEnded") }

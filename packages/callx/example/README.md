@@ -1,14 +1,19 @@
 # Callx Flutter example
 
-The example has two modes.
+The Flutter demo opens each call on a separate full-screen call view. The remote
+video fills the screen; the local preview sits at the top right, clear of the controls.
+When only the local camera exists, it fills the screen. Without video, the app supplies
+its background color and logo through `CallBrand` in the example's call screen component.
+PiP follows the same remote → local → branded fallback order.
 
-- **Simulator** runs everywhere, including web and tests. Everything is in memory: no
-  system call UI, push, microphone or audio.
-- **Device** appears on Android and iOS builds of this example, because its native host
-  configures the Callx runtime at launch (`android/app/src/main/kotlin/.../CallHost.kt`,
-  `ios/Runner/AppDelegate.swift`). Push delivery, CallKit, Core-Telecom and the Android
-  call notification are real. There is no signaling backend or media engine, so the
-  example host stands in for the remote side and **media is simulated: there is no audio**.
+The Calls screen starts incoming/outgoing audio and video demos. **Diagnostics** contains
+simulated remote actions, audio endpoints, native host state, push tokens and logs.
+**Test controls** leaves the call view without ending the call; **Return to call** opens it again.
+
+- **Simulator** uses in-memory state with no platform calls or media.
+- **Device** uses the native Callx host and CallKit/Core-Telecom. With the local media server
+  running, the LiveKit adapter carries real audio and video. The manual media-connected
+  control only simulates readiness; it does not supply audio or video.
 
 ## Process recovery
 
@@ -29,10 +34,10 @@ iPhone for iOS trials.
 fvm flutter run -d <device-id>
 ```
 
-Tap **Permissions**, then **Incoming (local signaling)**. The invitation takes the same
+Open **Diagnostics** for permissions and logs, then start **Incoming call** from the Calls screen. The invitation takes the same
 native path as a push: the coordinator decides whether it may ring, then CallKit or
 Telecom rings and Android posts its call notification. Answer from the system UI or the
-notification, tap **Media connected (simulated)**, then hang up. The host log on screen
+notification, open **Test controls** and tap **Media connected (simulated)**, then hang up. The host log on screen
 and `adb logcat -s CallxExample` (Android) or the Xcode console filtered by
 `CallxExample` (iOS) show every callback.
 

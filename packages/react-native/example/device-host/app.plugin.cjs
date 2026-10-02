@@ -53,6 +53,8 @@ module.exports = config => {
     delete main.$['android:showWhenLocked'];
     delete main.$['android:turnScreenOn'];
     const application = mod.modResults.manifest.application[0];
+    // The device trial reaches the local console through adb reverse in bundled builds too.
+    application.$['android:networkSecurityConfig'] = '@xml/callx_trial_network_security';
     const service = 'dev.callx.preview.rn.device.DeviceHostMessagingService';
     application.service = (application.service ?? []).filter(s => s.$['android:name'] !== service);
     application.service.push({$: {'android:name': service, 'android:exported': 'false'},
@@ -60,6 +62,12 @@ module.exports = config => {
     return mod;
   });
   config = withDangerousMod(config, ['android', mod => {
+    const resources = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/res/xml');
+    fs.mkdirSync(resources, {recursive: true});
+    fs.writeFileSync(path.join(resources, 'callx_trial_network_security.xml'),
+      '<network-security-config><domain-config cleartextTrafficPermitted="true">' +
+      '<domain includeSubdomains="false">127.0.0.1</domain><domain includeSubdomains="false">localhost</domain>' +
+      '</domain-config></network-security-config>\n');
     const destination = path.join(mod.modRequest.platformProjectRoot, 'app/src/main/java/dev/callx/preview/rn/device');
     fs.mkdirSync(destination, {recursive: true});
     for (const file of ['DeviceHost.kt', 'DeviceHostModule.kt', 'DeviceHostMessagingService.kt', 'ConsoleReporter.kt']) {

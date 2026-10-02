@@ -2,8 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:callx_flutter_example/main.dart';
+import 'package:callx_flutter_example/call_screen.dart';
+import 'package:callx/callx.dart';
 
 void main() {
+  testWidgets(
+    'phone call screen keeps controls separate from diagnostics and uses app branding',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var returned = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CallScreen(
+            call: const Call(
+              callId: 'screen-1',
+              displayName: 'hao.dev7',
+              direction: CallDirection.incoming,
+              state: CallState.active,
+            ),
+            nativeVideo: false,
+            brand: const CallBrand(
+              backgroundColor: Colors.indigo,
+              logo: Text('App logo'),
+            ),
+            onBack: () => returned = true,
+            controls: [
+              FilledButton(onPressed: () {}, child: const Text('End call')),
+            ],
+          ),
+        ),
+      );
+      expect(find.text('App logo'), findsOneWidget);
+      expect(find.text('Event log'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byTooltip('Test controls'));
+      expect(returned, isTrue);
+    },
+  );
   testWidgets('preview controls walk through a call without native APIs', (
     tester,
   ) async {
@@ -13,28 +51,33 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const CallxDemoApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('PREVIEW ONLY'), findsOneWidget);
+    expect(find.text('Simulated calls'), findsOneWidget);
     Future<void> tap(String label) async {
-      final target = find.text(label);
+      final text = find.text(label);
+      final target = text.evaluate().isEmpty ? find.byTooltip(label) : text;
       await tester.ensureVisible(target);
       await tester.tap(target);
       await tester.pumpAndSettle();
     }
 
     await tap('Incoming call');
-    expect(find.text('INCOMING'), findsOneWidget);
+    expect(find.text('Incoming call'), findsOneWidget);
+    expect(find.text('Event log'), findsNothing);
     await tap('Answer');
-    expect(find.text('CONNECTING'), findsOneWidget);
-    expect(find.text('○ Media not connected'), findsOneWidget);
+    expect(find.text('Connecting…'), findsOneWidget);
+    await tap('Test controls');
     await tap('Connect media');
-    expect(find.text('ACTIVE'), findsOneWidget);
+    await tap('hao.dev7 · Return to call');
+    expect(find.text('Connected'), findsOneWidget);
     await tap('Mute');
     expect(find.text('Unmute'), findsOneWidget);
     await tap('Hold');
-    expect(find.text('HELD'), findsOneWidget);
+    expect(find.text('On hold'), findsOneWidget);
     await tap('Resume');
     await tap('End call');
-    expect(find.text('ENDED'), findsOneWidget);
+    expect(find.text('Call ended'), findsOneWidget);
+    await tap('Done');
+    await tap('Diagnostics');
     expect(find.text('Reason: localHangup'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
@@ -104,7 +147,9 @@ void main() {
 
     await tester.pumpWidget(const CallxDemoApp());
     await tester.pumpAndSettle();
-    expect(find.textContaining('DEVICE TRIAL'), findsOneWidget);
+    expect(find.text('Calls on this device'), findsOneWidget);
+    await tester.tap(find.text('Diagnostics'));
+    await tester.pumpAndSettle();
     expect(find.text('fcm-token-123'), findsOneWidget);
     final incoming = find.text('Incoming (local signaling)');
     await tester.ensureVisible(incoming);

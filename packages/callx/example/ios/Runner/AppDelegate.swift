@@ -1,3 +1,4 @@
+import AVFoundation
 import AVFAudio
 import CallKit
 import Flutter
@@ -118,9 +119,15 @@ final class CallHost: NSObject, CallKitIngressListener, CallKitActionPerforming,
       // Ask while the app is in use: a call answered on the lock screen cannot show the prompt.
       Task { self.record("microphone \(await LiveKitMediaAdapter.requestMicrophone() ? "allowed" : "denied")") }
       result(nil)
+    case "requestCameraPermission":
+      Task {
+        let granted = await AVCaptureDevice.requestAccess(for: .video)
+        self.record("camera \(granted ? "allowed" : "denied")")
+        result(nil)
+      }
     case "incoming":
       let name = arguments["displayName"] as? String ?? "Caller"
-      reply { await ingress.handleInvitation(Invitation(callID: callID, displayName: name, handle: "callx:\(name)"))
+      reply { await ingress.handleInvitation(Invitation(callID: callID, displayName: name, handle: "callx:\(name)", video: arguments["video"] as? Bool ?? false))
         .map { "\($0)" } }
     case "remoteAnswered": reply { try await ingress.remoteAnswered(callID: callID); return nil }
     case "remoteEnded":

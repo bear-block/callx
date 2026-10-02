@@ -13,7 +13,10 @@
           "microphonePermission": "Allow Callx to use your microphone for voice calls.",
           "iosVoip": false,
           "androidNotifications": true,
-          "bootstrap": false
+          "bootstrap": false,
+          "video": true,
+          "cameraPermission": "Allow Callx to use your camera for video calls.",
+          "pictureInPicture": true
         }
       ],
       "@bear-block/callx-livekit/app.plugin",

@@ -1,13 +1,19 @@
 # Callx React Native example
 
-The example offers two explicitly labelled modes:
+The React Native demo opens each call on a separate full-screen call view. The remote
+video fills the screen; the local preview sits at the top right, clear of the controls.
+When only the local camera exists, it fills the screen. Without video, the app supplies
+its background color and logo through `CallBrand` in the example's call screen component.
+PiP follows the same remote → local → branded fallback order.
 
-- **Simulator** works on web and in Expo Go, with in-memory state and no platform calls.
-- **Device** is available in the generated development app. It uses the real Callx
-  module, CallKit/Core-Telecom, native checkpoints and Android call notifications.
-  Signaling is driven by local test controls. **Media is simulated: there is no audio.**
-  Android receives FCM test pushes when Firebase is configured (below). iOS does not
-  register PushKit; the Flutter example covers iOS push.
+The Calls screen starts incoming/outgoing audio and video demos. **Diagnostics** contains
+simulated remote actions, audio endpoints, native host state, push tokens and logs.
+**Test controls** leaves the call view without ending the call; **Return to call** opens it again.
+
+- **Simulator** uses in-memory state with no platform calls or media.
+- **Device** uses the native Callx host and CallKit/Core-Telecom. With the local media server
+  running, the LiveKit adapter carries real audio and video. The manual media-connected
+  control only simulates readiness; it does not supply audio or video.
 
 ## Build and run
 
@@ -49,11 +55,11 @@ calls immediately; it remains useful for build and fake-provider regression test
    ```
 
    `--message end` and `--message accept` work as in the
-   [Flutter example](../../flutter/example/README.md#android-push-fcm).
+   [Flutter example](../../callx/example/README.md#android-push-fcm).
 
 Or run `npm run call:console` from the repository root and open http://127.0.0.1:8787 to
 invite, answer, end and track calls from a browser; see the
-[Flutter example](../../flutter/example/README.md#call-console).
+[Flutter example](../../callx/example/README.md#call-console).
 
 The Flutter example uses the same package, so installing one replaces the other.
 
