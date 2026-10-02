@@ -5,6 +5,7 @@ import type {CommandResult, Snapshot} from '@bear-block/callx';
 import {CallxVideoView, addPictureInPictureListener, configurePictureInPicture, enterPictureInPicture} from './Video';
 import {createDeviceDemo, requestCameraPermission, hasDeviceHost, hostStatus, requestPermissions, selectEndpoint} from './DeviceHost';
 import type {HostStatus} from './DeviceHost';
+import {CallxCallOverlay, CallxMiniCall, CallxPresentationController, type CallPresentation} from '@bear-block/callx/ui';
 import {CallScreen, CallBackdrop, callBrand} from './CallScreen';
 
 type Preview = ReturnType<typeof createCallxPreview>;
@@ -46,16 +47,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const counter = useRef(0);
   const inFlight = useRef(false);
-  const [showCall, setShowCall] = useState(false);
+  const presentation = useRef(new CallxPresentationController());
+  const [presentationMode, setPresentationMode] = useState<CallPresentation>('hidden');
   const [diagnostics, setDiagnostics] = useState(false);
-  const presentedCall = useRef<string | null>(null);
-  useEffect(() => {
-    const call = snapshot.call;
-    if (call && call.state !== 'incoming' && call.state !== 'ended' && presentedCall.current !== call.callId) {
-      presentedCall.current = call.callId;
-      setShowCall(true);
-    }
-  }, [snapshot.call?.callId, snapshot.call?.state]);
+  function expandCall() {presentation.current.expand(); setPresentationMode(presentation.current.mode);}
+  function minimizeCall() {presentation.current.minimize(); setPresentationMode(presentation.current.mode);}
 
   useEffect(() => {
     let mounted = true;
@@ -78,6 +74,8 @@ export default function App() {
         stop = current.callx.observe(value => {
           if (!mounted) return;
           setSnapshot(value);
+          presentation.current.update(value.call);
+          setPresentationMode(presentation.current.mode);
           setTimeline(lines => [`#${value.sequence}  ${value.call?.state ?? 'idle'} · media ${value.call?.mediaInterrupted ? 'interrupted' : value.call?.mediaReady ? 'ready' : 'not ready'}`, ...lines].slice(0,8));
         });
         setReady(true);
@@ -148,16 +146,16 @@ export default function App() {
     })}
     {live && button(call?.state === 'incoming' ? 'Decline' : 'End call', p => p.callx.end(call!.callId), true, 'danger')}
   </>;
-  if (pictureInPicture) return <View style={{flex: 1, backgroundColor: callBrand.backgroundColor}}>
+  const compact = <View style={{flex: 1, backgroundColor: callBrand.backgroundColor}}>
     <CallBackdrop />
     {showVideo && call && (call.remoteVideo || call.localVideo === 'on') && <VideoView callId={call.callId}
       source={call.remoteVideo ? 'remote' : 'local'} mirror={!call.remoteVideo && call.cameraFacing !== 'back'} style={{flex: 1}} />}
   </View>;
-  if (showCall && call) return <CallScreen call={call} controls={callControls} nativeVideo={mode === 'device'}
+  const expanded = presentationMode === 'expanded' && call ? <CallScreen call={call} controls={callControls} nativeVideo={mode === 'device'}
     elapsed={call.acceptedAtMs !== undefined ? <CallTimer startedAtMs={call.acceptedAtMs} /> : null}
     localControls={<Pressable accessibilityRole="button" accessibilityLabel="Switch camera" onPress={() => void run(p => p.callx.switchCamera(call.callId, call.cameraFacing === 'back' ? 'front' : 'back'))} style={{width: 36, height: 36, borderRadius: 18, backgroundColor: '#102b24dd', alignItems: 'center', justifyContent: 'center'}}><Text style={{color: '#fff', fontSize: 24}}>↻</Text></Pressable>}
-    onBack={() => {setShowCall(false); setDiagnostics(live);}} error={error} />;
-  return <SafeAreaView style={styles.page}><ScrollView contentContainerStyle={styles.pageContent}>
+    onBack={minimizeCall} error={error} /> : null;
+  const home = <SafeAreaView style={styles.page}><ScrollView contentContainerStyle={styles.pageContent}>
     <View style={styles.container}>
       <View style={styles.heading}><Text style={styles.title}>Callx</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={diagnostics ? 'Calls' : 'Diagnostics'} onPress={() => setDiagnostics(value => !value)}>
@@ -165,14 +163,11 @@ export default function App() {
         </Pressable>
       </View>
       <Text style={styles.subtitle}>{diagnostics ? 'Test controls' : 'React Native example'}</Text>
-      {call && live && call.state !== 'incoming' && <Pressable accessibilityRole="button" accessibilityLabel="Return to call" onPress={() => setShowCall(true)} style={styles.ongoing}>
-        <Text style={styles.ongoingText}>{call.displayName} · Return to call</Text>
-      </Pressable>}
       {call?.state === 'incoming' && mode === 'simulator' && <View style={styles.buttons}>
         {button('Answer', p => p.callx.answer(call.callId))}
         {button('Decline', p => p.callx.end(call.callId), true, 'danger')}
       </View>}
-      {!live && call?.state === 'ended' && <Text style={styles.body}>Last call ended</Text>}
+      {!live && call?.state === 'ended' && <Text style={styles.body}>Call ended</Text>}
       <View style={styles.buttons}>
         {(['simulator', 'device'] as const).map(next => <Pressable key={next} accessibilityRole="button" accessibilityLabel={next === 'device' ? 'Device' : 'Simulator'}
           disabled={live || busy || (next === 'device' && !hasDeviceHost)} onPress={() => setMode(next)}
@@ -212,6 +207,13 @@ export default function App() {
       </>}
     </View>
   </ScrollView></SafeAreaView>;
+  const minimized = presentationMode === 'minimized' && call ? <CallxMiniCall displayName={call.displayName}
+    brand={callBrand} onExpand={expandCall} onEnd={() => void run(p => p.callx.end(call.callId))}
+    preview={mode === 'device' && (call.remoteVideo || cameraOn) ? <VideoView callId={call.callId}
+      source={call.remoteVideo ? 'remote' : 'local'} mirror={!call.remoteVideo && call.cameraFacing !== 'back'} style={StyleSheet.absoluteFill} /> : undefined} /> : null;
+  return <CallxCallOverlay expanded={expanded} minimized={minimized} onMinimize={minimizeCall}
+    systemPictureInPicture={pictureInPicture ? compact : undefined}>{home}</CallxCallOverlay>;
+
 }
 const styles = StyleSheet.create({
   timer: {color: '#fff', fontSize: 14, marginTop: 8, fontVariant: ['tabular-nums']},

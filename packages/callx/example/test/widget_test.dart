@@ -38,7 +38,7 @@ void main() {
       expect(find.text('App logo'), findsOneWidget);
       expect(find.text('Event log'), findsNothing);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.byTooltip('Test controls'));
+      await tester.tap(find.byTooltip('Minimize call'));
       expect(returned, isTrue);
     },
   );
@@ -68,9 +68,11 @@ void main() {
     await tap('Answer');
     expect(find.text('Connecting…'), findsOneWidget);
     expect(find.byType(CallScreen), findsOneWidget);
-    await tap('Test controls');
+    await tap('Minimize call');
+    expect(find.text('Simulated calls'), findsOneWidget);
+    await tap('Diagnostics');
     await tap('Connect media');
-    await tap('hao.dev7 · Return to call');
+    await tap('hao.dev7');
     expect(find.text('Connected'), findsOneWidget);
     await tap('Mute');
     expect(find.text('Unmute'), findsOneWidget);
@@ -79,8 +81,9 @@ void main() {
     await tap('Resume');
     await tap('End call');
     expect(find.text('Call ended'), findsOneWidget);
-    await tap('Done');
-    await tap('Diagnostics');
+    if (find.text('Diagnostics').evaluate().isNotEmpty) {
+      await tap('Diagnostics');
+    }
     expect(find.text('Reason: localHangup'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();

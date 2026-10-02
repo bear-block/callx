@@ -129,6 +129,8 @@ try {
   await adb('shell', 'am', 'force-stop', packageName);
   await front(); await adb('logcat', '-c');
   await tap('Incoming video');
+  const incomingUI = await xml();
+  check('incoming keeps Home without opening the call overlay', incomingUI.includes('Incoming video') && !incomingUI.includes('Minimize call'));
   check('local video invitation rings', await waitFor(async () => /ringing /.test(await appLog())));
   callId = [...(await appLog()).matchAll(/ringing (\S+) \(/g)].at(-1)?.[1];
   if (!callId) throw new Error('Could not identify the test call');
@@ -147,6 +149,14 @@ try {
   check('local camera starts', await waitFor(async () => /camera on \(front\)/.test(await appLog()), 20));
   check('caller receives local video', await waitFor(async () => await caller.evaluate(`callers[${JSON.stringify(callId)}]?.seesVideo === true`), 20));
   await screenshot('fullscreen-video');
+  await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+  const minimizedUI = await xml();
+  check('Back minimizes into Home with an in-app mini-call', minimizedUI.includes('Incoming video') && minimizedUI.includes('Return to call') && !minimizedUI.includes('Minimize call'));
+  check('minimizing inside the app does not enter system PiP', !await pinned());
+  await screenshot('in-app-mini-call');
+  await tap('Return to call');
+  check('mini-call expands without answering again', (await xml()).includes('Minimize call') && !(await appLog()).includes('camera paused'));
+
   await tap('Picture in picture');
   check('manual entry pins the activity', await waitFor(pinned));
   await sleep(2000);
@@ -155,8 +165,9 @@ try {
   const motion = await videoMotion();
   check('PiP video frames change', motion > 0.0005, `changed fraction ${motion.toFixed(5)}`);
   const compact = await xml();
+  writeFileSync(join(options.output, 'manual-pip-ui.xml'), compact);
   check('PiP hides app controls', !compact.includes('End call') && !compact.includes('Diagnostics') &&
-    !compact.includes('Test controls') && !compact.includes('Incoming video'));
+    !compact.includes('Minimize call') && !compact.includes('Incoming video'));
   check('camera continues in PiP', !(await appLog()).includes('camera paused'));
   if (options.dismiss === 'true') {
     const bounds = await pinnedBounds();
@@ -192,7 +203,8 @@ try {
     await caller.evaluate(`callers[${JSON.stringify(callId)}].room.localParticipant.setCameraEnabled(true)`);
     await tap('Camera on');
   }
-  await tap('Test controls');
+  await tap('Minimize call');
+  await tap('Diagnostics');
   await tap('Auto PiP off');
   await tap('Return to call');
   await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME'); await sleep(2000);
@@ -204,7 +216,12 @@ try {
     check('auto-entry stays disabled below Android 12', !await pinned());
   }
   await front(); await tap('End call');
-  check('call ends in the app', await waitFor(async () => (await xml()).includes('Call ended'), 10));
+  check('call ends in the app', await waitFor(async () => {
+    const ui = await xml();
+    return ui.includes('Call ended') || (/(?:text|content-desc)="ENDED(?:[\s&·]|")/.test(ui) && ui.includes('Reason: localHangup'));
+  }, 10));
+  const terminalUI = await xml();
+  check('ended call removes the overlay and mini-call', !terminalUI.includes('Minimize call') && !terminalUI.includes('Return to call'));
   ended = true;
   await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME'); await sleep(2000);
   check('ended call does not auto-enter PiP', !await pinned());

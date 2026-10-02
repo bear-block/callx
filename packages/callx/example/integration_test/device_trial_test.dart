@@ -77,9 +77,9 @@ void main() {
       await tap(tester, 'Diagnostics');
       await tap(tester, 'Answer');
       await waitFor(tester, find.text('Connecting…'));
-      await tap(tester, 'Test controls');
+      await tap(tester, 'Minimize call');
       await tap(tester, 'Media connected (simulated)');
-      await tap(tester, 'hao.dev7 · Return to call');
+      await tap(tester, 'hao.dev7');
       await waitFor(tester, find.text('Connected'));
 
       await tap(tester, 'Hold');
@@ -89,8 +89,9 @@ void main() {
 
       await tap(tester, 'End call');
       await waitFor(tester, find.text('Call ended'));
-      await tap(tester, 'Done');
-      await tap(tester, 'Diagnostics');
+      if (find.text('Diagnostics').evaluate().isNotEmpty) {
+        await tap(tester, 'Diagnostics');
+      }
       await waitFor(tester, find.text('Reason: localHangup'));
       debugPrint('CALLX_TRIAL ended');
     },
@@ -115,7 +116,7 @@ void main() {
     await waitFor(tester, find.text('Calls on this device'));
     await tap(tester, 'Incoming call');
     await waitFor(tester, find.text('Incoming call'));
-    await tap(tester, 'Test controls');
+    await tap(tester, 'Minimize call');
     await tap(tester, 'Caller cancels');
     await waitFor(tester, find.text('Reason: callerCancelled'));
   });
@@ -128,11 +129,11 @@ void main() {
     await waitFor(tester, find.text('Calls on this device'));
     await tap(tester, 'Start outgoing');
     await waitFor(tester, find.text('Calling…'));
-    await tap(tester, 'Test controls');
+    await tap(tester, 'Minimize call');
     await tap(tester, 'Remote answers');
-    await tap(tester, 'hao.dev7 · Return to call');
+    await tap(tester, 'hao.dev7');
     await waitFor(tester, find.text('Connecting…'));
-    await tap(tester, 'Test controls');
+    await tap(tester, 'Minimize call');
     await tap(tester, 'Remote ends');
     await waitFor(tester, find.text('Reason: remoteEnded'));
   });

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'call_screen.dart';
 
 import 'package:callx/callx.dart';
+import 'package:callx/callx_ui.dart';
 import 'package:callx/callx_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -125,7 +126,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
   bool ready = false;
   bool busy = false;
   int counter = 0;
-  bool showCall = false;
+  final presentation = CallxPresentationController();
   bool diagnostics = false;
   bool pictureInPicture = false;
   bool autoPictureInPicture = false;
@@ -148,13 +149,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     subscription = callx.snapshots.listen((value) {
       if (!mounted) return;
       setState(() {
-        if (value.call != null &&
-            value.call!.state != CallState.incoming &&
-            value.call!.state != CallState.ended &&
-            (value.call!.callId != snapshot.call?.callId ||
-                snapshot.call?.state == CallState.incoming)) {
-          showCall = true;
-        }
+        presentation.update(value.call);
         snapshot = value;
         journal.insert(
           0,
@@ -267,6 +262,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     unawaited(pipSubscription?.cancel());
     unawaited(CallxPictureInPicture.configure(automatic: false));
     unawaited(preview.callx.dispose());
+    presentation.dispose();
     super.dispose();
   }
 
@@ -395,117 +391,113 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final answered = media || call?.state == CallState.connecting;
     final cameraOn = call?.localVideo == LocalVideo.on;
     final showVideo = live && (call.video || call.remoteVideo || cameraOn);
-    if (pictureInPicture) {
-      return Stack(
-        children: [
-          const Positioned.fill(child: CallBackdrop()),
-          if (showVideo && (call.remoteVideo || cameraOn))
-            Positioned.fill(
-              child: CallxVideoView(
-                callId: call.callId,
-                source: call.remoteVideo
-                    ? VideoSource.remote
-                    : VideoSource.local,
-                mirror:
-                    !call.remoteVideo &&
-                    call.cameraFacing == CameraFacing.front,
-              ),
+    final compact = Stack(
+      children: [
+        const Positioned.fill(child: CallBackdrop()),
+        if (showVideo && (call.remoteVideo || cameraOn))
+          Positioned.fill(
+            child: CallxVideoView(
+              callId: call.callId,
+              source: call.remoteVideo ? VideoSource.remote : VideoSource.local,
+              mirror:
+                  !call.remoteVideo && call.cameraFacing == CameraFacing.front,
             ),
-        ],
-      );
-    }
-    void back() => setState(() {
-      showCall = false;
-      diagnostics = live;
-    });
-    if (showCall && call != null) {
-      return CallScreen(
-        call: call,
-        nativeVideo: mode == Mode.device,
-        onBack: back,
-        error: error,
-        elapsed: call.acceptedAtMs != null
-            ? CallTimer(startedAtMs: call.acceptedAtMs!)
-            : null,
-        localControls: IconButton.filledTonal(
-          tooltip: 'Switch camera',
-          icon: const Icon(Icons.cameraswitch),
-          onPressed: busy
-              ? null
-              : () => run(
-                  () => callx.switchCamera(
-                    call.callId,
-                    call.cameraFacing == CameraFacing.back
-                        ? CameraFacing.front
-                        : CameraFacing.back,
-                  ),
-                ),
-        ),
-        controls: [
-          if (call.state == CallState.incoming)
-            FilledButton(
+          ),
+      ],
+    );
+    void back() => setState(presentation.minimize);
+    final expanded =
+        presentation.mode == CallPresentation.expanded && call != null
+        ? CallScreen(
+            call: call,
+            nativeVideo: mode == Mode.device,
+            onBack: back,
+            error: error,
+            elapsed: call.acceptedAtMs != null
+                ? CallTimer(startedAtMs: call.acceptedAtMs!)
+                : null,
+            localControls: IconButton.filledTonal(
+              tooltip: 'Switch camera',
+              icon: const Icon(Icons.cameraswitch),
               onPressed: busy
                   ? null
-                  : () => run(() => callx.answer(call.callId)),
-              child: const Text('Answer'),
+                  : () => run(
+                      () => callx.switchCamera(
+                        call.callId,
+                        call.cameraFacing == CameraFacing.back
+                            ? CameraFacing.front
+                            : CameraFacing.back,
+                      ),
+                    ),
             ),
-          if (answered) ...[
-            button(
-              call.muted ? 'Unmute' : 'Mute',
-              () => callx.setMuted(call.callId, !call.muted),
-              enabled: media,
-            ),
-            button(
-              call.state == CallState.held ? 'Resume' : 'Hold',
-              () => callx.setHeld(call.callId, call.state != CallState.held),
-              enabled: media,
-            ),
-            button(cameraOn ? 'Camera off' : 'Camera on', () async {
-              if (!cameraOn &&
-                  mode == Mode.device &&
-                  defaultTargetPlatform == TargetPlatform.iOS) {
-                await host.requestCameraPermission();
-              }
-              return callx.setCamera(call.callId, !cameraOn);
-            }),
-            if (cameraOn && !call.remoteVideo)
-              button(
-                'Switch camera',
-                () => callx.switchCamera(
-                  call.callId,
-                  call.cameraFacing == CameraFacing.back
-                      ? CameraFacing.front
-                      : CameraFacing.back,
+            controls: [
+              if (call.state == CallState.incoming)
+                FilledButton(
+                  onPressed: busy
+                      ? null
+                      : () => run(() => callx.answer(call.callId)),
+                  child: const Text('Answer'),
                 ),
-              ),
-            if ((hostStatus?.endpoints.length ?? 0) > 1)
-              button('Audio output', () {
-                final endpoints = hostStatus!.endpoints;
-                return host.selectAudioEndpoint(
-                  (endpoints.indexWhere((e) => e.current) + 1) %
-                      endpoints.length,
-                );
-              }),
-          ],
-          if (mode == Mode.device &&
-              defaultTargetPlatform == TargetPlatform.android &&
-              showVideo)
-            button('Picture in picture', CallxPictureInPicture.enter),
-          if (live)
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xffb53936),
-                foregroundColor: Colors.white,
-              ),
-              onPressed: busy ? null : () => run(() => callx.end(call.callId)),
-              child: Text(
-                call.state == CallState.incoming ? 'Decline' : 'End call',
-              ),
-            ),
-        ],
-      );
-    }
-    return Scaffold(
+              if (answered) ...[
+                button(
+                  call.muted ? 'Unmute' : 'Mute',
+                  () => callx.setMuted(call.callId, !call.muted),
+                  enabled: media,
+                ),
+                button(
+                  call.state == CallState.held ? 'Resume' : 'Hold',
+                  () =>
+                      callx.setHeld(call.callId, call.state != CallState.held),
+                  enabled: media,
+                ),
+                button(cameraOn ? 'Camera off' : 'Camera on', () async {
+                  if (!cameraOn &&
+                      mode == Mode.device &&
+                      defaultTargetPlatform == TargetPlatform.iOS) {
+                    await host.requestCameraPermission();
+                  }
+                  return callx.setCamera(call.callId, !cameraOn);
+                }),
+                if (cameraOn && !call.remoteVideo)
+                  button(
+                    'Switch camera',
+                    () => callx.switchCamera(
+                      call.callId,
+                      call.cameraFacing == CameraFacing.back
+                          ? CameraFacing.front
+                          : CameraFacing.back,
+                    ),
+                  ),
+                if ((hostStatus?.endpoints.length ?? 0) > 1)
+                  button('Audio output', () {
+                    final endpoints = hostStatus!.endpoints;
+                    return host.selectAudioEndpoint(
+                      (endpoints.indexWhere((e) => e.current) + 1) %
+                          endpoints.length,
+                    );
+                  }),
+              ],
+              if (mode == Mode.device &&
+                  defaultTargetPlatform == TargetPlatform.android &&
+                  showVideo)
+                button('Picture in picture', CallxPictureInPicture.enter),
+              if (live)
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xffb53936),
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: busy
+                      ? null
+                      : () => run(() => callx.end(call.callId)),
+                  child: Text(
+                    call.state == CallState.incoming ? 'Decline' : 'End call',
+                  ),
+                ),
+            ],
+          )
+        : null;
+    final home = Scaffold(
       appBar: AppBar(
         title: const Text('Callx'),
         actions: [
@@ -529,21 +521,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 24),
-                  if (live && call.state != CallState.incoming)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Semantics(
-                        label: 'Return to call',
-                        button: true,
-                        onTap: () => setState(() => showCall = true),
-                        child: ExcludeSemantics(
-                          child: FilledButton(
-                            onPressed: () => setState(() => showCall = true),
-                            child: Text('${call.displayName} · Return to call'),
-                          ),
-                        ),
-                      ),
-                    ),
                   if (call?.state == CallState.incoming &&
                       mode == Mode.simulator)
                     Wrap(
@@ -554,7 +531,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       ],
                     ),
                   if (!live && call?.state == CallState.ended)
-                    const Text('Last call ended'),
+                    const Text('Call ended'),
                   if (deviceAvailable)
                     SegmentedButton<Mode>(
                       segments: const [
@@ -732,6 +709,33 @@ class _PreviewScreenState extends State<PreviewScreen> {
           ),
         ),
       ),
+    );
+    final minimized =
+        presentation.mode == CallPresentation.minimized && call != null
+        ? CallxMiniCall(
+            displayName: call.displayName,
+            brand: const CallBrand(),
+            onExpand: () => setState(presentation.expand),
+            onEnd: () => run(() => callx.end(call.callId)),
+            preview: mode == Mode.device && (call.remoteVideo || cameraOn)
+                ? CallxVideoView(
+                    callId: call.callId,
+                    source: call.remoteVideo
+                        ? VideoSource.remote
+                        : VideoSource.local,
+                    mirror:
+                        !call.remoteVideo &&
+                        call.cameraFacing == CameraFacing.front,
+                  )
+                : null,
+          )
+        : null;
+    return CallxCallOverlay(
+      expanded: expanded,
+      minimized: minimized,
+      systemPictureInPicture: pictureInPicture ? compact : null,
+      onMinimize: back,
+      child: home,
     );
   }
 }

@@ -1,6 +1,6 @@
 # Callx Flutter example
 
-The Flutter demo opens each call on a separate full-screen call view. The remote
+The Flutter demo keeps incoming calls on Home until accepted, then opens a root call overlay. The remote
 video fills the screen; the local preview sits at the top right, clear of the controls.
 When only the local camera exists, it fills the screen. Without video, the app supplies
 its background color and logo through `CallBrand` in the example's call screen component.
@@ -8,7 +8,9 @@ PiP follows the same remote → local → branded fallback order.
 
 The Calls screen starts incoming/outgoing audio and video demos. **Diagnostics** contains
 simulated remote actions, audio endpoints, native host state, push tokens and logs.
-**Test controls** leaves the call view without ending the call; **Return to call** opens it again.
+**Minimize call** or Android Back returns to Home with a live mini-call; tapping it opens
+the overlay again. Incoming uses the system notification in Device mode; Simulator mode
+has Answer/Decline controls on Home. Ending removes both overlay and mini-call.
 
 - **Simulator** uses in-memory state with no platform calls or media.
 - **Device** uses the native Callx host and CallKit/Core-Telecom. With the local media server
@@ -37,7 +39,7 @@ fvm flutter run -d <device-id>
 Open **Diagnostics** for permissions and logs, then start **Incoming call** from the Calls screen. The invitation takes the same
 native path as a push: the coordinator decides whether it may ring, then CallKit or
 Telecom rings and Android posts its call notification. Answer from the system UI or the
-notification, open **Test controls** and tap **Media connected (simulated)**, then hang up. The host log on screen
+notification, tap **Minimize call**, open **Diagnostics** and tap **Media connected (simulated)**, then hang up. The host log on screen
 and `adb logcat -s CallxExample` (Android) or the Xcode console filtered by
 `CallxExample` (iOS) show every callback.
 
