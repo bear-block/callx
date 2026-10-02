@@ -106,21 +106,16 @@ while keyguard was showing, secure and occluded; this was not merely a screen-of
 These checks cover the default `RequireUnlock` policy on API 36. `ShowOverLockScreen`, other
 Android versions, iOS, physical devices and acoustic audio quality remain outside this trial.
 
-### Release verification and CI
+### Release readiness
 
 Local verification on 2026-10-02 passed all 10 quick-test groups, 157 native Android tests
 (including build variants), 92 core iOS Simulator tests, package version consistency, and
-npm/pub packaging dry runs. LiveKit iOS Simulator testing with fresh package downloads also
-passed locally with
-five Swift Testing tests and one known keychain-entitlement issue in the unhosted test bundle.
+npm/pub packaging dry runs. LiveKit iOS Simulator tests also passed locally, with one
+expected entitlement limitation in the test environment.
 
-The latest inspected remote CI [run 36972105110](https://github.com/bear-block/callx/actions/runs/36972105110)
-failed before LiveKit tests: SwiftPM referenced a missing cached repository while resolving
-packages (exit 74). The runner script now uses isolated package downloads and disables the
-shared repository cache. This fix still needs a new remote CI run; local success does not
-establish that remote CI is green. The later
-[Docs run 36981197439](https://github.com/bear-block/callx/actions/runs/36981197439) succeeded.
-Both remote runs were for commit `810d977`, preceding the current local changes.
+The development changes remain unreleased. A successful CI run for the final source and
+physical-device acceptance are still required. Local checks do not establish device support
+or replace those release gates.
 
 ### Android PiP smoke test
 
