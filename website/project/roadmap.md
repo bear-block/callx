@@ -49,6 +49,21 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 
 Custom presentation retains native call ownership and the required system integration.
 
+## Guided integration and native SDKs
+
+| Item | Status | Scope |
+|---|---|---|
+| Interactive setup guide | In development | Select framework, OS, presentation, media, backend and migration path; generate a supported integration checklist |
+| Detailed migration journeys | In development | CallKeep and flutter_callkit_incoming: ownership, backend routing, staged rollout and rollback |
+| Standalone Android SDK | Planned; not published | Kotlin API and native example using the existing core; optional Compose UI to be scoped |
+| Standalone iOS SDK | Planned; not published | Swift API and native example using the existing core; optional SwiftUI UI to be scoped |
+| Callx hosted backend service | Future direction; unavailable | A separate optional service; authentication, signaling, push delivery, operations and pricing need their own design |
+
+Standalone SDKs must reuse the same native core and contract as Flutter and React Native.
+Native host APIs already exist inside the framework packages; they are not yet a separately
+published Kotlin/Swift product. Hosted service work has no release date. Callx remains usable
+with your own backend and media without a Callx account or hosted-service dependency.
+
 ## Remaining core work
 
 | Item | Why |
@@ -90,7 +105,7 @@ SIP stacks. Tell us what you need in [GitHub Discussions](https://github.com/bea
 
 ## Not planned
 
-- A hosted calling service inside the library.
+- A mandatory hosted-service dependency inside the library. Any future hosted backend is a separate, optional product.
 - Telemetry of any kind in the library.
 - Web calling (browsers have no system call UI to integrate with).
 
