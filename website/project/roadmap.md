@@ -22,7 +22,7 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 - [x] Testkit: call console, test pushes, adapter conformance
 - [ ] Physical-device acceptance across iPhone, Pixel, Samsung and Xiaomi ([status](/project/status))
 
-## Implemented in development, unreleased
+## Released: 0.2.2
 
 - [x] Contract 0.2.0: video fields and camera commands
 - [x] Video reporting to CallKit and Telecom; native video views for Flutter and React Native
@@ -35,14 +35,14 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 - [x] Flutter/RN video-call secure PIN lock-screen trials on Android 16 (API 36)
 - [ ] Video-call lock-screen acceptance on remaining Android APIs, iOS and physical devices
 - [ ] iOS video and physical-device acceptance
-- [ ] Release the development changes
+- [x] Publish 0.2.2 packages on npm and pub.dev
 
 ## Presentation roadmap
 
 | Item | Status | Scope |
 |---|---|---|
 | Custom Dart/TypeScript call screens | Available | Existing snapshots, commands and native video views |
-| Supplied overlay, call screen and mini-call | Implemented, unreleased | Branding, custom controls and presentation slots |
+| Supplied overlay, call screen and mini-call | Released in 0.2.2 | Branding, custom controls and presentation slots |
 | Unified native/custom/supplied UI configuration | Planned | Configure incoming presentation separately from the accepted-call screen; prevent duplicate foreground incoming UI |
 | Native call UI configuration from Dart/TypeScript | Planned | Define supported appearance options and platform limits; Android presenter hooks currently require Kotlin |
 | iOS system PiP | Not implemented; scope to be defined | Separate from the framework mini-call |
@@ -67,7 +67,7 @@ development and emulator checks can proceed while those trials are pending.
 
 | # | Provider | Status | Scope | Depends on |
 |---|---|---|---|---|
-| 1 | **LiveKit** | Audio released; video implemented, unreleased | Audio in 0.1; video built for the next release, in verification | [Video in the core](/guide/video): done, contract 0.2 |
+| 1 | **LiveKit** | Audio/video released in 0.2.2 | Audio and video; physical/iOS video verification pending | [Video in the core](/guide/video): done, contract 0.2 |
 | 2 | **Twilio** | Planned next; not implemented | Twilio Video (media) and Twilio Programmable Voice (signaling: Twilio owns invitations and push) | Video in the core; the signaling adapter interface |
 | 3 | **Zoom Video SDK** | Planned; not implemented | Audio and video | Video in the core |
 | 4 | **Agora** | Planned; not implemented | Audio and video | Video in the core |

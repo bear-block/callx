@@ -6,8 +6,8 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 # Dart API
 
 ::: info Development reference
-This page describes the development source. Published 0.1.3 packages ship contract 0.1.0;
-video and Android PiP are unreleased. See [status](/project/status) and [changelog](/project/changelog).
+This page describes version 0.2.2 with contract 0.2.0, native video and Android PiP.
+See [status](/project/status) for verification limits and [changelog](/project/changelog).
 :::
 
 

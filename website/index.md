@@ -45,8 +45,8 @@ features:
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
 ::: info Release and development
-Published packages are 0.1.3 with contract 0.1.0. The development source adds native video and
-Android PiP and optional call overlays with an in-app mini-call; these features are unreleased. See [status](/project/status) for what has been verified.
+Version 0.2.2 includes contract 0.2.0, native video, Android PiP and optional call overlays
+with an in-app mini-call. See [status](/project/status) for what has been verified.
 :::
 
 ## The same call, in either framework
@@ -91,8 +91,7 @@ await callx.answer(callId);
 
 ## Choose your call UI
 
-Keep your own Dart or TypeScript screens, or use the development
-[call overlay and mini-call components](/guide/call-ui) with your colors, logo and controls.
+Keep your own Dart or TypeScript screens, or use the [call overlay and mini-call components](/guide/call-ui) with your colors, logo and controls.
 Native code owns the call lifecycle in either case. Android system PiP keeps a compact
 video or branded layout visible when leaving the app; iOS system PiP is not implemented.
 A unified configuration for native, custom and supplied UI is [planned](/project/roadmap).
@@ -101,7 +100,7 @@ A unified configuration for native, custom and supplied UI is [planned](/project
 
 | Provider | Status | Scope |
 |---|---|---|
-| [LiveKit](/guide/livekit) | **Audio released · video in development** | Native media adapter for Flutter and React Native |
+| [LiveKit](/guide/livekit) | **Audio and video in 0.2.2** | Native media adapter for Flutter and React Native |
 | Twilio Video / Programmable Voice | **Planned next** | Media adapter and a separate provider-managed signaling adapter |
 | Zoom Video SDK | **Planned** | Audio/video media adapter |
 | Agora | **Planned** | Audio/video media adapter |

@@ -12,11 +12,11 @@ describes how Callx is designed to behave; this page says where that behaviour h
 and where it has not been yet.
 </p>
 
-**Last updated:** 2026-10-02 · **Packages:** `0.1.3` · **Contract:** `0.2.0` (unreleased; 0.1.3 ships `0.1.0`)
+**Last updated:** 2026-10-02 · **Packages:** `0.2.2` · **Contract:** `0.2.0`
 
-The development source includes native video and Android PiP, both unreleased. Published
-0.1.3 packages do not include them. The results below describe
-the source that was checked, rather than every released package.
+Version 0.2.2 includes native video, Android PiP and optional framework UI. The results below
+describe the tested platforms and builds; publication does not establish physical-device
+or iOS video acceptance.
 
 ## How we verify
 
@@ -113,9 +113,9 @@ Local verification on 2026-10-02 passed all 10 quick-test groups, 157 native And
 npm/pub packaging dry runs. LiveKit iOS Simulator tests also passed locally, with one
 expected entitlement limitation in the test environment.
 
-The development changes remain unreleased. A successful CI run for the final source and
-physical-device acceptance are still required. Local checks do not establish device support
-or replace those release gates.
+Version 0.2.2 was published following local checks with CI verification of the final source
+and physical-device acceptance still pending. These remain verification gaps; package
+availability does not establish support on untested devices.
 
 ### Android PiP smoke test
 

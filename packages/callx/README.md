@@ -121,9 +121,9 @@ from your phone. Need help adding calls to your app? The maintainers take on
 MIT licensed.
 
 
-## Optional call UI (unreleased)
+## Optional call UI
 
-The development source exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
+Version 0.2.2 exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
 `CallxPresentationController` from `package:callx/callx_ui.dart`. Mount the overlay above your app UI; incoming
 stays on Home until accepted, Back minimizes inside the app, and end removes the call UI.
 Colors/logo and command callbacks belong to your app. The controller never changes native

@@ -5,8 +5,8 @@ description: "Optional Flutter and React Native UI, with native-owned call state
 
 # Call overlay and mini-call
 
-::: warning Development source
-These UI components are unreleased. Published 0.1.3 packages do not include them.
+::: info Available since 0.2.2
+These optional UI components are included in version 0.2.2.
 :::
 
 Mount `CallxCallOverlay` once above your app's navigation. Its Home/navigation child stays
@@ -22,7 +22,7 @@ presentation independently from the screen shown after acceptance.
 |---|---|---|
 | Native presentation | Android provides a default incoming notification/lock-screen presenter and a native `CallxBootstrapConfig.presenter` factory. iOS uses CallKit. A complete native video-call screen with Dart/TypeScript configuration is not implemented. | Android hosts can replace the presenter in Kotlin. System UI appearance is controlled by the OS. |
 | Your Flutter or React Native UI | Supported through snapshots, commands and video views; importing the optional UI package is unnecessary. | Build your own Dart or TypeScript/TSX screens and navigation. |
-| Callx Flutter or React Native UI | The optional components below are available in development source. | Supply branding, controls, video rendering and expanded/minimized widgets. |
+| Callx Flutter or React Native UI | The optional components below are available in version 0.2.2. | Supply branding, controls, video rendering and expanded/minimized widgets. |
 
 These are integration choices, not a shipped three-value configuration API. There is
 currently no Dart/TypeScript switch that disables all native presentation. Using a custom

@@ -12,8 +12,7 @@ views come on top, through the same native connection the media adapter already 
 </p>
 
 ::: warning Status
-Video and Android PiP are available in the development source and are unreleased. Published
-0.1.3 packages ship contract 0.1.0 and do not include these APIs. Flutter Android video has
+Video and Android PiP are included in version 0.2.2 with contract 0.2.0. Flutter Android video has
 passed emulator conformance; Flutter and RN PiP have Android 16 UI trials covering video,
 camera continuity and branded fallback. Physical devices and iOS video remain
 unverified. See the [status page](/project/status).
@@ -33,8 +32,8 @@ unverified. See the [status page](/project/status).
 
 ## Requirements
 
-- A media adapter that carries video. The development [LiveKit adapter](/guide/livekit)
-  implements media adapter API 2. Use matching development core and adapter packages;
+- A media adapter that carries video. The [LiveKit adapter](/guide/livekit)
+  implements media adapter API 2. Use matching 0.2.2 core and adapter packages;
   check `capabilities.video` after `setup()`.
 - The camera permission:
   - **Expo:** add `video: true` and, if you like, `cameraPermission` to Callx's plugin. It adds

@@ -22,7 +22,7 @@ fix it.
 
 | | Frameworks | Latest version (date) | License |
 |---|---|---|---|
-| **Callx** | Flutter, React Native, Expo | 0.1.3 | MIT |
+| **Callx** | Flutter, React Native, Expo | 0.2.2 | MIT |
 | [react-native-callkeep](https://github.com/react-native-webrtc/react-native-callkeep) | React Native | 4.3.16 (2024-11) | ISC / MIT |
 | [expo-callkit-telecom](https://github.com/mfairley/expo-callkit-telecom) | Expo modules | 0.5.0 (2026-09) | MIT |
 | [flutter_callkit_incoming](https://github.com/hiennguyen92/flutter_callkit_incoming) | Flutter | 3.1.6 (2026-09) | MIT |
@@ -30,15 +30,15 @@ fix it.
 | Vendor SDKs: [Twilio Voice](https://github.com/twilio/twilio-voice-react-native), [Stream Video](https://github.com/GetStream/stream-video-js) | Per vendor | Active | Vendor terms |
 | Writing CallKit and Telecom code yourself | Any | | Yours |
 
-## Callx development features
+## Callx 0.2.2 features
 
-The comparison table below describes published Callx 0.1.3. Development source adds:
+The comparison table below describes Callx 0.2.2. This release includes:
 
-| Feature | Callx development status |
+| Feature | Callx status |
 |---|---|
-| Video reporting to CallKit/Telecom and native video surfaces | Implemented, unreleased; platform verification varies |
-| Android system PiP | Implemented, unreleased; emulator evidence for Flutter and React Native |
-| In-app mini-call and root call overlay | Implemented, unreleased; optional Dart/TypeScript UI with branding and controls |
+| Video reporting to CallKit/Telecom and native video surfaces | Released in 0.2.2; platform verification varies |
+| Android system PiP | Released in 0.2.2; emulator evidence for Flutter and React Native |
+| In-app mini-call and root call overlay | Released in 0.2.2; optional Dart/TypeScript UI with branding and controls |
 | iOS system PiP | Not implemented |
 | Unified native/custom/supplied UI configuration | Planned |
 
@@ -50,7 +50,7 @@ Other libraries' PiP and supplied-UI capabilities have not been evaluated in thi
 
 | Callx adapter | Status | Integration scope |
 |---|---|---|
-| [LiveKit](/guide/livekit) | Audio released; video implemented, unreleased | Media |
+| [LiveKit](/guide/livekit) | Audio/video released in 0.2.2 | Media |
 | Twilio Video | Planned next | Media |
 | Twilio Programmable Voice | Planned next; signaling interface required | Provider-managed signaling |
 | Zoom Video SDK | Planned | Media |
@@ -78,7 +78,7 @@ code · <span class="no">○</span> not provided · – not documented (tell us 
 | Expo config plugin | <span class="ok">●</span> | – | <span class="ok">●</span> | n/a |
 | Bare React Native | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> Expo modules | n/a |
 | Native Android incoming screen | <span class="ok">●</span> | <span class="part">◐</span> system UI in phone-account mode | <span class="ok">●</span> | <span class="ok">●</span> highly customizable |
-| Video calls in the system UI | <span class="no">○</span> published; implemented in development | <span class="ok">●</span> | <span class="ok">●</span> | <span class="ok">●</span> |
+| Video calls in the system UI | <span class="ok">●</span> since 0.2.2 | <span class="ok">●</span> | <span class="ok">●</span> | <span class="ok">●</span> |
 | DTMF | <span class="no">○</span> roadmap | <span class="ok">●</span> | <span class="ok">●</span> | <span class="part">◐</span> event only |
 | Multiple simultaneous calls | <span class="no">○</span> roadmap | <span class="ok">●</span> | – | – |
 | Siri and Recents call intents (iOS) | <span class="no">○</span> | <span class="part">◐</span> start-call action | <span class="ok">●</span> | – |
@@ -148,8 +148,6 @@ for the other platform and framework.
 ## When it is not (yet)
 
 - You need **DTMF or multiple calls** today. See the [roadmap](/project/roadmap).
-- You need **video from a published package** today: native video is implemented on the
-  development branch and is still unreleased. See [video](/guide/video) and [status](/project/status).
 - You need a **hosted service** rather than a library.
 - You need **verified behaviour on a specific device family** that the
   [status page](/project/status) does not list yet. Test it, or help us test it.

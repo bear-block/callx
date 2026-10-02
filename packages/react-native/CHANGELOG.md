@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-10-02
 
 - Optional call UI: root overlay, call screen, app-branded mini-call and a presentation
   controller. Incoming stays on Home until accept; minimizing preserves native call/media

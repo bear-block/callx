@@ -239,7 +239,7 @@ the push, and the phone rings with the system call UI.
 
 ## Optional call overlay and mini-call
 
-The development source also exports an optional app UI layer. Incoming stays on Home until
+Version 0.2.2 also exports an optional app UI layer. Incoming stays on Home until
 accepted, an expanded call overlays navigation, and Back minimizes to an in-app mini-call.
 The native core remains the call-state owner. See [call UI](/guide/call-ui) for the exports
-and integration; published 0.1.3 packages do not include these components.
+and integration.

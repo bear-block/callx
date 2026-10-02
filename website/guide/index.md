@@ -33,7 +33,7 @@ flowchart LR
 |---|---|
 | A backend that creates calls and sends an APNs VoIP push or an FCM data message | Receiving that push natively, deciding whether it may ring, reporting it to the OS |
 | A media engine, or the [LiveKit adapter](/guide/livekit) | Starting and stopping media at the right moment, from any surface |
-| Your call screens, or branding and controls for the development UI components | A snapshot of the call, typed commands, replay, and optional [overlay/mini-call UI](/guide/call-ui) |
+| Your call screens, or branding and controls for the optional UI components | A snapshot of the call, typed commands, replay, and optional [overlay/mini-call UI](/guide/call-ui) |
 | APNs and Firebase credentials, on your server | The incoming-call screen and notification on Android, CallKit on iOS |
 
 ## Requirements

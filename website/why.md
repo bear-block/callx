@@ -90,7 +90,7 @@ instead of hiding them.
 
 **No phone-home.** The library sends nothing anywhere. There is no telemetry, not even opt-in.
 
-**Small, stable surfaces.** One contract (`0.1.0` in published packages; `0.2.0` in development), checked by executable fixtures on Swift,
+**Small, stable surfaces.** One contract (`0.2.0` in version 0.2.2 packages), checked by executable fixtures on Swift,
 Kotlin, Dart and TypeScript. Package versions move in lockstep.
 
 ## What Callx does not do

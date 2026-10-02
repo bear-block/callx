@@ -108,8 +108,8 @@ flowchart LR
 
 ## Scope of this version
 
-One live call at a time on iOS and Android. Published 0.1.3 packages support voice; the
-development branch adds native video and Android PiP. Web runs only the simulator. See
+One live call at a time on iOS and Android. Version 0.2.2 includes native video, Android PiP
+and optional framework UI. Web runs only the simulator. See
 [status](/project/status) for verification and the [roadmap](/project/roadmap) for remaining work.
 
 

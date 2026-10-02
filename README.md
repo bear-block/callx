@@ -14,11 +14,12 @@ Bring your own media with the core alone, or install an adapter
 
 ## Status
 
-Version `0.1.3` on [pub.dev](https://pub.dev/packages/callx) and
-[npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.1.0`. The development branch
-adds contract `0.2.0`, native video with LiveKit, Android picture-in-picture and optional call UI; these additions
-are unreleased. Automated, emulator and simulator results and remaining physical-device checks are on the
-[status page](https://bear-block.github.io/callx/project/status).
+Version `0.2.2` on [pub.dev](https://pub.dev/packages/callx) and
+[npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.2.0`: native video with
+LiveKit, Android picture-in-picture and optional call UI. Automated, emulator and simulator
+results and remaining physical-device checks are on the
+[status page](https://bear-block.github.io/callx/project/status). iOS system PiP is unsupported;
+iOS video and physical-device acceptance remain unverified.
 
 Callx does not supply a media server, signaling backend or push credentials. The
 application starts the native runtime with `CallxBootstrap`, configures its push and

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-10-02
 
 - Video: `callx-push --video` and the console's video option send video invitations, the caller
   publishes a camera, and `callx-conformance android --video` runs the video steps.

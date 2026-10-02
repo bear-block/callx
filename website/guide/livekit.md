@@ -12,8 +12,7 @@ the adapter joins the call's room natively. Audio starts even if Dart or JavaScr
 loaded yet.
 
 ::: info Audio and video
-Published 0.1.3 adapters carry audio. The unreleased development adapter also carries
-one-to-one video through adapter API 2: see
+Version 0.2.2 adapters carry audio and one-to-one video through adapter API 2: see
 [video calls](/guide/video). If your app needs LiveKit features beyond that, such as screen
 sharing or many participant tiles, use Callx alone and
 [connect LiveKit yourself](/guides/own-media) when the call is answered.

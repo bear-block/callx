@@ -16,7 +16,10 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
-## Unreleased
+## 0.2.2 — 2026-10-02
+
+Package version 0.2.2 uses contract 0.2.0. Versions 0.2.0 and 0.2.1 are skipped because
+those numbers were previously used on npm and cannot be reused.
 
 - **Optional call UI** ([guide](/guide/call-ui)): exported root overlay, call screen,
   branded mini-call and presentation controller for Flutter and React Native. Incoming calls

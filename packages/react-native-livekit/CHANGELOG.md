@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 — 2026-10-02
 
 - Remote camera mute/unmute updates video availability and detaches the muted track from
   video views, allowing the host app to show local video or its branded fallback.
