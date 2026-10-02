@@ -20,6 +20,9 @@ const copy = computed(() => sponsorReasons[props.reason]);
         Become a monthly sponsor
       </a>
       <a class="sc-btn" :href="sponsorLinks.oneTime" target="_blank" rel="noopener">Buy a coffee</a>
+      <a v-if="'extra' in copy" class="sc-link" :href="copy.extra.href" target="_blank" rel="noopener">
+        {{ copy.extra.label }} →
+      </a>
       <a class="sc-link" :href="withBase('/sponsor')">Where the money goes →</a>
     </div>
   </aside>

@@ -11,12 +11,13 @@ Thank you for helping. Callx is maintained in the open, and contributions of eve
 
 | Contribution | Impact |
 |---|---|
-| **Device test reports** | The highest. Run the [acceptance checklist](/guides/testing#acceptance-checklist) on your phones, especially Xiaomi, Oppo, Vivo, Huawei and Samsung, and report the results |
+| **Device test reports** | The highest. Run the [acceptance checklist](/guides/testing#acceptance-checklist) on your phones, especially Xiaomi, Oppo, Vivo, Huawei and Samsung, and [share the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml) |
+| **A phone you no longer use** | Older phones and vendor ROMs widen what can be verified; see [help verify on real devices](/sponsor#help-verify-on-real-devices) |
 | **Bug reports** | With platform, OS version, device model, versions and log lines |
 | **Documentation** | Every page has an "Edit this page" link |
 | **Adapters** | A media adapter for your provider; see [write a media adapter](/guides/write-an-adapter) |
 | **Code** | Fixes and features, discussed first for anything large |
-| **[Sponsorship](/sponsor)** | Funds the device lab and maintenance time |
+| **[Sponsorship](/sponsor)** | Funds maintenance time through every iOS and Android release |
 
 ## Build from source
 

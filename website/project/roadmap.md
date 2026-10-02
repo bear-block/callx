@@ -26,7 +26,7 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 
 | Item | Why |
 |---|---|
-| Device lab results published for every release | Trust comes from evidence, not claims |
+| Emulator matrix and community device results published for every release | Trust comes from evidence, not claims |
 | iOS conformance on a real iPhone, automated where possible | Parity with Android's conformance run |
 | Android Direct Boot | Ring before the first unlock after a reboot |
 | `updateDisplay` (change caller name during a call) | Common request when migrating |

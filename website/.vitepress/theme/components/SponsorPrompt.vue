@@ -96,6 +96,8 @@ onBeforeUnmount(() => {
           @click="dismiss">One-time</a>
       </div>
       <div class="sponsor-prompt__footer">
+        <a v-if="'extra' in copy" :href="copy.extra.href" target="_blank" rel="noopener"
+          @click="dismiss">{{ copy.extra.label }}</a>
         <a :href="withBase('/sponsor')" @click="dismiss">Where the money goes</a>
         <button type="button" @click="dismiss">Not now</button>
       </div>

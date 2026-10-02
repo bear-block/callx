@@ -55,23 +55,10 @@
     ],
     "plans": [
       {
-        "guid": "device-lab",
-        "status": "active",
-        "name": "Device lab",
-        "description": "Android phones from the major vendors and iPhones on current and previous iOS, for verifying every release on real devices.",
-        "amount": 3000,
-        "currency": "USD",
-        "frequency": "one-time",
-        "channels": [
-          "github-sponsors",
-          "buy-me-a-coffee"
-        ]
-      },
-      {
         "guid": "maintenance",
         "status": "active",
         "name": "Maintenance and release verification",
-        "description": "Part-time maintenance: OS updates, issues, security fixes and running the device acceptance checklist for every release.",
+        "description": "Part-time maintenance: iOS and Android releases and betas, provider SDK upgrades, issues and security fixes, running the emulator matrix and acceptance checklist for every release, and reviewing device results from the community.",
         "amount": 24000,
         "currency": "USD",
         "frequency": "yearly",
@@ -83,7 +70,7 @@
         "guid": "platform-costs",
         "status": "active",
         "name": "Platform costs",
-        "description": "Apple Developer Program, macOS CI minutes and a test backend.",
+        "description": "Apple Developer Program, which VoIP push and CallKit testing need, and macOS CI minutes.",
         "amount": 1000,
         "currency": "USD",
         "frequency": "yearly",

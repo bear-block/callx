@@ -1,7 +1,7 @@
 ---
 title: "Status"
 description: "What has been verified, how, and on which devices. Updated as device trials pass."
-sponsorPrompt: devices
+sponsorPrompt: verify
 ---
 
 # Status
@@ -70,7 +70,7 @@ interruption and recovery, remote end, and no crash.
 The first run found that calls did not ring below Android 13; the fix is in the
 [changelog](/project/changelog).
 
-<SponsorCallout reason="devices" />
+<SponsorCallout reason="verify" />
 
 ## Known issues
 
@@ -93,21 +93,20 @@ trials pass.
 
 | Platform | Needed | Why emulators cannot stand in |
 |---|---|---|
-| iOS | An iPhone on iOS 15 or later, and an Apple Developer Program membership | PushKit and APNs need a paid membership, and the Simulator neither receives VoIP pushes nor keeps CallKit calls |
-| Android | Phones from the vendors users have: Samsung and Xiaomi first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
+| iOS | Results from iPhones on iOS 15 or later, and an Apple Developer Program membership | PushKit and APNs need a paid membership, and the Simulator neither receives VoIP pushes nor keeps CallKit calls |
+| Android | Results from the vendors users have: Samsung and Xiaomi first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
 
-Until then, Android emulators cover several API levels on every change, and the
-[sponsor page](/sponsor) explains how to help fund the devices. If you run the
-[acceptance checklist](/guides/testing#acceptance-checklist) on your own phone, please
-[share the results](https://github.com/bear-block/callx/issues/new): they will be listed here
-with credit.
+Until then, Android emulators cover several API levels on every change. The fastest way to fill
+this table is results from phones people already own: if you run the
+[acceptance checklist](/guides/testing#acceptance-checklist) on yours, please
+[share the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml). They are listed here with credit.
 
 ## Help verify
 
-Device coverage is the most valuable contribution right now, and the most expensive part of
-the project. You can help by:
+Device coverage is the most valuable contribution right now. You can help by:
 
-- Running the [acceptance checklist](/guides/testing#acceptance-checklist) on your devices and
-  [reporting results](https://github.com/bear-block/callx/issues/new).
-- [Sponsoring](/sponsor) the device lab: every vendor phone we can test on is one less class of
-  missed calls.
+- Running the [acceptance checklist](/guides/testing#acceptance-checklist) on your phone and
+  [sharing the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml).
+- Passing on a phone you no longer use, especially Android 10–12 or a vendor ROM: see
+  [help verify on real devices](/sponsor#help-verify-on-real-devices).
+- [Sponsoring](/sponsor) the maintainer time that turns results into fixes and releases.

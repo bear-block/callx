@@ -1,0 +1,58 @@
+name: Device test results
+description: Share what passed or failed on a real phone, for the status page.
+title: "Device results: <model>, <OS version>"
+labels: ["device-results"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Results are listed on the [status page](https://bear-block.github.io/callx/project/status) with credit. Run the [acceptance checklist](https://bear-block.github.io/callx/guides/testing#acceptance-checklist) on a release build. Do not paste push tokens, phone numbers or other personal data.
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Manufacturer and model.
+      placeholder: Xiaomi Redmi Note 12
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS version
+      description: Android version and vendor ROM, or iOS version.
+      placeholder: Android 13, MIUI 14
+    validations:
+      required: true
+  - type: input
+    id: callx
+    attributes:
+      label: Callx packages and versions
+      placeholder: "@bear-block/callx 0.1.3, @bear-block/callx-livekit 0.1.3"
+    validations:
+      required: true
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: Each checklist item you ran, with pass or fail and what happened.
+      value: |
+        - [ ] Incoming call: in use / background / swiped away / after reboot and unlock
+        - [ ] Answer from the system UI / notification / app; two-way audio
+        - [ ] Decline, and caller cancel before answer
+        - [ ] Duplicate push and late push do not ring
+        - [ ] Mute and hold from the app and the system UI
+        - [ ] Speaker, earpiece and Bluetooth routing
+        - [ ] Network loss during a call, then recovery
+        - [ ] Process death during a call
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes and logs
+      description: Battery settings, anything unusual, and relevant `adb logcat` lines (tag `Callx`) or Xcode console output.
+  - type: input
+    id: credit
+    attributes:
+      label: Credit
+      description: How you want to be credited on the status page (name, GitHub handle, or none).
