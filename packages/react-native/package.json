@@ -36,6 +36,10 @@
     "./preview": {
       "types": "./lib/preview.d.ts",
       "default": "./lib/preview.js"
+    },
+    "./video": {
+      "types": "./lib/video.d.ts",
+      "default": "./lib/video.js"
     }
   },
   "files": [
@@ -72,7 +76,7 @@
   },
   "codegenConfig": {
     "name": "CallxSpec",
-    "type": "modules",
+    "type": "all",
     "jsSrcsDir": "src/specs",
     "android": {
       "javaPackageName": "dev.callx.reactnative"
@@ -80,6 +84,9 @@
     "ios": {
       "modulesProvider": {
         "Callx": "CallxModule"
+      },
+      "componentProvider": {
+        "CallxVideoView": "CallxVideoComponentView"
       }
     }
   },

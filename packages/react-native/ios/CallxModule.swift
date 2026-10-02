@@ -23,9 +23,9 @@ public final class CallxModuleImpl: NSObject {
             return
         }
         resolve([
-            "contractVersion": "0.1.0", "coreVersion": "0.1.0", "execution": "native",
+            "contractVersion": "0.2.0", "coreVersion": "0.2.0", "execution": "native",
             "accountGeneration": "unconfigured", "nativeCalling": false, "durableReplay": false,
-            "providerManagedSignaling": false, "hold": false, "mute": false,
+            "providerManagedSignaling": false, "hold": false, "mute": false, "video": false,
         ])
     }
 

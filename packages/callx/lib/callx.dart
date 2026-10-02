@@ -2,6 +2,8 @@ library;
 
 import 'src/native_backend.dart';
 
+export 'src/video_view.dart';
+
 /// Contract v0 candidate; 0.2 adds video (ADR-0010).
 const contractVersion = '0.2.0';
 

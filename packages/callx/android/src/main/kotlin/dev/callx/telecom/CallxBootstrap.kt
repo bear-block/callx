@@ -98,6 +98,8 @@ object CallxBootstrap {
             durableReplay = true, providerManagedSignaling = false, hold = true, mute = media != null,
             video = ingress.supportsVideo))
         ingress.attach(runtime, sessions)
+        val video = media as? CallxVideoAdapter
+        android.os.Handler(android.os.Looper.getMainLooper()).post { CallxVideoSurfaces.install(video) }
         // New process only: persist termination and remove stale UI before a push can ring.
         val recovered = runBlocking { ingress.recoverAfterProcessDeath() }
         install(runtime)

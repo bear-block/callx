@@ -34,6 +34,7 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         events = EventChannel(binding.binaryMessenger, "dev.callx/events")
         methods.setMethodCallHandler(this)
         events.setStreamHandler(this)
+        binding.platformViewRegistry.registerViewFactory("dev.callx/video", CallxVideoViewFactory())
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -45,10 +46,10 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         val runtime = hostRuntime
         when (call.method) {
             "setup" -> if (runtime == null) result.success(mapOf(
-                "contractVersion" to "0.1.0", "coreVersion" to "0.1.0",
+                "contractVersion" to "0.2.0", "coreVersion" to "0.2.0",
                 "execution" to "native", "accountGeneration" to "unconfigured",
                 "nativeCalling" to false, "durableReplay" to false,
-                "providerManagedSignaling" to false, "hold" to false, "mute" to false,
+                "providerManagedSignaling" to false, "hold" to false, "mute" to false, "video" to false,
             )) else invoke(runtime, call, result)
             "dispose" -> result.success(null)
             else -> if (runtime == null) unavailable(result) else invoke(runtime, call, result)

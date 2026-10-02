@@ -31,10 +31,11 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
             catch (error: Throwable) { reject(promise, error) }; return
         }
         promise.resolve(WritableNativeMap().apply {
-            putString("contractVersion", "0.1.0"); putString("coreVersion", "0.1.0")
+            putString("contractVersion", "0.2.0"); putString("coreVersion", "0.2.0")
             putString("execution", "native"); putString("accountGeneration", "unconfigured")
             putBoolean("nativeCalling", false); putBoolean("durableReplay", false)
             putBoolean("providerManagedSignaling", false); putBoolean("hold", false); putBoolean("mute", false)
+            putBoolean("video", false)
         })
     }
 
