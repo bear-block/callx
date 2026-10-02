@@ -118,7 +118,7 @@ void main() {
     expect(setupArguments, {'contractVersion': '0.2.0'});
     // The deprecated appName still compiles and is not sent.
     // ignore: deprecated_member_use_from_same_package
-    await callx.setup(const CallxConfig(appName: 'Acme'));
+    await callx.setup(const CallxConfig(appName: 'Example'));
     expect(setupArguments, {'contractVersion': '0.2.0'});
     await callx.startCall(
       const CallInput(

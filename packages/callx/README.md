@@ -96,7 +96,7 @@ import 'package:callx/callx_preview.dart';
 final preview = CallxPreview();
 await preview.callx.setup();
 await preview.simulator.incoming(
-  const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'));
+  const CallInput(callId: 'demo-1', displayName: 'Alex', handle: 'callx:alex'));
 await preview.callx.answer('demo-1'); // connecting
 await preview.simulator.mediaConnected(); // active
 ```

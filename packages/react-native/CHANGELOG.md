@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Route the video entry point to its TypeScript source for React Native so Metro can
+  generate the native video component config in bundled Android builds.
+
+- Android PiP: configuration, entry and mode listeners from `@bear-block/callx/video`;
+  Expo `pictureInPicture` option. iOS entry returns false.
+
 - Video calls (ADR-0010): contract 0.2.0 with `video`, `localVideo`, `cameraFacing` and
   `remoteVideo` on calls, `setCamera` and `switchCamera`, and `video: true` on invitations and
   `startCall`. `CallxVideoView` shows a call's video. Media adapter API 2 (`CallxVideoAdapter`)

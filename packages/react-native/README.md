@@ -46,7 +46,7 @@ npx expo install @bear-block/callx
   "expo": {
     "plugins": [
       ["@bear-block/callx/app.plugin", {
-        "microphonePermission": "Acme uses the microphone for calls.",
+        "microphonePermission": "Example uses the microphone for calls.",
         "iosVoip": true,
         "androidNotifications": true,
         "androidPush": "fcm"
@@ -118,7 +118,7 @@ import {createCallxPreview} from '@bear-block/callx/preview';
 
 const {callx, simulator} = createCallxPreview();
 await callx.setup();
-await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'acme:alex'});
+await simulator.incoming({callId: 'demo-1', displayName: 'Alex', handle: 'callx:alex'});
 await callx.answer('demo-1'); // connecting
 await simulator.mediaConnected(); // active
 ```

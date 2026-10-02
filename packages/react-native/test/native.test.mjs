@@ -24,7 +24,7 @@ test('native transport preserves envelopes and filters session events', async ()
   assert.equal((await callx.setup()).nativeCalling, true);
   assert.deepEqual(captured, {contractVersion:'0.2.0'});
   // The deprecated appName still compiles and is not sent.
-  await callx.setup({appName:'Acme'});
+  await callx.setup({appName:'Example'});
   assert.deepEqual(captured, {contractVersion:'0.2.0'});
   await callx.startCall({callId:'call-1', displayName:'hao.dev7', handle:'sip:hao.dev7@example.invalid'},
     {operationId:'op-1', deadlineAtMs:5000});

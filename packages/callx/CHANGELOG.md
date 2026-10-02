@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Android PiP: `CallxPictureInPicture.configure`, `enter` and `changes`; automatic entry on
+  Android 12+ follows live video calls. iOS entry returns false.
+
 - Video calls (ADR-0010): contract 0.2.0 with `video`, `localVideo`, `cameraFacing` and
   `remoteVideo` on calls, `setCamera` and `switchCamera`, and `video: true` on invitations and
   `startCall`. `CallxVideoView` shows a call's video. Media adapter API 2 (`CallxVideoAdapter`)

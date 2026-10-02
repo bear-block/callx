@@ -5,13 +5,16 @@ import android.os.Looper
 import dev.callx.core.BridgeRuntime
 import dev.callx.core.BridgeViolation
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
+class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, ActivityAware {
     private lateinit var methods: MethodChannel
     private lateinit var events: EventChannel
+    private val pictureInPicture = CallxPictureInPicturePlugin { hostRuntime }
     private val main = Handler(Looper.getMainLooper())
 
     companion object {
@@ -35,12 +38,20 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         methods.setMethodCallHandler(this)
         events.setStreamHandler(this)
         binding.platformViewRegistry.registerViewFactory("dev.callx/video", CallxVideoViewFactory())
+        pictureInPicture.attach(binding)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methods.setMethodCallHandler(null)
         events.setStreamHandler(null)
+        pictureInPicture.detach()
     }
+
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) = pictureInPicture.onAttachedToActivity(binding)
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) =
+        pictureInPicture.onReattachedToActivityForConfigChanges(binding)
+    override fun onDetachedFromActivityForConfigChanges() = pictureInPicture.onDetachedFromActivityForConfigChanges()
+    override fun onDetachedFromActivity() = pictureInPicture.onDetachedFromActivity()
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         val runtime = hostRuntime

@@ -39,11 +39,13 @@
     },
     "./video": {
       "types": "./lib/video.d.ts",
+      "react-native": "./src/video.ts",
       "default": "./lib/video.js"
     }
   },
   "files": [
     "lib",
+    "src/video.ts",
     "src/specs",
     "app.plugin.cjs",
     "plugin",

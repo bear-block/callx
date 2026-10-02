@@ -59,17 +59,103 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
     }
     override fun dispose() = Unit
 
+    override fun configurePictureInPicture(options: ReadableMap) {
+        val automatic = options.hasKey("automatic") && options.getBoolean("automatic")
+        reactApplicationContext.runOnUiQueueThread {
+            if (!invalidated) {
+                attachActivity()
+                dev.callx.telecom.CallxPictureInPicture.configure(automatic)
+            }
+        }
+    }
+    override fun enterPictureInPicture(promise: Promise) {
+        reactApplicationContext.runOnUiQueueThread {
+            if (invalidated) promise.resolve(false)
+            else {
+                attachActivity()
+                promise.resolve(dev.callx.telecom.CallxPictureInPicture.enter())
+            }
+        }
+    }
+    @Volatile private var invalidated = false
+    private var hostPaused = false
+    private var inPictureInPicture = false
+    private fun updatePictureInPictureRendering() {
+        if (!inPictureInPicture && !hostPaused) return
+        // Fabric stops mounting JS updates on Activity pause, even while PiP is visible.
+        // Resume only its frame dispatcher; the rest of the React host stays paused.
+        val manager = com.facebook.react.uimanager.UIManagerHelper.getUIManager(
+            reactApplicationContext, com.facebook.react.uimanager.common.UIManagerType.FABRIC
+        ) as? com.facebook.react.fabric.FabricUIManager ?: return
+        if (inPictureInPicture) manager.onHostResume()
+        else if (hostPaused) manager.onHostPause()
+    }
+    private val pictureInPictureListener: (Boolean) -> Unit = { inPictureInPicture ->
+        this.inPictureInPicture = inPictureInPicture
+        if (!invalidated) updatePictureInPictureRendering()
+        if (!invalidated) reactApplicationContext
+            .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+            .emit("callxPictureInPicture", inPictureInPicture)
+    }
+
+    /** The host Activity can change (recreation, reload); attach the current one before each use. */
+    private fun attachActivity() {
+        if (invalidated) return
+        dev.callx.telecom.CallxPictureInPicture.listener = pictureInPictureListener
+        reactApplicationContext.currentActivity?.let { dev.callx.telecom.CallxPictureInPicture.attach(it, hostRuntime) }
+    }
+
+    private val lifecycle = object : com.facebook.react.bridge.LifecycleEventListener {
+        override fun onHostResume() { hostPaused = false; attachActivity() }
+        override fun onHostPause() {
+            hostPaused = true
+            reactApplicationContext.runOnUiQueueThread {
+                if (!invalidated && inPictureInPicture) updatePictureInPictureRendering()
+            }
+        }
+        override fun onHostDestroy() {
+            if (dev.callx.telecom.CallxPictureInPicture.listener === pictureInPictureListener) {
+                dev.callx.telecom.CallxPictureInPicture.detach()
+            }
+        }
+    }
+
     private var listenerCount = 0
     // Attach on every JS subscription, like iOS startObserving, so a runtime configured or
     // replaced after this module initialized (for example after login) still reaches JS.
-    override fun addListener(eventName: String) { listenerCount++; attachEvents() }
+    override fun addListener(eventName: String) {
+        listenerCount++
+        attachEvents()
+        if (eventName == "callxPictureInPicture") {
+            reactApplicationContext.runOnUiQueueThread { attachActivity() }
+        }
+    }
     override fun removeListeners(count: Double) {
         listenerCount = maxOf(0, listenerCount - count.toInt())
         if (listenerCount == 0) hostRuntime?.setEventListener(null)
     }
 
-    override fun initialize() { super.initialize(); attachEvents() }
-    override fun invalidate() { hostRuntime?.setEventListener(null); super.invalidate() }
+    override fun initialize() {
+        super.initialize(); attachEvents()
+        // Keep picture-in-picture following the live Activity.
+        reactApplicationContext.addLifecycleEventListener(lifecycle)
+    }
+    override fun invalidate() {
+        invalidated = true
+        hostRuntime?.setEventListener(null)
+        reactApplicationContext.removeLifecycleEventListener(lifecycle)
+        reactApplicationContext.runOnUiQueueThread {
+            // A new module may have attached before this old module's queued cleanup runs.
+            if (dev.callx.telecom.CallxPictureInPicture.listener === pictureInPictureListener) {
+                inPictureInPicture = false
+                updatePictureInPictureRendering()
+                dev.callx.telecom.CallxPictureInPicture.listener = null
+                dev.callx.telecom.CallxPictureInPicture.configure(false)
+                dev.callx.telecom.CallxPictureInPicture.detach()
+            }
+        }
+        super.invalidate()
+    }
     private fun attachEvents() {
         hostRuntime?.setEventListener { event -> reactApplicationContext
             .getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)

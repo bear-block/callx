@@ -44,11 +44,11 @@ function withCallx(config, options = {}) {
     throw new Error('Callx plugin options must be an object.');
   }
   const allowed = ['microphonePermission', 'iosVoip', 'apsEnvironment', 'androidNotifications', 'bootstrap',
-    'androidPush', 'video', 'cameraPermission'];
+    'androidPush', 'video', 'cameraPermission', 'pictureInPicture'];
   for (const key of Object.keys(options)) {
     if (!allowed.includes(key)) throw new Error(`Unknown Callx plugin option: ${key}`);
   }
-  for (const key of ['iosVoip', 'androidNotifications', 'bootstrap', 'video']) {
+  for (const key of ['iosVoip', 'androidNotifications', 'bootstrap', 'video', 'pictureInPicture']) {
     if (options[key] !== undefined && typeof options[key] !== 'boolean') {
       throw new Error(`Callx ${key} must be a boolean.`);
     }
@@ -121,6 +121,16 @@ function withCallx(config, options = {}) {
       if (!entries.some(entry => entry.$?.['android:name'] === name)) {
         entries.push({$: {'android:name': name}});
       }
+    }
+    if (options.pictureInPicture === true) {
+      // Picture-in-picture for video calls (ADR-0010 addendum): the whole activity shrinks.
+      const activity = mod.modResults.manifest.application?.[0]?.activity?.find(entry =>
+        entry.$?.['android:name'] === '.MainActivity');
+      if (!activity) throw new Error('Callx pictureInPicture needs a .MainActivity in AndroidManifest.xml.');
+      activity.$['android:supportsPictureInPicture'] = 'true';
+      const changes = new Set((activity.$['android:configChanges'] ?? '').split('|').filter(Boolean));
+      for (const change of ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation']) changes.add(change);
+      activity.$['android:configChanges'] = [...changes].join('|');
     }
     if (options.video === true) {
       // The camera permission implies a required camera; keep audio-only phones able to install.

@@ -113,8 +113,8 @@ test('bootstrap runs first in MainApplication and AppDelegate, once', () => {
   assert.match(kotlin, /super\.onCreate\(\)\n\s+\/\/ Callx[\s\S]*CallxModule\.bootstrap\(this\)[\s\S]*loadReactNative/);
   assert.doesNotMatch(kotlin, /registerToken/);
   assert.equal(plugin.bootstrapMainApplication(kotlin, null), kotlin);
-  assert.match(plugin.bootstrapMainApplication(MAIN_APPLICATION, 'com.acme.app'),
-    /com\.acme\.app\.CallxMessagingService\.registerToken\(this\)/);
+  assert.match(plugin.bootstrapMainApplication(MAIN_APPLICATION, 'com.example.app'),
+    /com\.example\.app\.CallxMessagingService\.registerToken\(this\)/);
   const swift = plugin.bootstrapAppDelegate(APP_DELEGATE, true);
   assert.match(swift, /import React\nimport callx_react_native/);
   assert.match(swift, /-> Bool \{\n\s+\/\/ Callx[\s\S]*startPushRegistry = true[\s\S]*CallxReactNativeHost\.bootstrap[\s\S]*let delegate/);
@@ -123,11 +123,11 @@ test('bootstrap runs first in MainApplication and AppDelegate, once', () => {
 });
 
 test('the FCM service extends React Native Firebase when the app uses it', () => {
-  const standalone = plugin.messagingService('com.acme.app', false);
-  assert.match(standalone, /^package com\.acme\.app$/m);
+  const standalone = plugin.messagingService('com.example.app', false);
+  assert.match(standalone, /^package com\.example\.app$/m);
   assert.match(standalone, /: com\.google\.firebase\.messaging\.FirebaseMessagingService\(\)/);
   assert.doesNotMatch(standalone, /super\.onMessageReceived|\{\{/);
-  const chained = plugin.messagingService('com.acme.app', true);
+  const chained = plugin.messagingService('com.example.app', true);
   assert.match(chained, /: io\.invertase\.firebase\.messaging\.ReactNativeFirebaseMessagingService\(\)/);
   assert.match(chained, /super\.onMessageReceived\(message\)/);
   assert.match(chained, /super\.onNewToken\(token\)/);
@@ -152,4 +152,19 @@ test('video adds the camera permission, optional camera hardware and a camera me
   for (const options of [{cameraPermission: 'x'}, {video: 'yes'}, {video: true, cameraPermission: ''}]) {
     assert.throws(() => plugin({name: 'Test', slug: 'test'}, options), /Callx/);
   }
+});
+
+
+test('PiP opts in without losing activity configuration flags', async () => {
+  const result = await evaluate({pictureInPicture: true});
+  const activity = result.android.manifest.manifest.application[0].activity.find(a => a.$['android:name'] === '.MainActivity');
+  assert.equal(activity.$['android:supportsPictureInPicture'], 'true');
+  const changes = activity.$['android:configChanges'].split('|');
+  for (const flag of ['screenSize', 'smallestScreenSize', 'screenLayout', 'orientation', 'keyboardHidden']) {
+    assert.ok(changes.includes(flag), flag);
+  }
+  assert.equal(changes.length, new Set(changes).size);
+  const defaults = await evaluate({});
+  assert.equal(defaults.android.manifest.manifest.application[0].activity[0].$['android:supportsPictureInPicture'], undefined);
+  assert.throws(() => plugin({name: 'Test', slug: 'test'}, {pictureInPicture: 'yes'}), /Callx/);
 });

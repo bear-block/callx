@@ -136,7 +136,7 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
   @MainActor fileprivate func refresh(_ callID: String) {
     let session = lock.withLock { sessions[callID] }
     for binding in bindings.values where binding.callID == callID {
-      let track: VideoTrack? = binding.source == .local ? session?.localVideo : session?.remoteVideo
+      let track: VideoTrack? = binding.source == .local ? session?.localVideo : session?.visibleRemoteVideo
       guard let track else { binding.view?.track = nil; continue }
       let view = binding.view ?? {
         let view = VideoView(frame: binding.surface.container.bounds)
@@ -230,11 +230,19 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
     private let lock = NSLock()
     private var hearing: Set<String> = []
     private var _remoteVideo: VideoTrack?
+    private var _remoteVideoMuted = false
     private var _localVideo: LocalVideoTrack?
     /// The remote video shown in remote surfaces: the first subscribed video track.
     var remoteVideo: VideoTrack? {
       get { lock.withLock { _remoteVideo } }
       set { lock.withLock { _remoteVideo = newValue } }
+    }
+    var remoteVideoMuted: Bool {
+      get { lock.withLock { _remoteVideoMuted } }
+      set { lock.withLock { _remoteVideoMuted = newValue } }
+    }
+    var visibleRemoteVideo: VideoTrack? {
+      lock.withLock { _remoteVideoMuted ? nil : _remoteVideo }
     }
     /// The local camera while it is published.
     var localVideo: LocalVideoTrack? {
@@ -250,8 +258,9 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
       guard let owner, owner.isCurrent(self) else { return }
       if publication.kind == .video, remoteVideo == nil, let track = publication.track as? VideoTrack {
         remoteVideo = track
+        remoteVideoMuted = publication.isMuted
         owner.log("media: remote video for \(callID) from \(participant.identity?.stringValue ?? "?")")
-        sink.videoChanged(localVideo: nil, remoteVideo: true)
+        sink.videoChanged(localVideo: nil, remoteVideo: !publication.isMuted)
         Task { @MainActor [callID] in owner.refresh(callID) }
         return
       }
@@ -265,6 +274,7 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
       guard let owner, owner.isCurrent(self) else { return }
       if publication.kind == .video, let track = remoteVideo, publication.track === track || publication.track == nil {
         remoteVideo = nil
+        remoteVideoMuted = false
         owner.log("media: remote video for \(callID) stopped")
         sink.videoChanged(localVideo: nil, remoteVideo: false)
         Task { @MainActor [callID] in owner.refresh(callID) }
@@ -276,6 +286,15 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
         owner.log("media interrupted for \(callID): \(participant.identity?.stringValue ?? "?") is no longer heard")
         sink.interrupted()
       }
+    }
+
+    func room(_ room: Room, participant: Participant, trackPublication publication: TrackPublication, didUpdateIsMuted isMuted: Bool) {
+      guard let owner, owner.isCurrent(self), participant is RemoteParticipant,
+        let selected = remoteVideo, publication.track === selected else { return }
+      remoteVideoMuted = isMuted
+      owner.log("media: remote video for \(callID) \(isMuted ? "paused" : "resumed")")
+      sink.videoChanged(localVideo: nil, remoteVideo: !isMuted)
+      Task { @MainActor [callID] in owner.refresh(callID) }
     }
 
     func roomIsReconnecting(_ room: Room) {

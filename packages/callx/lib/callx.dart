@@ -2,6 +2,7 @@ library;
 
 import 'src/native_backend.dart';
 
+export 'src/picture_in_picture.dart';
 export 'src/video_view.dart';
 
 /// Contract v0 candidate; 0.2 adds video (ADR-0010).

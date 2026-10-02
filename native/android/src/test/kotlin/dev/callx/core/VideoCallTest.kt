@@ -145,4 +145,19 @@ class VideoCallTest {
             BridgeCapabilities("generation-1", true, false, true, true), nowMs = { 1_000 }).getSnapshot()["call"] as Map<*, *>
         assertTrue(audioCall.keys.none { it in setOf("video", "localVideo", "cameraFacing", "remoteVideo") })
     }
+
+    @Test fun callObserversFollowEveryChangeWithoutAnObservationSession() {
+        val core = CallCoordinator()
+        val bridge = BridgeRuntime(core, PlatformCommandExecutor { CompletableFuture.completedFuture(PlatformOutcome.Applied(1_100)) },
+            BridgeCapabilities("generation-1", true, false, true, true, video = true), nowMs = { 1_000 })
+        val seen = mutableListOf<CallState?>()
+        val stop = bridge.addCallObserver { seen += it?.state }
+        bridge.reportIncoming("call-1", "hao.dev7", "+84901", video = true)
+        bridge.execute(mapOf("contractVersion" to "0.2.0", "operationId" to "a", "type" to "answer", "callId" to "call-1"))
+            .toCompletableFuture().join()
+        bridge.remoteEnded("call-1")
+        stop()
+        bridge.reportIncoming("call-2", "hao.dev7", "+84901", video = true)
+        assertEquals(listOf(null, CallState.incoming, CallState.connecting, CallState.ended), seen)
+    }
 }

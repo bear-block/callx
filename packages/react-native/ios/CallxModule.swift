@@ -55,6 +55,11 @@ public final class CallxModuleImpl: NSObject {
     }
     // Event delivery belongs to start/stopObserving; one Callx instance must not stop it for others.
     @objc public func dispose() {}
+    /// Picture-in-picture is Android only for now (ADR-0010 addendum).
+    @objc public func configurePictureInPicture(_ options: NSDictionary) {}
+    @objc public func enterPictureInPicture(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        resolve(false)
+    }
 
     @objc public func startObserving() {
         guard let runtime = Self.hostRuntime else { return }

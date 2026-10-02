@@ -61,6 +61,7 @@ class LiveKitMediaAdapter(
         val hearing: MutableSet<Track> = ConcurrentHashMap.newKeySet()
         /** The remote video shown in remote surfaces: the first subscribed video track. */
         @Volatile var remoteVideo: VideoTrack? = null
+        @Volatile var remoteVideoMuted = false
         /** The local camera while it is published. */
         @Volatile var localVideo: LocalVideoTrack? = null
         /** The camera was on when the app went to the background, so it comes back in front. */
@@ -105,8 +106,9 @@ class LiveKitMediaAdapter(
                                 }
                                 is VideoTrack -> if (session.remoteVideo == null) {
                                     session.remoteVideo = track
+                                    session.remoteVideoMuted = event.publication.muted
                                     log("media: remote video for $callId from ${event.participant.identity?.value}")
-                                    session.sink.videoChanged(remoteVideo = true); main.post { refresh(callId) }
+                                    session.sink.videoChanged(remoteVideo = !session.remoteVideoMuted); main.post { refresh(callId) }
                                 }
                                 else -> Unit
                             }
@@ -120,11 +122,14 @@ class LiveKitMediaAdapter(
                                 }
                                 is VideoTrack -> if (session.remoteVideo === track) {
                                     session.remoteVideo = null
+                                    session.remoteVideoMuted = false
                                     log("media: remote video for $callId stopped")
                                     session.sink.videoChanged(remoteVideo = false); main.post { refresh(callId) }
                                 }
                                 else -> Unit
                             }
+                            is RoomEvent.TrackMuted -> remoteVideoMuted(callId, session, event.publication.track, true)
+                            is RoomEvent.TrackUnmuted -> remoteVideoMuted(callId, session, event.publication.track, false)
                             is RoomEvent.Reconnecting -> {
                                 log("media interrupted for $callId: LiveKit is reconnecting"); session.sink.interrupted()
                             }
@@ -210,6 +215,15 @@ class LiveKitMediaAdapter(
         unbind(binding)
     }
 
+    private fun remoteVideoMuted(callId: String, session: Session, track: Track?, muted: Boolean) {
+        val selected = session.remoteVideo ?: return
+        if (track !== selected) return
+        session.remoteVideoMuted = muted
+        log("media: remote video for $callId ${if (muted) "paused" else "resumed"}")
+        session.sink.videoChanged(remoteVideo = !muted)
+        main.post { refresh(callId) }
+    }
+
     /** Puts each surface of [callId] in step with the tracks it should show. Main thread. */
     private fun refresh(callId: String) {
         val session = sessions[callId]
@@ -217,12 +231,15 @@ class LiveKitMediaAdapter(
             val room = session?.room
             val track = when (binding.source) {
                 VideoSource.local -> session?.localVideo
-                VideoSource.remote -> session?.remoteVideo
+                VideoSource.remote -> session?.takeIf { !it.remoteVideoMuted }?.remoteVideo
             }
             if (track === binding.track && (track == null || binding.renderer != null)) continue
             binding.track?.let { old -> binding.renderer?.let(old::removeRenderer) }
             binding.track = null
-            if (track == null || room == null) continue
+            if (track == null || room == null) {
+                binding.renderer?.clearImage()
+                continue
+            }
             val renderer = binding.renderer ?: TextureViewRenderer(binding.surface.container.context).also { view ->
                 room.initVideoRenderer(view)
                 view.setMirror(binding.surface.mirror)

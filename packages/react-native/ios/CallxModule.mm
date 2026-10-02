@@ -32,7 +32,7 @@ RCT_EXPORT_MODULE(Callx)
   return self;
 }
 
-- (NSArray<NSString *> *)supportedEvents { return @[@"callxEvent"]; }
+- (NSArray<NSString *> *)supportedEvents { return @[@"callxEvent", @"callxPictureInPicture"]; }
 - (void)startObserving { [_impl startObserving]; }
 - (void)stopObserving { [_impl stopObserving]; }
 
@@ -61,6 +61,10 @@ RCT_EXPORT_MODULE(Callx)
   [_impl getPushToken:resolve reject:reject];
 }
 - (void)dispose { [_impl dispose]; }
+- (void)configurePictureInPicture:(NSDictionary *)options { [_impl configurePictureInPicture:options]; }
+- (void)enterPictureInPicture:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [_impl enterPictureInPicture:resolve reject:reject];
+}
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params {

@@ -14,6 +14,9 @@ export interface Spec extends TurboModule {
   getSnapshot(): Promise<Object>;
   getPushToken(): Promise<Object | null>;
   dispose(): void;
+  // Picture-in-picture for video calls (ADR-0010 addendum); Android only for now.
+  configurePictureInPicture(options: Object): void;
+  enterPictureInPicture(): Promise<boolean>;
   // Event subscription for NativeEventEmitter ("callxEvent").
   addListener(eventName: string): void;
   removeListeners(count: number): void;

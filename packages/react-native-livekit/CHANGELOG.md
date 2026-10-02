@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Remote camera mute/unmute updates video availability and detaches the muted track from
+  video views, allowing the host app to show local video or its branded fallback.
 - Video: the adapter implements media adapter API 2. It publishes, switches and stops the camera,
   reports remote video and a camera paused in the background, and renders into `CallxVideoView`.
   The host declares the camera permission.

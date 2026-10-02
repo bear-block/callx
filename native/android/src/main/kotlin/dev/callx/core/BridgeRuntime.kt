@@ -27,6 +27,8 @@ class BridgeRuntime(
     private var activeSession: String? = null
     private var emittedThrough = coordinator.checkpoint().journal?.nextSequence?.minus(1) ?: 0
     private var eventListener: ((Map<String, Any?>) -> Unit)? = null
+    private val callObservers = java.util.concurrent.CopyOnWriteArrayList<(CallRecord?) -> Unit>()
+    private var observedCall: CallRecord? = null
 
     fun setup(value: Map<String, Any?>): Map<String, Any?> {
         requireVersion(value)
@@ -192,7 +194,19 @@ class BridgeRuntime(
 
     @Synchronized fun setEventListener(listener: ((Map<String, Any?>) -> Unit)?) { eventListener = listener }
 
+    /**
+     * Native observers of the current call, for platform features that follow it (picture-in-picture).
+     * Called with the current call at once and after every change, whether or not Dart/JS observes.
+     */
+    @Synchronized fun addCallObserver(observer: (CallRecord?) -> Unit): () -> Unit {
+        callObservers += observer
+        observer(coordinator.snapshot())
+        return { callObservers -= observer }
+    }
+
     @Synchronized fun publishNewEvents() {
+        val call = coordinator.snapshot()
+        if (call != observedCall) { observedCall = call; callObservers.forEach { it(call) } }
         val session = activeSession ?: return
         val listener = eventListener ?: return
         when (val outcome = coordinator.replayEvents(emittedThrough)) {
