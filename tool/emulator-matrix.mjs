@@ -13,7 +13,7 @@
 // emulator's logcat is kept in build/emulator-matrix/<avd>.logcat. The example is uninstalled and
 // installed again on every emulator.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,15 +59,30 @@ function buildApk() {
 
 async function boot(avd, headless) {
   const before = new Set(emulators());
+  mkdirSync(logs, { recursive: true });
+  const outputPath = join(logs, `${avd}.emulator.log`);
+  const out = openSync(outputPath, 'w');
   const child = spawn(emulatorBinary, ['-avd', avd, ...(headless ? ['-no-window'] : []), '-no-snapshot-save', '-no-boot-anim',
-    '-camera-front', 'emulated', '-camera-back', 'emulated'], { stdio: 'ignore', detached: true });
+    '-camera-front', 'emulated', '-camera-back', 'emulated'], { stdio: ['ignore', out, out], detached: true });
+  closeSync(out);
+  // The emulator exits at once when it cannot start (no disk space, a broken AVD); say why.
+  let exited = false;
+  child.on('exit', () => { exited = true; });
   child.unref();
-  for (let second = 0; second < 240; second += 2) {
+  // A first boot of a new AVD with a window can take several minutes.
+  for (let second = 0; second < 480; second += 2) {
+    if (exited) {
+      const output = readFileSync(outputPath, 'utf8');
+      const reason = output.split('\n').find((line) => line.includes('FATAL')) ?? output.trim().split('\n').pop();
+      throw new Error(`${avd} exited while booting: ${reason?.replace(/^FATAL\s*\|\s*/, '') ?? 'no output'}`);
+    }
     const serial = emulators().find((id) => !before.has(id));
-    if (serial && adb(['shell', 'getprop', 'sys.boot_completed'], serial).stdout.trim() === '1') return serial;
+    if (serial && adb(['shell', 'getprop', 'sys.boot_completed'], serial).stdout.trim() === '1') {
+      return serial;
+    }
     await sleep(2000);
   }
-  throw new Error(`${avd} did not boot within 4 minutes.`);
+  throw new Error(`${avd} did not boot within 8 minutes.`);
 }
 
 /** Starts the launcher activity, retrying while the package manager settles after a first boot. */

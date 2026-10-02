@@ -153,8 +153,11 @@ the adapter resumes the camera and `localVideo` returns to `on`. Turning the cam
 
 - **iOS:** CallKit's `hasVideo` follows the camera, so the system UI matches. Callx enables
   `supportsVideo` on its CallKit provider when the adapter carries video.
-- **Android:** Core-Telecom 1.0 cannot change a call's type after it started, so a call stays
-  the type it was offered or started as. In Flutter, video views use Texture Layer Hybrid
+- **Android:** from Android 14 (API 34), Telecom registers the call as a video call. Below
+  that, Core-Telecom adds calls through a `ConnectionService`, which Telecom records as audio;
+  the video itself is unaffected, only what Telecom reports to the system (for example to a
+  car). Core-Telecom 1.0 also cannot change a call's type after it started, so a call stays the
+  type it was offered or started as. In Flutter, video views use Texture Layer Hybrid
   Composition, which needs adapters to render with a `TextureView`.
 - **Preview:** the [simulator](/guide/simulator) supports video: `simulator.remoteVideo(true)`
   and `simulator.cameraBlocked(true)`.

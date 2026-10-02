@@ -12,6 +12,9 @@
 // repository), the example or your app installed with the microphone allowed, reporting to the
 // console, and Chrome for the caller. Exit code 0 when every step passes.
 import { execFile } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { openCaller } from './caller.mjs';
 import { isMain } from './main.mjs';
@@ -56,6 +59,8 @@ async function main(options) {
     .then(({ stdout }) => stdout);
   const steps = [];
   const check = (name, passed, detail = '') => { steps.push({ name, passed, detail }); console.log(`${passed ? '✔' : '✘'} ${name}${detail ? ` — ${detail}` : ''}`); };
+  /** A step this device cannot show; printed, and counted neither as passed nor failed. */
+  const skip = (name, detail) => console.log(`– ${name} — skipped: ${detail}`);
   // A stopped media server makes every media step fail for the wrong reason; say so first.
   const { liveKitUrl } = await (await fetch(`${options.console}/api/state`)).json();
   const mediaUrl = liveKitUrl?.replace(/^ws/, 'http');
@@ -70,7 +75,7 @@ async function main(options) {
   };
   try {
     await adb('logcat', '-c');
-    if (options.video) { await videoSteps({ adb, check, caller, waitFor, options }); return steps; }
+    if (options.video) { await videoSteps({ adb, check, skip, caller, waitFor, options }); return steps; }
     const invited = await caller.evaluate(`(async () => { await refresh();
       const device = state.devices.find((d) => d.online && d.token);
       if (!device) return 'no online device with a push token';
@@ -104,7 +109,7 @@ async function main(options) {
  * the caller's camera reaches the device, the example's buttons turn the camera on and switch it,
  * video moves on screen, and the camera pauses in the background and resumes in front.
  */
-async function videoSteps({ adb, check, caller, waitFor, options }) {
+async function videoSteps({ adb, check, skip, caller, waitFor, options }) {
   const appLog = async () => (await adb('logcat', '-d', '-s', 'CallxExample:I')).toString();
   const logged = async (pattern, seconds) => {
     for (let second = 0; second < seconds; second++) { if (pattern.test(await appLog())) return true; await sleep(1000); }
@@ -140,9 +145,14 @@ async function videoSteps({ adb, check, caller, waitFor, options }) {
   check('video invitation sent and caller joined with a camera', invited === 'ok', invited === 'ok' ? '' : invited);
   if (invited !== 'ok') return;
   check('device rings', await waitFor(['ringing'], 30));
-  const telecom = (await adb('logcat', '-d', '-s', 'Telecom:I')).toString();
-  const videoState = telecom.match(/handle=callx:[^,]*,\s*vidst=([A-Za-z]+)/)?.[1] ?? telecom.match(/vidst=([A-Za-z]+)/g)?.pop()?.slice(6);
-  check('Telecom has it as a video call', videoState !== undefined && videoState !== 'A', `video state ${videoState ?? 'not logged'}`);
+  // Telecom's own log says how it registered the call; its Call summary (vidst=) does not.
+  const sdk = Number((await adb('shell', 'getprop', 'ro.build.version.sdk')).trim());
+  if (sdk >= 34) {
+    const telecom = (await adb('logcat', '-d', '-s', 'Telecom:I')).toString();
+    check('Telecom has it as a video call', /addCall: .*\[callType=2\]/.test(telecom) && /CallAttributes\.VIDEO_CALL/.test(telecom));
+  } else {
+    skip('Telecom has it as a video call', `API ${sdk}: below 34 Core-Telecom registers calls through ConnectionService as audio`);
+  }
   await adb('shell', 'cmd', 'statusbar', 'expand-notifications'); await sleep(1500);
   await adb('shell', 'uiautomator', 'dump', '/sdcard/callx-ui.xml');
   const point = answerPoint(await adb('shell', 'cat', '/sdcard/callx-ui.xml'));
@@ -163,9 +173,22 @@ async function videoSteps({ adb, check, caller, waitFor, options }) {
     sees = await caller.evaluate('callers[window.__call]?.seesVideo === true'); if (!sees) await sleep(1000);
   }
   check('the caller receives the device camera', sees, sees ? '' : await tracks());
-  const first = await screenshot(); await sleep(800); const second = await screenshot();
-  const moving = changedFraction(first, second);
-  check('video moves on screen', moving > 0.005, `${(moving * 100).toFixed(1)}% of the screen changed`);
+  // Finding the buttons may have scrolled the video panel away; look at a few scroll positions.
+  let first, second, moving = 0;
+  for (const swipe of [null, ['540', '700', '540', '1600'], ['540', '1600', '540', '700'], ['540', '1600', '540', '700']]) {
+    if (swipe) { await adb('shell', 'input', 'swipe', ...swipe, '300'); await sleep(800); }
+    first = await screenshot(); await sleep(800); second = await screenshot();
+    moving = changedFraction(first, second);
+    if (moving > 0.005) break;
+  }
+  let shots = '';
+  if (moving <= 0.005) {
+    // Keep the screenshots: they show whether the view was empty, covered or off screen.
+    const dir = mkdtempSync(join(tmpdir(), 'callx-video-'));
+    writeFileSync(join(dir, 'first.png'), first); writeFileSync(join(dir, 'second.png'), second);
+    shots = `; screenshots in ${dir}`;
+  }
+  check('video moves on screen', moving > 0.005, `${(moving * 100).toFixed(1)}% of the screen changed${shots}`);
   check('switch camera button found', await tap('Switch camera'));
   check('the camera switches to the back', await logged(/camera on \(back\)/, 15));
   await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');

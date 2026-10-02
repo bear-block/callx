@@ -45,8 +45,7 @@ as a device pass.
 | iOS: lock-screen answer | n/a | n/a | <span class="no">○</span> |
 | LiveKit adapter: two-way audio, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | LiveKit adapter: audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| Video calls: ring as video, camera commands, background pause (Android, LiveKit) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| Video calls: video between the two sides, `CallxVideoView` rendering | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| Video calls on Android (LiveKit): ring as video, video both ways, `CallxVideoView`, camera commands, background pause | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | Video calls (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Adapter discovery (Flutter and React Native) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
@@ -72,6 +71,15 @@ interruption and recovery, remote end, and no crash.
 
 The first run found that calls did not ring below Android 13; the fix is in the
 [changelog](/project/changelog).
+
+With `--video` the matrix runs the video conformance: a video invitation, the caller's camera
+on the device and the device's camera at the caller, video moving in `CallxVideoView`,
+switching camera, and the camera pausing in the background and resuming in front.
+
+| Android | API | Video result | Date |
+|---|---|---|---|
+| 13 | 33 | 15/15 (Telecom's video registration needs API 34) | 2026-10-02 |
+| 16 | 36 | 16/16 | 2026-10-02 |
 
 <SponsorCallout reason="verify" />
 
