@@ -71,6 +71,10 @@ npm run test:all      # every suite: tools, contract, typecheck, parity, Kotlin,
 npm run test:quick    # the same without the native Kotlin and Swift suites
 ```
 
+Before pushing workflow changes, run `actionlint -shellcheck= -pyflakes=` from the repository
+root (install [actionlint](https://github.com/rhysd/actionlint) first). This checks GitHub Actions
+context availability as well as workflow syntax; parsing YAML alone does not cover these rules.
+
 Build and run an example straight on a device:
 
 ```sh

@@ -1,0 +1,4 @@
+# The Xcode preview runner is not yet in actionlint's built-in hosted-runner list.
+self-hosted-runner:
+  labels:
+    - xcode-27

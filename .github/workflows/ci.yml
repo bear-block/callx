@@ -18,6 +18,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+      - name: Validate GitHub Actions workflows
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/actionlint.tar.gz" https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -shellcheck= -pyflakes=
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -95,10 +100,10 @@ jobs:
     # https://github.blog/changelog/2026-07-16-xcode-27-runner-image-now-in-public-preview/
     runs-on: xcode-27
     timeout-minutes: 90
-    env:
-      CALLX_IOS_TEST_OUTPUT_DIR: ${{ runner.temp }}/callx-ios-results
     steps:
       - uses: actions/checkout@v5
+      - name: Set Simulator evidence directory
+        run: echo "CALLX_IOS_TEST_OUTPUT_DIR=$RUNNER_TEMP/callx-ios-results" >> "$GITHUB_ENV"
       # Pin the Xcode the project is developed with; the image also ships 27.0 and a 27.2 beta.
       # The core needs the iOS 26.4 SDK or later (PushKit VoIP metadata).
       - name: Select Xcode 27.1
