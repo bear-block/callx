@@ -27,6 +27,8 @@ Use the explicit `app.plugin` path. The plugin rejects unknown options.
 | `apsEnvironment` | `"development"` \| `"production"` | Unchanged | Sets the `aps-environment` entitlement. Requires `iosVoip: true`. Omit it if another plugin or your signing sets it |
 | `androidNotifications` | `boolean` | `false` | Declares `POST_NOTIFICATIONS` |
 | `androidPush` | `"none"` \| `"fcm"` | `"none"` | `"fcm"` generates `CallxMessagingService`, adds Firebase Messaging and declares the service. Requires `android.googleServicesFile` |
+| `video` | `boolean` | `false` | Video calls: declares `CAMERA` with an optional camera feature, and adds `NSCameraUsageDescription`. See [video calls](/guide/video) |
+| `cameraPermission` | `string` | Keeps existing text, or an English default | `NSCameraUsageDescription`. Requires `video: true` |
 | `bootstrap` | `boolean` | `true` | Starts the native core from `MainApplication.onCreate` and `didFinishLaunchingWithOptions`. Set `false` when your own native code bootstraps |
 
 Always applied:

@@ -12,7 +12,7 @@ describes how Callx is designed to behave; this page says where that behaviour h
 and where it has not been yet.
 </p>
 
-**Last updated:** 2026-10-02 · **Packages:** `0.1.3` · **Contract:** `0.1.0`
+**Last updated:** 2026-10-02 · **Packages:** `0.1.3` · **Contract:** `0.2.0` (unreleased; 0.1.3 ships `0.1.0`)
 
 ## How we verify
 
@@ -45,6 +45,9 @@ as a device pass.
 | iOS: lock-screen answer | n/a | n/a | <span class="no">○</span> |
 | LiveKit adapter: two-way audio, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | LiveKit adapter: audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
+| Video calls: ring as video, camera commands, background pause (Android, LiveKit) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
+| Video calls: video between the two sides, `CallxVideoView` rendering | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| Video calls (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Adapter discovery (Flutter and React Native) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | React Native New Architecture (TurboModule) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |

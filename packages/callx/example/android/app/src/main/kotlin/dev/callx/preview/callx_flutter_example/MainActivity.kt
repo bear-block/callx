@@ -26,7 +26,7 @@ class MainActivity : FlutterActivity() {
         if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
     }
 
-    private fun runtimePermissions() = listOfNotNull(Manifest.permission.RECORD_AUDIO,
+    private fun runtimePermissions() = listOfNotNull(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA,
         Manifest.permission.POST_NOTIFICATIONS.takeIf { Build.VERSION.SDK_INT >= 33 })
 
     override fun onNewIntent(intent: Intent) {

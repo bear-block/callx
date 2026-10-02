@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Video calls (ADR-0010): contract 0.2.0 with `video`, `localVideo`, `cameraFacing` and
+  `remoteVideo` on calls, `setCamera` and `switchCamera`, and `video: true` on invitations and
+  `startCall`. `CallxVideoView` shows a call's video. Media adapter API 2 (`CallxVideoAdapter`)
+  carries video; API 1 adapters keep working.
 - `setup()` takes no arguments. `appName` was validated and then never used: the call screens
   show the app's display name (`CFBundleDisplayName`, `android:label`). `CallxConfig.appName` is
   deprecated and ignored, so existing `setup(CallxConfig(appName: ...))` calls keep working.

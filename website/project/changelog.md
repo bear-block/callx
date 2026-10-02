@@ -15,6 +15,15 @@ All Callx packages release together with one version number. Each package also k
 
 ## Unreleased
 
+- **Video calls** ([guide](/guide/video), ADR-0010). Contract 0.2.0 adds `video`,
+  `localVideo`, `cameraFacing` and `remoteVideo` to calls, and `setCamera` and `switchCamera`
+  commands; audio calls keep the 0.1 shape and native accepts 0.1 wrappers. Invitations and
+  `startCall` take `video: true` and ring as video in CallKit and Core-Telecom.
+  `CallxVideoView` shows video in Flutter (platform view) and React Native (Fabric component,
+  `@bear-block/callx/video`). Media adapter API 2 (`CallxVideoAdapter`) carries video;
+  API 1 adapters keep working. The LiveKit adapter supports video. The Expo plugin gains
+  `video` and `cameraPermission`, the testkit sends video invitations, and
+  `callx-conformance --video` checks video on Android.
 - **`setup()` takes no arguments.** `appName` was validated and never used; the call screens show
   your app's display name (`CFBundleDisplayName` on iOS, `android:label` on Android).
   `appName` is deprecated and ignored, so existing calls keep working.

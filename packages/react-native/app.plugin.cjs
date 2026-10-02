@@ -44,11 +44,11 @@ function withCallx(config, options = {}) {
     throw new Error('Callx plugin options must be an object.');
   }
   const allowed = ['microphonePermission', 'iosVoip', 'apsEnvironment', 'androidNotifications', 'bootstrap',
-    'androidPush'];
+    'androidPush', 'video', 'cameraPermission'];
   for (const key of Object.keys(options)) {
     if (!allowed.includes(key)) throw new Error(`Unknown Callx plugin option: ${key}`);
   }
-  for (const key of ['iosVoip', 'androidNotifications', 'bootstrap']) {
+  for (const key of ['iosVoip', 'androidNotifications', 'bootstrap', 'video']) {
     if (options[key] !== undefined && typeof options[key] !== 'boolean') {
       throw new Error(`Callx ${key} must be a boolean.`);
     }
@@ -56,6 +56,14 @@ function withCallx(config, options = {}) {
   if (options.microphonePermission !== undefined &&
       (typeof options.microphonePermission !== 'string' || !options.microphonePermission.trim())) {
     throw new Error('Callx microphonePermission must be non-empty text.');
+  }
+  if (options.cameraPermission !== undefined &&
+      (typeof options.cameraPermission !== 'string' || !options.cameraPermission.trim())) {
+    throw new Error('Callx cameraPermission must be non-empty text.');
+  }
+  // Video calls (ADR-0010) need the camera permission; it has no effect without video.
+  if (options.cameraPermission !== undefined && options.video !== true) {
+    throw new Error('Callx cameraPermission requires video: true.');
   }
   if (options.apsEnvironment !== undefined && !['development', 'production'].includes(options.apsEnvironment)) {
     throw new Error('Callx apsEnvironment must be development or production.');
@@ -76,6 +84,10 @@ function withCallx(config, options = {}) {
     if (options.microphonePermission !== undefined || !mod.modResults.NSMicrophoneUsageDescription) {
       mod.modResults.NSMicrophoneUsageDescription = options.microphonePermission ??
         'Allow this app to use your microphone for voice calls.';
+    }
+    if (options.video === true && (options.cameraPermission !== undefined || !mod.modResults.NSCameraUsageDescription)) {
+      mod.modResults.NSCameraUsageDescription = options.cameraPermission ??
+        'Allow this app to use your camera for video calls.';
     }
     const modes = ['audio', ...(options.iosVoip === true ? ['voip'] : [])];
     mod.modResults.UIBackgroundModes = [...new Set([...(mod.modResults.UIBackgroundModes ?? []), ...modes])];
@@ -103,10 +115,18 @@ function withCallx(config, options = {}) {
     const permissions = ['android.permission.INTERNET', 'android.permission.RECORD_AUDIO',
       'android.permission.MANAGE_OWN_CALLS'];
     if (options.androidNotifications === true) permissions.push('android.permission.POST_NOTIFICATIONS');
+    if (options.video === true) permissions.push('android.permission.CAMERA');
     const entries = mod.modResults.manifest['uses-permission'] ??= [];
     for (const name of permissions) {
       if (!entries.some(entry => entry.$?.['android:name'] === name)) {
         entries.push({$: {'android:name': name}});
+      }
+    }
+    if (options.video === true) {
+      // The camera permission implies a required camera; keep audio-only phones able to install.
+      const features = mod.modResults.manifest['uses-feature'] ??= [];
+      if (!features.some(entry => entry.$?.['android:name'] === 'android.hardware.camera')) {
+        features.push({$: {'android:name': 'android.hardware.camera', 'android:required': 'false'}});
       }
     }
     return mod;

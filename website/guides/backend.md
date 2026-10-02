@@ -164,6 +164,7 @@ content-type: application/json
 | `revision` | No | The call's revision when sent, as a decimal string |
 | `issuedAtMs` | No | When the backend sent it |
 | `expiresAtMs` | No | After this time the call does not ring; also caps the ring deadline |
+| `video` | No | `true` rings as a video call: CallKit `hasVideo` and Core-Telecom's video call type. See [video calls](/guide/video) |
 
 ## Signaling events
 

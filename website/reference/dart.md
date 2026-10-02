@@ -44,6 +44,8 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 | `end(String callId, {CommandOptions? options})` | Declines, cancels or hangs up |
 | `setMuted(String callId, bool muted, {CommandOptions? options})` | Mutes or unmutes |
 | `setHeld(String callId, bool held, {CommandOptions? options})` | Holds or resumes |
+| `setCamera(String callId, bool on, {CommandOptions? options})` | Turns the local camera on or off; needs a video adapter and the app in front. See [video calls](/guide/video) |
+| `switchCamera(String callId, CameraFacing facing, {CommandOptions? options})` | Chooses the front or back camera; remembered while the camera is off |
 | `queryOperation(String operationId, String accountGeneration)` | `Future<OperationLookup>` |
 
 ### Observation sessions
@@ -60,14 +62,31 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 | Type | Fields |
 |---|---|
 | `CallxConfig` | `appName?` (deprecated, ignored) |
-| `CallInput` | `callId`, `displayName`, `handle` |
+| `CallInput` | `callId`, `displayName`, `handle`, `video` (default false) |
 | `CommandOptions` | `operationId?`, `deadlineAtMs?` |
-| `CallxCapabilities` | `coreVersion`, `execution`, `accountGeneration`, `nativeCalling`, `durableReplay`, `providerManagedSignaling`, `hold`, `mute` |
+| `CallxCapabilities` | `coreVersion`, `execution`, `accountGeneration`, `nativeCalling`, `durableReplay`, `providerManagedSignaling`, `hold`, `mute`, `video` |
 | `CallSnapshot` | `sequence`, `call?` |
-| `Call` | `callId`, `displayName`, `direction`, `state`, `muted`, `mediaReady`, `mediaInterrupted`, `endReason?`, `createdAtMs?`, `acceptedAtMs?`, `mediaConnectedAtMs?`, `endedAtMs?` |
+| `Call` | `callId`, `displayName`, `direction`, `state`, `muted`, `mediaReady`, `mediaInterrupted`, `video`, `localVideo` (`LocalVideo.off`, `on`, `blocked`), `cameraFacing?`, `remoteVideo`, `endReason?`, `createdAtMs?`, `acceptedAtMs?`, `mediaConnectedAtMs?`, `endedAtMs?` |
 | `CommandResult` | `operationId`, `status`, `execution`, `completedAtMs`, `error?` |
 | `OperationError` | `code`, `message`, `retryable`, `platform?` |
 | `PlatformError` | `domain`, `code` |
+
+## `CallxVideoView`
+
+```dart
+CallxVideoView(callId: call.callId, source: VideoSource.remote, fit: VideoFit.cover)
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callId` | `String` | required | The call whose video to show |
+| `source` | `VideoSource` | `VideoSource.remote` | This device's camera (`local`) or the other side's video |
+| `fit` | `VideoFit` | `VideoFit.cover` | Crop to fill the view, or letterbox inside it |
+| `mirror` | `bool` | `false` | Flip horizontally, usually for the front camera preview |
+
+A platform view: Texture Layer Hybrid Composition on Android, `UiKitView` on iOS. Changing a
+parameter recreates the native view. It stays empty until the source exists, and renders
+nothing on other platforms. See [video calls](/guide/video).
 | `OperationLookup` | `operationId`, `accountGeneration`, `status`, `result?` |
 | `ObservationSession` | `sessionId`, `accountGeneration`, `status`, `snapshot`, `replay` |
 | `ObservationSnapshot` | `watermark`, `calls` |

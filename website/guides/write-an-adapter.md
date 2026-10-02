@@ -101,6 +101,42 @@ public final class AcmeCallxAdapterFactory: NSObject, CallxMediaAdapterFactory {
 Hosts list the class name in `Info.plist` under `CallxMediaAdapterFactories`; your Expo config
 plugin should add it for them. Give the class a stable Objective-C name with `@objc(…)`.
 
+## Video
+
+An adapter that carries video implements `CallxVideoAdapter` (adapter API 2) instead; audio-only
+adapters stay at API 1 and keep working. See [video calls](/guide/video) and ADR-0010.
+
+```kotlin
+class AcmeMediaAdapter(private val ctx: CallxAdapterContext) : CallxVideoAdapter {   // apiVersion 2
+    // start, stop and setMuted as above, plus:
+
+    override suspend fun setCamera(callId: String, on: Boolean, facing: CameraFacing): CallxCameraError? {
+        if (on && !cameraAllowed()) return CallxCameraError.permissionDenied
+        room.publishCamera(on, facing)          // also switches the camera while it is on
+        return null                             // applied
+    }
+
+    override fun attach(callId: String, source: VideoSource, surface: CallxVideoSurface) {
+        // Add your renderer to surface.container (a TextureView, so Flutter can show it), honour
+        // surface.fit and surface.mirror, and feed it the local or remote track once it exists.
+    }
+
+    override fun detach(callId: String, surface: CallxVideoSurface) { /* remove the renderer */ }
+}
+```
+
+The Swift protocol has the same members; `attach` and `detach` run on the main actor and the
+container is a `UIView`. Report video through the sink:
+
+- `sink.videoChanged(remoteVideo = true)` when a remote video track is subscribed, and `false`
+  when it goes.
+- `sink.videoChanged(localVideo = LocalVideo.blocked)` when the OS takes the camera (the app went
+  to the background), and `LocalVideo.on` when you resumed it. You cannot turn the camera on or
+  off through the sink; that is always a command.
+
+The core checks that the app is in front before asking for the camera, maps your error to
+`permissionDenied`, `mediaNotReady` or `platformRejected`, and keeps CallKit's `hasVideo` in step.
+
 ## Rules
 
 1. **Never report to the OS.** Turn off any CallKit, ConnectionService or Telecom integration in

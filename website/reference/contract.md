@@ -1,13 +1,14 @@
 ---
-title: "Contract v0.1"
+title: "Contract v0.2"
 description: "The framework-neutral contract that the Swift, Kotlin, Dart and TypeScript layers implement, and its invariants."
 ---
 
-# Contract v0.1
+# Contract v0.2
 
 The contract defines the vocabulary every Callx layer speaks: states, commands, results, events
 and limits. Swift, Kotlin, Dart and TypeScript implement it, and shared executable fixtures check
-each of them. Contract version `0.1.0` is independent of package versions.
+each of them. Contract version `0.2.0` is independent of package versions; 0.2 added video
+([ADR-0010](/project/decisions)) with optional fields and two commands, so 0.1 wrappers keep working.
 
 The machine-readable manifest and fixtures are in
 [`contracts/v0`](https://github.com/bear-block/callx/tree/main/contracts/v0).
@@ -35,11 +36,20 @@ The machine-readable manifest and fixtures are in
 [call lifecycle](/concepts/call-lifecycle). `mediaInterrupted` is an optional flag, valid only
 while `active` or `held` with `mediaReady`.
 
+Video is not a state. A call may carry these optional fields, omitted at their defaults:
+
+| Field | Values | Meaning |
+|---|---|---|
+| `video` | boolean | Offered or started as a video call |
+| `localVideo` | `off`, `on`, `blocked` | The local camera; `blocked` means the OS took it |
+| `cameraFacing` | `front`, `back` | Present exactly while `localVideo` is not `off` |
+| `remoteVideo` | boolean | A remote video track can be rendered |
+
 ## Command envelope
 
 ```json
 {
-  "contractVersion": "0.1.0",
+  "contractVersion": "0.2.0",
   "operationId": "op-answer-1",
   "type": "answer",
   "callId": "call-1",
@@ -49,15 +59,16 @@ while `active` or `held` with `mediaReady`.
 
 | `type` | Extra fields |
 |---|---|
-| `startCall` | `input: {callId, displayName, handle}` |
+| `startCall` | `input: {callId, displayName, handle, video?}` |
 | `answer`, `end` | `callId` |
-| `setMuted`, `setHeld` | `callId`, `value: boolean` |
+| `setMuted`, `setHeld`, `setCamera` | `callId`, `value: boolean` |
+| `switchCamera` | `callId`, `value: "front" \| "back"` |
 
 ## Snapshot
 
 ```json
 {
-  "contractVersion": "0.1.0",
+  "contractVersion": "0.2.0",
   "watermark": "42",
   "calls": []
 }
@@ -80,7 +91,9 @@ Limits count UTF-8 bytes, not UTF-16 code units.
 
 ## Compatibility
 
-- `setup` returns `contractVersion`; the wrapper rejects an incompatible major version.
+- `setup` returns `contractVersion`; the wrapper rejects an incompatible major version. Native
+  accepts 0.1 and 0.2 envelopes and answers with 0.2.
+- `setup` also returns capabilities, including `video` when a video adapter is installed.
 - New minor-version fields are optional. Command types are a closed set.
 - Receivers keep unknown event and error values for logs, and resynchronize if they cannot
   interpret them safely.

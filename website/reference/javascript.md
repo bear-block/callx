@@ -45,6 +45,8 @@ All commands accept an optional last argument `options: CommandOptions` and reso
 | `end(callId, options?)` | Declines, cancels or hangs up |
 | `setMuted(callId, muted: boolean, options?)` | Mutes or unmutes the microphone |
 | `setHeld(callId, held: boolean, options?)` | Holds or resumes the call |
+| `setCamera(callId, on: boolean, options?)` | Turns the local camera on or off; needs a video adapter and the app in front. See [video calls](/guide/video) |
+| `switchCamera(callId, facing: CameraFacing, options?)` | Chooses the front or back camera; remembered while the camera is off |
 | `queryOperation(operationId, accountGeneration)` | Looks up a stored result: `Promise<OperationLookup>` |
 
 ### Observation sessions
@@ -63,12 +65,12 @@ See [observation and replay](/concepts/observation).
 ```ts
 interface CallxConfig { /** @deprecated Ignored. */ appName?: string }
 
-interface CallInput { callId: string; displayName: string; handle: string }
+interface CallInput { callId: string; displayName: string; handle: string; video?: boolean }
 
 interface CommandOptions { operationId?: string; deadlineAtMs?: number }
 
 interface Capabilities {
-  contractVersion: '0.1.0';
+  contractVersion: '0.2.0';
   coreVersion: string;
   execution: 'native' | 'preview';
   accountGeneration: string;
@@ -77,6 +79,7 @@ interface Capabilities {
   providerManagedSignaling: boolean;
   hold: boolean;
   mute: boolean;
+  video: boolean;          // a video media adapter is installed
 }
 
 interface Snapshot { sequence: string; call: Call | null }
@@ -89,6 +92,10 @@ interface Call {
   muted: boolean;
   mediaReady: boolean;
   mediaInterrupted?: boolean;
+  video?: boolean;              // offered or started as a video call
+  localVideo?: LocalVideo;      // absent means 'off'
+  cameraFacing?: CameraFacing;  // present while localVideo is not 'off'
+  remoteVideo?: boolean;        // a remote video track can be rendered
   endReason?: EndReason;
   createdAtMs?: number;
   acceptedAtMs?: number;
@@ -98,11 +105,14 @@ interface Call {
 
 type CallState = 'incoming' | 'outgoing' | 'connecting' | 'active' | 'held' | 'ended';
 
+type LocalVideo = 'off' | 'on' | 'blocked';   // blocked: the OS took the camera, e.g. in the background
+type CameraFacing = 'front' | 'back';
+
 type EndReason = 'localHangup' | 'declined' | 'remoteEnded' | 'callerCancelled' | 'unanswered'
   | 'busy' | 'failed' | 'answeredElsewhere' | 'declinedElsewhere';
 
 interface CommandResult {
-  contractVersion: '0.1.0';
+  contractVersion: '0.2.0';
   operationId: string;
   status: 'applied' | 'rejected' | 'timedOut' | 'unknown';
   execution: 'native' | 'preview';
@@ -118,7 +128,7 @@ interface OperationError {
 }
 
 interface OperationLookup {
-  contractVersion: '0.1.0';
+  contractVersion: '0.2.0';
   operationId: string;
   accountGeneration: string;
   status: 'available' | 'unavailable' | 'generationMismatch';
@@ -126,16 +136,16 @@ interface OperationLookup {
 }
 
 interface ObservationSession {
-  contractVersion: '0.1.0';
+  contractVersion: '0.2.0';
   sessionId: string;
   accountGeneration: string;
   status: 'fresh' | 'resumed' | 'resynced';
-  snapshot: {contractVersion: '0.1.0'; watermark: string; calls: Call[]};
+  snapshot: {contractVersion: '0.2.0'; watermark: string; calls: Call[]};
   replay: CallEvent[];
 }
 
 interface CallEvent {
-  contractVersion: '0.1.0';
+  contractVersion: '0.2.0';
   eventId: string;
   sequence: string;
   kind: 'callChanged' | 'operationCompleted' | 'resyncRequired';
@@ -152,7 +162,7 @@ interface PushToken { type: 'voip' | 'fcm'; token: string }
 
 | Export | Value |
 |---|---|
-| `CONTRACT_VERSION` | `'0.1.0'` |
+| `CONTRACT_VERSION` | `'0.2.0'` |
 | `CALL_STATES` | All `CallState` values |
 | `END_REASONS` | All `EndReason` values |
 | `COMMAND_STATUSES` | All command statuses |
@@ -180,7 +190,28 @@ const {callx, simulator} = createCallxPreview();
 | `remoteAnswered()` | The other side answered your outgoing call |
 | `mediaConnected()` | Media starts flowing |
 | `remoteEnded()` | The other side hung up |
+| `remoteVideo(available: boolean)` | The other side starts or stops sending video |
+| `cameraBlocked(blocked: boolean)` | The OS takes the camera, or gives it back |
 | `reset()` | Clears all state |
+
+## `CallxVideoView`
+
+```tsx
+import {CallxVideoView} from '@bear-block/callx/video';
+
+<CallxVideoView callId={call.callId} source="remote" fit="cover" style={{flex: 1}} />
+```
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `callId` | `string` | required | The call whose video to show |
+| `source` | `'local' \| 'remote'` | `'remote'` | The camera of this device, or the other side's video |
+| `fit` | `'cover' \| 'contain'` | `'cover'` | Crop to fill the view, or letterbox inside it |
+| `mirror` | `boolean` | `false` | Flip horizontally, usually for the front camera preview |
+
+Plus the usual `ViewProps` such as `style`. A Fabric component, with a legacy view manager for
+the old architecture on iOS. The view stays empty until the source exists. See
+[video calls](/guide/video).
 
 ## `@bear-block/callx-livekit`
 

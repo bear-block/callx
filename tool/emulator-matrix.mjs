@@ -3,7 +3,9 @@
 // one row per emulator. Each emulator boots without a window, gets the example installed with its
 // permissions granted, registers with the call console, runs callx-conformance and shuts down.
 //
-//   npm run conformance:matrix -- [--apk <path>] [--console <url>] [--settle <seconds>] <avd> [<avd> ...]
+//   npm run conformance:matrix -- [--apk <path>] [--console <url>] [--settle <seconds>] [--video] <avd> [<avd> ...]
+//
+// --video runs the video conformance (ADR-0010); emulators always boot with emulated cameras.
 //
 // Needs the call console (npm run call:console) and the media server (npm run media:server).
 // Without --apk it builds the Flutter example (debug), which reports to the console. Each
@@ -23,11 +25,12 @@ const logs = join(root, 'build/emulator-matrix');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function parseArguments(argv) {
-  const options = { avds: [], console: 'http://127.0.0.1:8787', apk: null, settle: 60 };
+  const options = { avds: [], console: 'http://127.0.0.1:8787', apk: null, settle: 60, video: false };
   for (let index = 0; index < argv.length; index++) {
     const value = argv[index];
     if (value === '--apk' || value === '--console') options[value.slice(2)] = argv[++index];
     else if (value === '--settle') options.settle = Number(argv[++index]);
+    else if (value === '--video') options.video = true;
     else if (value.startsWith('--')) throw new Error(`Unknown option ${value}.`);
     else options.avds.push(value);
   }
@@ -54,7 +57,8 @@ function buildApk() {
 
 async function boot(avd) {
   const before = new Set(emulators());
-  const child = spawn(emulatorBinary, ['-avd', avd, '-no-window', '-no-snapshot-save', '-no-boot-anim'], { stdio: 'ignore', detached: true });
+  const child = spawn(emulatorBinary, ['-avd', avd, '-no-window', '-no-snapshot-save', '-no-boot-anim',
+    '-camera-front', 'emulated', '-camera-back', 'emulated'], { stdio: 'ignore', detached: true });
   child.unref();
   for (let second = 0; second < 240; second += 2) {
     const serial = emulators().find((id) => !before.has(id));
@@ -107,7 +111,7 @@ async function waitForRegistration(consoleUrl, seconds, staleTokens) {
   return false;
 }
 
-async function runOne(avd, apk, consoleUrl, settle) {
+async function runOne(avd, apk, consoleUrl, settle, video) {
   const serial = await boot(avd);
   const api = adb(['shell', 'getprop', 'ro.build.version.sdk'], serial).stdout.trim();
   try {
@@ -126,7 +130,8 @@ async function runOne(avd, apk, consoleUrl, settle) {
     // A freshly booted emulator's network and Play services connection to FCM reconnect during the
     // first minute; an invitation sent then arrives too late to ring.
     await sleep(settle * 1000);
-    const run = spawnSync('node', [join(root, 'packages/testkit/src/conformance.mjs'), 'android', '--device', serial, '--console', consoleUrl],
+    const run = spawnSync('node', [join(root, 'packages/testkit/src/conformance.mjs'), 'android', '--device', serial, '--console', consoleUrl,
+      ...(video ? ['--video'] : [])],
       { encoding: 'utf8', timeout: 300_000 });
     const output = `${run.stdout}\n${run.stderr}`;
     process.stdout.write(output.split('\n').map((line) => (line ? `    ${line}` : line)).join('\n'));
@@ -149,7 +154,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const rows = [];
   for (const avd of options.avds) {
     console.log(`\n▶ ${avd}`);
-    try { rows.push(await runOne(avd, apk, options.console, options.settle)); }
+    try { rows.push(await runOne(avd, apk, options.console, options.settle, options.video)); }
     catch (error) { rows.push({ avd, api: '?', result: 'error', detail: error.message }); }
   }
   console.log('\nAVD | API | Result | First failure');

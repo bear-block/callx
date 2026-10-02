@@ -96,14 +96,14 @@ export function createConsole({ send, now = Date.now }) {
     device.log.length = Math.min(device.log.length, 200);
   }
 
-  async function invite({ device: key, name, expiresIn = 30 }) {
+  async function invite({ device: key, name, expiresIn = 30, video = false }) {
     const device = devices.get(key);
     if (!device?.token) throw new Error('Pick a device that has reported an FCM token.');
-    const result = await send({ token: device.token, name: name || undefined, expiresIn });
+    const result = await send({ token: device.token, name: name || undefined, expiresIn, video: video === true });
     const call = { callId: result.callId, device: key, name: name || 'hao.dev7', status: 'sent',
       expiresAtMs: now() + Number(expiresIn) * 1000, timeline: [] };
     calls.set(call.callId, call);
-    note(call, 'server', `invite sent (expires in ${expiresIn}s)`);
+    note(call, 'server', `${video ? 'video ' : ''}invite sent (expires in ${expiresIn}s)`);
     record(call, result);
     return call;
   }

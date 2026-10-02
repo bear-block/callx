@@ -138,3 +138,18 @@ test('plugin validates bootstrap and push options', () => {
     assert.throws(() => plugin({name: 'Test', slug: 'test', android: {package: 'dev.callx.test'}}, options), /Callx/);
   }
 });
+
+test('video adds the camera permission, optional camera hardware and a camera message', async () => {
+  const result = await evaluate({video: true, cameraPermission: 'Video calls'});
+  assert.equal(result.ios.infoPlist.NSCameraUsageDescription, 'Video calls');
+  const names = result.android.manifest.manifest['uses-permission'].map(p => p.$['android:name']);
+  assert.ok(names.includes('android.permission.CAMERA'));
+  assert.deepEqual(result.android.manifest.manifest['uses-feature'].find(f =>
+    f.$['android:name'] === 'android.hardware.camera').$, {'android:name': 'android.hardware.camera', 'android:required': 'false'});
+  const audio = await evaluate({});
+  assert.equal(audio.ios.infoPlist.NSCameraUsageDescription, undefined);
+  assert.ok(!audio.android.manifest.manifest['uses-permission'].some(p => p.$['android:name'] === 'android.permission.CAMERA'));
+  for (const options of [{cameraPermission: 'x'}, {video: 'yes'}, {video: true, cameraPermission: ''}]) {
+    assert.throws(() => plugin({name: 'Test', slug: 'test'}, options), /Callx/);
+  }
+});

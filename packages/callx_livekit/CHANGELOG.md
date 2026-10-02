@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Video: the adapter implements media adapter API 2. It publishes, switches and stops the camera,
+  reports remote video and a camera paused in the background, and renders into `CallxVideoView`.
+  The host declares the camera permission.
+
 ## 0.1.3
 
 - Released with core 0.1.3, which fixes ringing on Android 10–12. No adapter changes.

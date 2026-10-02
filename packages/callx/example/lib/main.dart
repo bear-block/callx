@@ -136,7 +136,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
         journal.insert(
           0,
           '#${value.sequence}  ${value.call?.state.name ?? "idle"}'
-          '  · media ${value.call?.mediaInterrupted == true ? "interrupted" : value.call?.mediaReady == true ? "ready" : "not ready"}',
+          '  · media ${value.call?.mediaInterrupted == true
+              ? "interrupted"
+              : value.call?.mediaReady == true
+              ? "ready"
+              : "not ready"}',
         );
         if (journal.length > 8) journal.removeLast();
       });
@@ -356,6 +360,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final live = call != null && call.state != CallState.ended;
     final media =
         call?.state == CallState.active || call?.state == CallState.held;
+    // The camera works once the call is answered (ADR-0010).
+    final answered = media || call?.state == CallState.connecting;
+    final cameraOn = call != null && call.localVideo != LocalVideo.off;
+    final showVideo = live && (call.video || call.remoteVideo || cameraOn);
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -538,6 +546,33 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                         : 'Hold',
                                   ),
                                 ),
+                                FilledButton.tonal(
+                                  onPressed: answered && live && !busy
+                                      ? () => run(
+                                          () => callx.setCamera(
+                                            call.callId,
+                                            !cameraOn,
+                                          ),
+                                        )
+                                      : null,
+                                  child: Text(
+                                    cameraOn ? 'Camera off' : 'Camera on',
+                                  ),
+                                ),
+                                FilledButton.tonal(
+                                  onPressed: cameraOn && !busy
+                                      ? () => run(
+                                          () => callx.switchCamera(
+                                            call.callId,
+                                            call.cameraFacing ==
+                                                    CameraFacing.back
+                                                ? CameraFacing.front
+                                                : CameraFacing.back,
+                                          ),
+                                        )
+                                      : null,
+                                  child: const Text('Switch camera'),
+                                ),
                                 FilledButton(
                                   style: FilledButton.styleFrom(
                                     backgroundColor: const Color(0xffa94135),
@@ -553,6 +588,69 @@ class _PreviewScreenState extends State<PreviewScreen> {
                                 ),
                               ],
                             ),
+                            if (showVideo)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16),
+                                child: AspectRatio(
+                                  aspectRatio: 3 / 4,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: ColoredBox(
+                                            color: Colors.black,
+                                            child: call.remoteVideo
+                                                ? CallxVideoView(
+                                                    callId: call.callId,
+                                                  )
+                                                : const Center(
+                                                    child: Text(
+                                                      'Waiting for video',
+                                                      style: TextStyle(
+                                                        color: Color(
+                                                          0xffb7c9c4,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                          ),
+                                        ),
+                                        if (cameraOn)
+                                          Positioned(
+                                            right: 12,
+                                            bottom: 12,
+                                            width: 96,
+                                            height: 128,
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: CallxVideoView(
+                                                callId: call.callId,
+                                                source: VideoSource.local,
+                                                mirror:
+                                                    call.cameraFacing ==
+                                                    CameraFacing.front,
+                                              ),
+                                            ),
+                                          ),
+                                        if (call.localVideo ==
+                                            LocalVideo.blocked)
+                                          const Positioned(
+                                            left: 12,
+                                            top: 12,
+                                            child: Text(
+                                              'Camera paused',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       );

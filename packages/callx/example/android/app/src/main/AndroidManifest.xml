@@ -2,6 +2,9 @@
     <!-- Callx declares MANAGE_OWN_CALLS and USE_FULL_SCREEN_INTENT; the host adds what it asks for at runtime. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Video calls (ADR-0010); the camera is optional so audio-only phones can install. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="callx_flutter_example"

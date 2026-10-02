@@ -7,6 +7,7 @@ export const page = `<!doctype html>
 <title>Callx call console</title>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.22.3/dist/livekit-client.umd.js"></script>
 <style>
+  .remote-video { position: fixed; right: 16px; bottom: 16px; width: 180px; border-radius: 8px; background: #000; }
   :root { --bg:#f5f4ef; --panel:#fff; --ink:#172c2a; --muted:#5e6e6b; --line:#dfe3dc; --accent:#1f6f5c;
     --danger:#b3261e; --warn:#8a5a00; --mono:ui-monospace,SFMono-Regular,Menlo,monospace; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111615; --panel:#1a2120; --ink:#e4ece9; --muted:#9aaba7;
@@ -49,6 +50,7 @@ export const page = `<!doctype html>
         <label for="name">Caller name</label><input id="name" value="hao.dev7">
         <label for="expires">Rings for (seconds)</label><input id="expires" type="number" min="5" value="30">
         <label class="check"><input type="checkbox" id="join" checked> Join the call's audio as the caller with this browser's microphone (needs <code>npm run media:server</code>)</label>
+        <label class="check"><input type="checkbox" id="video"> Video call: the device rings for video and the caller publishes this browser's camera</label>
         <button class="primary" id="invite">Send invitation</button>
         <div id="error" role="alert"></div>
       </section>
@@ -85,7 +87,8 @@ async function post(path, payload) {
 }
 
 // The caller's side of the media path: a LiveKit room named after the call, as the app joins it.
-async function joinAudio(callId) {
+// With video, the caller publishes its camera and shows the device's.
+async function joinAudio(callId, { video = false } = {}) {
   if (!window.LivekitClient) { $('error').textContent = 'livekit-client did not load (offline?).'; return; }
   if (callers[callId]?.room) return;
   const entry = callers[callId] = { status: 'connecting' };
@@ -94,11 +97,19 @@ async function joinAudio(callId) {
       body: JSON.stringify({ callId, identity: 'caller', name: $('name').value }) })).json();
     const { Room, RoomEvent } = LivekitClient;
     const room = entry.room = new Room();
-    room.on(RoomEvent.TrackSubscribed, (track) => { if (track.kind === 'audio') document.body.appendChild(track.attach()); });
-    room.on(RoomEvent.TrackUnsubscribed, (track) => track.detach().forEach((element) => element.remove()));
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      const element = track.attach();
+      if (track.kind === 'video') { element.className = 'remote-video'; entry.seesVideo = true; }
+      document.body.appendChild(element);
+    });
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (track.kind === 'video') entry.seesVideo = false;
+      track.detach().forEach((element) => element.remove());
+    });
     room.on(RoomEvent.Disconnected, () => { entry.status = 'left'; entry.room = null; });
     await room.connect(credentials.url, credentials.token);
     await room.localParticipant.setMicrophoneEnabled(true);
+    if (video) await room.localParticipant.setCameraEnabled(true);
     entry.status = 'in room';
   } catch (error) { entry.status = 'failed'; entry.error = error.message; entry.room?.disconnect(); entry.room = null; }
 }
@@ -112,7 +123,8 @@ function audioLine(c) {
   const level = device ? Math.round(device.audioLevel * 100) : 0;
   return '<div class="audio">Caller audio: <b>' + esc(entry.status) + '</b>' + (entry.error ? ' — ' + esc(entry.error) : '') +
     (entry.room ? ' · device ' + (device ? 'in room' : 'not in room') + ' · hearing device: <b>' + (track ? 'yes' : 'no') + '</b>' +
-      (track ? ' · level ' + level + '%' : '') + ' · mic ' + (entry.room.localParticipant.isMicrophoneEnabled ? 'on' : 'off') : '') + '</div>';
+      (track ? ' · level ' + level + '%' : '') + ' · mic ' + (entry.room.localParticipant.isMicrophoneEnabled ? 'on' : 'off') +
+      (entry.room.localParticipant.isCameraEnabled ? ' · camera on' : '') + ' · device video: <b>' + (entry.seesVideo ? 'yes' : 'no') + '</b>' : '') + '</div>';
 }
 
 function render() {
@@ -160,8 +172,9 @@ document.addEventListener('click', (event) => {
   else if (target.dataset.join) joinAudio(target.dataset.join).then(render);
   else if (target.dataset.leave) leaveAudio(target.dataset.leave);
   else if (target.dataset.end) post('/api/signal', { callId: target.dataset.end, message: 'end', reason: reasons[target.dataset.end] ?? REASONS[0] });
-  else post('/api/invite', { device: selected, name: $('name').value, expiresIn: Number($('expires').value) || 30 })
-    .then((call) => { if (call && $('join').checked) joinAudio(call.callId); });
+  else post('/api/invite', { device: selected, name: $('name').value, expiresIn: Number($('expires').value) || 30,
+    video: $('video').checked })
+    .then((call) => { if (call && $('join').checked) joinAudio(call.callId, { video: $('video').checked }); });
 });
 setInterval(refresh, 1000); refresh();
 </script>

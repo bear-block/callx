@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Video: `callx-push --video` and the console's video option send video invitations, the caller
+  publishes a camera, and `callx-conformance android --video` runs the video steps.
+
 ## 0.1.3
 
 - `callx-push` and the call console send FCM invitations with a TTL equal to their lifetime

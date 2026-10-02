@@ -11,10 +11,11 @@ discovers it, and when a call is answered, from your app, the lock screen, a wat
 the adapter joins the call's room natively. Audio starts even if Dart or JavaScript has not
 loaded yet.
 
-::: info Voice calls
-The adapter carries audio. If your app shows video or participant tiles with LiveKit's own
-Flutter or React Native SDK, use Callx alone and [connect LiveKit yourself](/guides/own-media)
-when the call is answered.
+::: info Audio and video
+The adapter carries audio, and from version 0.2 one-to-one video too: see
+[video calls](/guide/video). If your app needs LiveKit features beyond that, such as screen
+sharing or many participant tiles, use Callx alone and
+[connect LiveKit yourself](/guides/own-media) when the call is answered.
 :::
 
 ## Install

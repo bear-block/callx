@@ -39,7 +39,7 @@ React Native together and passes the conformance suite before release.
 
 | # | Provider | Scope | Depends on |
 |---|---|---|---|
-| 1 | **LiveKit** | Audio today; video next | Native video in the core: camera, call type, rendering the provider's video in Flutter and React Native |
+| 1 | **LiveKit** | Audio in 0.1; video built for the next release, in verification | [Video in the core](/guide/video): done, contract 0.2 |
 | 2 | **Twilio** | Twilio Video (media) and Twilio Programmable Voice (signaling: Twilio owns invitations and push) | Video in the core; the signaling adapter interface |
 | 3 | **Zoom Video SDK** | Audio and video | Video in the core |
 | 4 | **Agora** | Audio and video | Video in the core |
