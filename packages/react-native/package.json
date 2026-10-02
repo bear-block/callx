@@ -41,6 +41,15 @@
       "types": "./lib/video.d.ts",
       "react-native": "./src/video.ts",
       "default": "./lib/video.js"
+    },
+    "./ui": {
+      "types": "./lib/ui.d.ts",
+      "react-native": "./src/ui.tsx",
+      "default": "./lib/ui.js"
+    },
+    "./presentation": {
+      "types": "./lib/presentation.d.ts",
+      "default": "./lib/presentation.js"
     }
   },
   "files": [
@@ -55,7 +64,9 @@
     "react-native.config.js",
     "LICENSE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "src/ui.tsx",
+    "src/presentation.ts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -64,6 +75,7 @@
   },
   "devDependencies": {
     "@expo/config-plugins": "57.0.9",
+    "@types/react": "^19.3.0",
     "typescript": "~5.9.3"
   },
   "peerDependencies": {

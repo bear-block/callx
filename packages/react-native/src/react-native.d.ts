@@ -11,7 +11,18 @@ declare module 'react-native' {
   }
   /** In apps this resolves to React Native's own HostComponent type. */
   export interface HostComponent<Props> { readonly __props?: Props }
+  export const View: import('react').ComponentType<ViewProps>;
+  export const SafeAreaView: typeof View;
+  export const Text: import('react').ComponentType<{children?: import('react').ReactNode; style?: unknown; accessibilityRole?: string; numberOfLines?: number}>;
+  export const Pressable: import('react').ComponentType<ViewProps & {onPress: () => void; accessibilityRole?: string}>;
+  export const StyleSheet: {absoluteFill: Record<string, string | number>; create<T>(styles: T): T};
+  export const BackHandler: {addEventListener(name: string, listener: () => boolean): {remove(): void}};
   export interface ViewProps {
+    children?: import('react').ReactNode;
+    accessibilityLabel?: string;
+    accessibilityRole?: string;
+    accessibilityElementsHidden?: boolean;
+    importantForAccessibility?: string;
     style?: unknown;
     testID?: string;
     pointerEvents?: 'box-none' | 'none' | 'box-only' | 'auto';

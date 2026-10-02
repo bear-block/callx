@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "types": [],
     "noUncheckedIndexedAccess": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "jsx": "react-jsx"
   },
   "include": [
     "src"

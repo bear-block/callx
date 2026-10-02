@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Optional call UI: root overlay, call screen, app-branded mini-call and a presentation
+  controller. Incoming stays on Home until accept; minimizing preserves native call/media
+  state and ending removes the UI. UI remains separate from the native call contract.
+
 - Android PiP: `CallxPictureInPicture.configure`, `enter` and `changes`; automatic entry on
   Android 12+ follows live video calls. iOS entry returns false.
 

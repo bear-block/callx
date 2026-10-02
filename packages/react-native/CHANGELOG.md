@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Optional call UI: root overlay, call screen, app-branded mini-call and a presentation
+  controller. Incoming stays on Home until accept; minimizing preserves native call/media
+  state and ending removes the UI. UI remains separate from the native call contract.
+
 - Route the video entry point to its TypeScript source for React Native so Metro can
   generate the native video component config in bundled Android builds.
 

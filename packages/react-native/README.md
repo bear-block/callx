@@ -141,3 +141,12 @@ from your phone. Need help adding calls to your app? The maintainers take on
 [integration work](https://bear-block.github.io/callx/services).
 
 MIT licensed.
+
+
+## Optional call UI (unreleased)
+
+The development source exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
+`CallxPresentationController` from `@bear-block/callx/ui`. Mount the overlay above your app UI; incoming
+stays on Home until accepted, Back minimizes inside the app, and end removes the call UI.
+Colors/logo and command callbacks belong to your app. The controller never changes native
+call state. See the [call UI guide](https://bear-block.github.io/callx/guide/call-ui).
