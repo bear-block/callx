@@ -56,6 +56,12 @@ async function main(options) {
     .then(({ stdout }) => stdout);
   const steps = [];
   const check = (name, passed, detail = '') => { steps.push({ name, passed, detail }); console.log(`${passed ? '✔' : '✘'} ${name}${detail ? ` — ${detail}` : ''}`); };
+  // A stopped media server makes every media step fail for the wrong reason; say so first.
+  const { liveKitUrl } = await (await fetch(`${options.console}/api/state`)).json();
+  const mediaUrl = liveKitUrl?.replace(/^ws/, 'http');
+  if (mediaUrl && !(await fetch(mediaUrl).then((response) => response.ok, () => false))) {
+    throw new Error(`The media server at ${mediaUrl} does not answer; start it with npm run media:server.`);
+  }
   const caller = await openCaller(`${options.console}/`);
   const status = () => caller.evaluate('state.calls.find((c) => c.callId === window.__call)?.status');
   const waitFor = async (wanted, seconds) => {
