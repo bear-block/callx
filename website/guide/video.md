@@ -149,10 +149,11 @@ await callx.switchCamera(call.callId, CameraFacing.back);
 ## Background and the lock screen
 
 ::: warning Verification gap
-Video-call acceptance from the lock screen has not yet been verified. The current Android
-UI evidence covers answering while unlocked, live video and PiP. Earlier audio lock-screen
-tests do not establish video-call behavior. Treat the lifecycle behavior below as the
-intended behavior until the video lock-screen matrix passes.
+Video-call acceptance with a secure PIN lock has passed on Android 16 (API 36) for the
+Flutter debug and React Native release examples. Trials cover FCM delivery while the screen
+is off, native answer/decline, audio connection before unlock, video after foreground, and
+camera pause/resume when locking an active call. Other Android versions, iOS and physical
+devices still need verification. See the [status page](/project/status).
 :::
 
 When your app goes to the background with the camera on, the OS stops the camera and the call

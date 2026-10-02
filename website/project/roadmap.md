@@ -32,7 +32,8 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 - [x] Optional root call overlay and in-app mini-call exports; incoming stays on Home until accepted
 - [x] Flutter Android PiP smoke test on API 36
 - [x] RN PiP UI trial on Android 16 emulator, including camera continuity and branded fallback
-- [ ] Video-call lock-screen acceptance: answer/decline, unlock, audio and camera lifecycle
+- [x] Flutter/RN video-call secure PIN lock-screen trials on Android 16 (API 36)
+- [ ] Video-call lock-screen acceptance on remaining Android APIs, iOS and physical devices
 - [ ] iOS video and physical-device acceptance
 - [ ] Release the development changes
 

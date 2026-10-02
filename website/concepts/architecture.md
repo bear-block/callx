@@ -146,4 +146,5 @@ flowchart TB
 Mini-call is app UI; system PiP is an Android window mode. Automatic PiP requires Android
 12+ and a live eligible video call. The app supplies compact video or branding, and also
 handles a call ending while the PiP window remains open. iOS system PiP is not implemented.
-Lock-screen video acceptance is still unverified; this flow does not imply that it has passed.
+Secure PIN lock-screen video acceptance has passed for Flutter/RN on Android API 36. Other
+Android versions, iOS and physical devices remain unverified; see [status](/project/status).

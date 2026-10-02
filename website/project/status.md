@@ -53,6 +53,7 @@ as a device pass.
 | Flutter Android PiP: manual and automatic entry, compact layout, camera continues, auto-entry disabled after end (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | RN Android PiP: manual and automatic entry, compact layout, camera continuity and call-end cleanup (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | Optional root call overlay / mini-call: Home until accept, Back minimizes, same call expands, terminal cleanup (Flutter/RN API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Flutter/RN video invitation with secure PIN lock: native answer/decline, audio before unlock, video after foreground, camera pause/resume (API 36) | <span class="part">◐</span> native lifecycle tests | <span class="ok">●</span> | <span class="no">○</span> |
 | iOS PiP | Not implemented | n/a | n/a |
 | Video calls (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Adapter discovery (Flutter and React Native) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
@@ -88,6 +89,38 @@ switching camera, and the camera pausing in the background and resuming in front
 |---|---|---|---|
 | 13 | 33 | 15/15 (Telecom's video registration needs API 34) | 2026-10-02 |
 | 16 | 36 | 16/16 | 2026-10-02 |
+
+### Video calls with a secure lock screen
+
+On 2026-10-02, the Flutter debug and React Native release examples passed 14 checks each
+on Android 16 / API 36 with a temporary secure PIN. The native incoming Activity appeared
+while keyguard was showing, secure and occluded; this was not merely a screen-off trial.
+
+- A real FCM video invitation rang while the screen was off; Decline ended the call.
+- Answer connected LiveKit audio before entering the PIN; the camera did not auto-start.
+- Unlocking and bringing the app foreground opened the call overlay. Remote video arrived,
+  and the caller subscribed to local video after explicitly enabling the camera.
+- Locking the active call paused the camera; unlocking and returning resumed it.
+- Ending the call removed the overlay. The temporary PIN was removed after the trial.
+
+These checks cover the default `RequireUnlock` policy on API 36. `ShowOverLockScreen`, other
+Android versions, iOS, physical devices and acoustic audio quality remain outside this trial.
+
+### Release verification and CI
+
+Local verification on 2026-10-02 passed all 10 quick-test groups, 157 native Android tests
+(including build variants), 92 core iOS Simulator tests, package version consistency, and
+npm/pub packaging dry runs. LiveKit iOS Simulator testing with fresh package downloads also
+passed locally with
+five Swift Testing tests and one known keychain-entitlement issue in the unhosted test bundle.
+
+The latest inspected remote CI [run 36972105110](https://github.com/bear-block/callx/actions/runs/36972105110)
+failed before LiveKit tests: SwiftPM referenced a missing cached repository while resolving
+packages (exit 74). The runner script now uses isolated package downloads and disables the
+shared repository cache. This fix still needs a new remote CI run; local success does not
+establish that remote CI is green. The later
+[Docs run 36981197439](https://github.com/bear-block/callx/actions/runs/36981197439) succeeded.
+Both remote runs were for commit `810d977`, preceding the current local changes.
 
 ### Android PiP smoke test
 
