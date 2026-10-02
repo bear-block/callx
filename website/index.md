@@ -49,6 +49,18 @@ Version 0.2.2 includes contract 0.2.0, native video, Android PiP and optional ca
 with an in-app mini-call. See [status](/project/status) for what has been verified.
 :::
 
+<CallDemoShowcase />
+
+## Start with your app
+
+<div class="start-paths">
+
+<a href="/callx/guide/flutter"><strong>Flutter</strong><span>Native calls, Dart API and optional call overlay →</span></a>
+<a href="/callx/guide/react-native"><strong>React Native</strong><span>Native calls, TypeScript API and optional call overlay →</span></a>
+<a href="/callx/guide/expo"><strong>Expo</strong><span>Config plugin and development build setup →</span></a>
+
+</div>
+
 ## The same call, in either framework
 
 ::: code-group
@@ -86,7 +98,7 @@ await callx.answer(callId);
 | Package | Flutter (pub.dev) | React Native (npm) |
 |---|---|---|
 | Core: CallKit and Telecom, push ingress, incoming UI, recovery | [`callx`](https://pub.dev/packages/callx) | [`@bear-block/callx`](https://www.npmjs.com/package/@bear-block/callx) |
-| LiveKit audio adapter (optional) | [`callx_livekit`](https://pub.dev/packages/callx_livekit) | [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) |
+| LiveKit audio/video adapter (optional) | [`callx_livekit`](https://pub.dev/packages/callx_livekit) | [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) |
 | Device-trial tools: call console, test pushes, conformance | | [`@bear-block/callx-testkit`](https://www.npmjs.com/package/@bear-block/callx-testkit) |
 
 ## Choose your call UI

@@ -13,6 +13,9 @@ Mount `CallxCallOverlay` once above your app's navigation. Its Home/navigation c
 mounted when the call expands. Use `CallxPresentationController` to decide what to show from
 native snapshots; it does not answer, end, join media or write call state.
 
+Watch [Steven call hao.dev7 across the two frameworks](/guide/demos) to see the incoming
+surface, call overlay, in-app mini-call and Android system PiP in an emulator recording.
+
 ## Choosing who renders the UI
 
 Call presentation can be separated from the native call lifecycle. Choose incoming-call

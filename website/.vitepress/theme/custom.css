@@ -28,6 +28,29 @@
   color: var(--vp-c-text-2);
 }
 
+.start-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.start-paths a {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  background: var(--vp-c-bg-soft);
+  text-decoration: none !important;
+  transition: border-color .15s;
+}
+.start-paths a:hover { border-color: var(--vp-c-brand-1); }
+.start-paths strong { font-size: 18px; }
+.start-paths span { color: var(--vp-c-text-2); font-size: 14px; line-height: 1.6; }
+@media (max-width: 640px) { .start-paths { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .start-paths a { transition: none; } }
+
 .sponsor-tiers {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

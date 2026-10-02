@@ -18,6 +18,12 @@ Version 0.2.2 includes native video, Android PiP and optional framework UI. The 
 describe the tested platforms and builds; publication does not establish physical-device
 or iOS video acceptance.
 
+Watch the [Steven → hao.dev7 two-device demo](/guide/demos): React Native on Android API 36
+calls Flutter on API 33 through real FCM and native LiveKit. The recorded trial passed
+18 checks, including remote video on both hosts, in-app minimize/expand, Android system PiP,
+camera-off branding and remote-end cleanup. Screen recording is silent; physical-device and
+iOS acceptance remain separate gates.
+
 ## How we verify
 
 | Level | What it proves | Where it runs |

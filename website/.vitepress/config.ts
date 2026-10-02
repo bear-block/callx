@@ -72,6 +72,7 @@ export default withMermaid(defineConfig({
           {text: 'Add LiveKit audio', link: '/guide/livekit'},
           {text: 'Video calls', link: '/guide/video'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
+          {text: 'Two-device demo', link: '/guide/demos'},
           {text: 'Try without a backend', link: '/guide/simulator'},
         ],
       },
