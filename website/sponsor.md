@@ -73,7 +73,8 @@ release, and publishing what was verified.
 </div>
 
 Sponsorship never buys features in the library, private forks or a say over what is accepted;
-it funds the work that benefits every user. One-time donations of any size are just as welcome.
+it funds the work that benefits every user. For help with your own app, see
+[work with us](/services). One-time donations of any size are just as welcome.
 
 ## Help verify on real devices
 

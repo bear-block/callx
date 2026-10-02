@@ -5,13 +5,13 @@ import {sponsorLinks} from '../sponsor';
 
 const {page} = useData();
 // Not on the sponsor page itself.
-const visible = computed(() => page.value.relativePath !== 'sponsor.md');
+const visible = computed(() => !['sponsor.md', 'services.md'].includes(page.value.relativePath));
 </script>
 
 <template>
   <div v-if="visible" class="sponsor-aside">
     <p class="sponsor-aside__title"><span aria-hidden="true">♥</span> Support Callx</p>
-    <p class="sponsor-aside__body">Free, MIT and independent. Sponsors fund testing on real phones.</p>
+    <p class="sponsor-aside__body">Free, MIT and independent. Sponsors fund its maintenance through every OS release.</p>
     <div class="sponsor-aside__links">
       <a :href="sponsorLinks.monthly" target="_blank" rel="noopener">Sponsor</a>
       <span aria-hidden="true">·</span>

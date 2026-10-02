@@ -46,6 +46,14 @@ Docker), answered calls carry real two-way audio between the device and the cons
 without it media is simulated. iOS media is still simulated. Web is a demo
 target, not a native calling platform.
 
+## Support and services
+
+Callx is free and independent. [Sponsoring it](https://bear-block.github.io/callx/sponsor) funds
+the maintenance that keeps it working through every iOS and Android release, and
+[device test results](https://github.com/bear-block/callx/issues/new?template=device-results.yml)
+from your phones are just as valuable. To add calls to your app, build an adapter for your
+provider or debug calls that do not ring, [work with the maintainers](https://bear-block.github.io/callx/services).
+
 ## Repository development
 
 The root package is a private TypeScript prototype. Publishable packages live under
@@ -74,6 +82,3 @@ Android does not start the app.
 Edit canonical native sources under `native/`, then run
 `./tool/sync_native_sources.sh` and verify parity again. Each distributed package
 vendors the sources so consumers do not depend on the monorepo.
-
-Historical research, ADRs and strategy are indexed in the documentation directory.
-Some historical material is in Vietnamese and records proposals rather than current behavior.

@@ -5,7 +5,7 @@
     "type": "group",
     "role": "maintainer",
     "name": "Callx maintainers",
-    "email": "REPLACE-WITH-MAINTAINER-EMAIL",
+    "email": "hao.dev7@gmail.com",
     "description": "Independent maintainers of Callx, an open-source native calling library for Flutter and React Native.",
     "webpageUrl": {
       "url": "https://bear-block.github.io/callx/"

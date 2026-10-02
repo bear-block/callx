@@ -33,14 +33,14 @@ export default withMermaid(defineConfig({
     logo: '/logo.svg',
     siteTitle: 'Callx',
     nav: [
-      {text: 'Why Callx', link: '/why'},
       {text: 'Get started', link: '/guide/'},
       {text: 'Guides', link: '/guides/backend'},
       {text: 'Reference', link: '/reference/javascript'},
-      {text: 'Compare', link: '/compare'},
       {
         text: 'Project',
         items: [
+          {text: 'Why Callx', link: '/why'},
+          {text: 'Compare', link: '/compare'},
           {text: 'Status', link: '/project/status'},
           {text: 'Roadmap', link: '/project/roadmap'},
           {text: 'Decisions', link: '/project/decisions'},
@@ -49,6 +49,7 @@ export default withMermaid(defineConfig({
           {text: 'Security', link: '/project/security'},
         ],
       },
+      {text: 'Work with us', link: '/services'},
       {text: 'Sponsor', link: '/sponsor'},
     ],
     sidebar: [
@@ -58,6 +59,7 @@ export default withMermaid(defineConfig({
           {text: 'Why Callx', link: '/why'},
           {text: 'Compare', link: '/compare'},
           {text: 'Status', link: '/project/status'},
+          {text: 'Work with us', link: '/services'},
         ],
       },
       {

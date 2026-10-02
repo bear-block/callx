@@ -94,6 +94,7 @@ correct. [Read why that boundary matters →](/why#what-callx-does-not-do)
 
 <p style="margin-top: 48px; text-align: center;">
   Callx is independent open source. <a href="/callx/sponsor">Sponsoring it</a> keeps it maintained through every iOS and Android release.
+  Need calls in your app? <a href="/callx/services">Work with us</a>.
 </p>
 
 </div>

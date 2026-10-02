@@ -137,6 +137,7 @@ host signaling, send pushes or carry media. See the
 Callx is free and independent. [Sponsoring it](https://bear-block.github.io/callx/sponsor) funds
 the maintenance that keeps it working through every iOS and Android release. You can also help
 by [sharing test results](https://github.com/bear-block/callx/issues/new?template=device-results.yml)
-from your phone.
+from your phone. Need help adding calls to your app? The maintainers take on
+[integration work](https://bear-block.github.io/callx/services).
 
 MIT licensed.
