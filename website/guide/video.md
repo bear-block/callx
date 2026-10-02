@@ -62,7 +62,7 @@ Core-Telecom registers it as `CALL_TYPE_VIDEO_CALL`. To start one, pass `video: 
 
 ::: code-group
 
-```ts [JavaScript]
+```ts [TypeScript]
 await callx.startCall({callId, displayName: 'Alex', handle: 'callx:user-a', video: true});
 ```
 
@@ -116,7 +116,7 @@ The view is empty until its source exists. Two views may show the same source.
 
 ::: code-group
 
-```ts [JavaScript]
+```ts [TypeScript]
 const result = await callx.setCamera(call.callId, true);
 if (result.status !== 'applied') {
   // permissionDenied, mediaNotReady (app in the background), unsupported (no video adapter)
@@ -147,6 +147,13 @@ await callx.switchCamera(call.callId, CameraFacing.back);
 | `rejected` / `invalidState` | The call is ringing or has ended |
 
 ## Background and the lock screen
+
+::: warning Verification gap
+Video-call acceptance from the lock screen has not yet been verified. The current Android
+UI evidence covers answering while unlocked, live video and PiP. Earlier audio lock-screen
+tests do not establish video-call behavior. Treat the lifecycle behavior below as the
+intended behavior until the video lock-screen matrix passes.
+:::
 
 When your app goes to the background with the camera on, the OS stops the camera and the call
 shows `localVideo: 'blocked'`. The call itself continues with audio. When the app comes back,

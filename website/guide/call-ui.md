@@ -13,6 +13,27 @@ Mount `CallxCallOverlay` once above your app's navigation. Its Home/navigation c
 mounted when the call expands. Use `CallxPresentationController` to decide what to show from
 native snapshots; it does not answer, end, join media or write call state.
 
+## Choosing who renders the UI
+
+Call presentation can be separated from the native call lifecycle. Choose incoming-call
+presentation independently from the screen shown after acceptance.
+
+| Choice | Current support | Customization |
+|---|---|---|
+| Native presentation | Android provides a default incoming notification/lock-screen presenter and a native `CallxBootstrapConfig.presenter` factory. iOS uses CallKit. A complete native video-call screen with Dart/TypeScript configuration is not implemented. | Android hosts can replace the presenter in Kotlin. System UI appearance is controlled by the OS. |
+| Your Flutter or React Native UI | Supported through snapshots, commands and video views; importing the optional UI package is unnecessary. | Build your own Dart or TypeScript/TSX screens and navigation. |
+| Callx Flutter or React Native UI | The optional components below are available in development source. | Supply branding, controls, video rendering and expanded/minimized widgets. |
+
+These are integration choices, not a shipped three-value configuration API. There is
+currently no Dart/TypeScript switch that disables all native presentation. Using a custom
+app screen still retains native call ownership and system integration. Background and
+terminated-app incoming calls need a native presentation path; Android's ongoing call
+notification also remains part of the native integration.
+
+The examples currently use native incoming presentation followed by the optional framework
+call overlay after acceptance. If you build a foreground incoming screen, coordinate it with
+the native presenter so the same invitation does not display two incoming screens.
+
 ## Incoming and accepted calls
 
 An `incoming` snapshot keeps the overlay hidden. In Device mode, let CallKit/Telecom and the
