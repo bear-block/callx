@@ -12,6 +12,8 @@ public struct ContractManifest: Sendable {
     public let sources: Set<String>
     public let lookups: Set<String>
     public let sessions: Set<String>
+    public let localVideoStates: Set<String>
+    public let cameraFacings: Set<String>
     public let identifierPattern: String
     public let identifierMaxBytes: Int
 
@@ -32,6 +34,7 @@ public struct ContractManifest: Sendable {
         statuses = try strings("commandStatuses"); errors = try strings("errorCodes")
         events = try strings("eventKinds"); sources = try strings("eventSources")
         lookups = try strings("operationLookupStatuses"); sessions = try strings("sessionOpenStatuses")
+        localVideoStates = try strings("localVideoStates"); cameraFacings = try strings("cameraFacings")
         identifierPattern = pattern; identifierMaxBytes = maxBytes
     }
 }
@@ -100,10 +103,12 @@ public struct ContractValidator: Sendable {
             guard let handle = input["handle"] as? String, !handle.isEmpty, handle.utf8.count <= 256
             else { throw ContractViolation("command.input.handle invalid") }
             guard value["callId"] == nil, value["value"] == nil else { throw ContractViolation("startCall forbidden fields") }
+            if let video = input["video"] { try boolean(video, "command.input.video") }
         } else {
             try id(value["callId"], "command.callId")
-            let needsValue = ["setMuted", "setHeld"].contains(value["type"] as? String)
-            if needsValue { try boolean(value["value"], "command.value") }
+            let type = value["type"] as? String
+            if type == "switchCamera" { try member(value["value"], manifest.cameraFacings, "command.value") }
+            else if ["setMuted", "setHeld", "setCamera"].contains(type) { try boolean(value["value"], "command.value") }
             else if value["value"] != nil { throw ContractViolation("command.value forbidden") }
             guard value["input"] == nil else { throw ContractViolation("command.input forbidden") }
         }
@@ -143,6 +148,11 @@ public struct ContractValidator: Sendable {
                 throw ContractViolation("only connected media can be interrupted")
             }
         }
+        for field in ["video", "remoteVideo"] { if let flag = value[field] { try boolean(flag, "\(path).\(field)") } }
+        if let local = value["localVideo"] { try member(local, manifest.localVideoStates, "\(path).localVideo") }
+        if let local = value["localVideo"] as? String, local != "off" {
+            try member(value["cameraFacing"], manifest.cameraFacings, "\(path).cameraFacing")
+        } else if value["cameraFacing"] != nil { throw ContractViolation("cameraFacing needs a camera that is not off") }
         for field in ["createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs"] {
             if let timestampValue = value[field] { try timestamp(timestampValue, "\(path).\(field)") }
         }

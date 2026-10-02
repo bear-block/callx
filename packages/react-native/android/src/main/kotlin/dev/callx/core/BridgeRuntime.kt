@@ -10,6 +10,8 @@ data class BridgeCapabilities(
     val providerManagedSignaling: Boolean,
     val hold: Boolean,
     val mute: Boolean,
+    /** The media adapter supports video (ADR-0010). */
+    val video: Boolean = false,
 )
 
 /** Framework-neutral wire adapter. Flutter and React Native only translate their map types. */
@@ -34,7 +36,7 @@ class BridgeRuntime(
         "accountGeneration" to capabilities.accountGeneration, "nativeCalling" to true,
         "durableReplay" to capabilities.durableReplay,
         "providerManagedSignaling" to capabilities.providerManagedSignaling,
-        "hold" to capabilities.hold, "mute" to capabilities.mute,
+        "hold" to capabilities.hold, "mute" to capabilities.mute, "video" to capabilities.video,
         )
     }
 
@@ -116,10 +118,10 @@ class BridgeRuntime(
 
     /** Records an invitation. Only [IncomingOutcome.Accepted] means the platform should ring. */
     fun reportIncoming(callId: String, displayName: String, handle: String, observedAtMs: Long = nowMs(),
-        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null, video: Boolean = false): IncomingOutcome {
         requiredId(mapOf("callId" to callId), "callId"); requiredText(mapOf("displayName" to displayName), "displayName", 256)
         requiredText(mapOf("handle" to handle), "handle", 256)
-        return coordinator.durableReportIncoming(callId, observedAtMs, displayName, handle, ringDeadlineAtMs, expiresAtMs)
+        return coordinator.durableReportIncoming(callId, observedAtMs, displayName, handle, ringDeadlineAtMs, expiresAtMs, video)
             .also { publishNewEvents() }
     }
     /** Returns true when an outgoing call moved to connecting. */
@@ -138,6 +140,15 @@ class BridgeRuntime(
     fun mediaInterrupted(callId: String, observedAtMs: Long = nowMs()): Boolean {
         requiredId(mapOf("callId" to callId), "callId")
         return coordinator.durableMediaInterrupted(callId, observedAtMs).also { publishNewEvents() }
+    }
+    /**
+     * Video the media adapter observed: the camera taken by the OS or given back, and whether a
+     * remote video track is available. Pass null for what did not change. True when state changed.
+     */
+    fun videoObserved(callId: String, localVideo: LocalVideo? = null, remoteVideo: Boolean? = null,
+        observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durableVideoObserved(callId, localVideo, remoteVideo, observedAtMs).also { publishNewEvents() }
     }
     /** Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later. */
     fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()): Boolean {
@@ -207,16 +218,21 @@ class BridgeRuntime(
             if (value.containsKey("callId") || value.containsKey("value")) invalid("startCall contains forbidden fields.")
             val input = value["input"] as? Map<*, *> ?: invalid("input is required.")
             val callId = requiredId(input, "callId")
+            val video = input["video"]?.let { it as? Boolean ?: invalid("input.video must be boolean.") } ?: false
             return NativeCommand(operationId, type, callId,
                 displayName = requiredText(input, "displayName", 256),
-                handle = requiredText(input, "handle", 256), deadlineAtMs = deadline)
+                handle = requiredText(input, "handle", 256), deadlineAtMs = deadline, video = video)
         }
         if (value.containsKey("input")) invalid("input is only valid for startCall.")
         val callId = requiredId(value, "callId")
-        val commandValue = if (type in setOf(CommandType.setMuted, CommandType.setHeld))
-            value["value"] as? Boolean ?: invalid("value is required.") else null
-        if (type !in setOf(CommandType.setMuted, CommandType.setHeld) && value.containsKey("value"))
-            invalid("value is forbidden for this command.")
+        if (type == CommandType.switchCamera) {
+            val facing = (value["value"] as? String)?.let { name -> CameraFacing.entries.firstOrNull { it.name == name } }
+                ?: invalid("value must be front or back.")
+            return NativeCommand(operationId, type, callId, facing = facing, deadlineAtMs = deadline)
+        }
+        val takesValue = type in setOf(CommandType.setMuted, CommandType.setHeld, CommandType.setCamera)
+        val commandValue = if (takesValue) value["value"] as? Boolean ?: invalid("value is required.") else null
+        if (!takesValue && value.containsKey("value")) invalid("value is forbidden for this command.")
         return NativeCommand(operationId, type, callId, value = commandValue, deadlineAtMs = deadline)
     }
 
@@ -250,6 +266,12 @@ class BridgeRuntime(
             value.endReason?.let { put("endReason", it) }; value.createdAtMs?.let { put("createdAtMs", it) }
             value.acceptedAtMs?.let { put("acceptedAtMs", it) }
             value.mediaConnectedAtMs?.let { put("mediaConnectedAtMs", it) }; value.endedAtMs?.let { put("endedAtMs", it) }
+            // Video fields are omitted at their defaults, so 0.1 snapshots stay unchanged.
+            if (value.video) put("video", true)
+            if (value.localVideo != LocalVideo.off) {
+                put("localVideo", value.localVideo.name); put("cameraFacing", (value.cameraFacing ?: CameraFacing.front).name)
+            }
+            if (value.remoteVideo) put("remoteVideo", true)
         }
     }
     private fun eventMap(value: JournalEvent): Map<String, Any?> = mutableMapOf<String, Any?>(
@@ -261,7 +283,7 @@ class BridgeRuntime(
         if (value["sessionId"] != activeSession) throw BridgeViolation("invalidArgument", "Observation session is stale.")
     }
     private fun requireVersion(value: Map<String, Any?>) {
-        if (value["contractVersion"] != VERSION) throw BridgeViolation("invalidArgument", "Incompatible contractVersion.")
+        if (value["contractVersion"] !in SUPPORTED_VERSIONS) throw BridgeViolation("invalidArgument", "Incompatible contractVersion.")
     }
     private fun requiredId(value: Map<*, *>, key: String): String {
         val text = value[key] as? String ?: invalid("$key is required.")
@@ -280,7 +302,9 @@ class BridgeRuntime(
     }
     private fun invalid(message: String): Nothing = throw BridgeViolation("invalidArgument", message)
     private companion object {
-        const val VERSION = "0.1.0"
+        const val VERSION = "0.2.0"
+        /** 0.2 only adds optional fields and commands, so 0.1 wrappers keep working. */
+        val SUPPORTED_VERSIONS = setOf("0.1.0", "0.2.0")
         const val MAX_TIMESTAMP = 9_007_199_254_740_991L
         const val MAX_DEADLINE_LEAD_MS = 30_000L
         val ID = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")

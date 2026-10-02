@@ -17,10 +17,13 @@ public struct BridgeCapabilities: Sendable {
     public let providerManagedSignaling: Bool
     public let hold: Bool
     public let mute: Bool
+    /// The media adapter supports video (ADR-0010).
+    public let video: Bool
     public init(accountGeneration: String, durableReplay: Bool, providerManagedSignaling: Bool,
-        hold: Bool, mute: Bool) {
+        hold: Bool, mute: Bool, video: Bool = false) {
         self.accountGeneration = accountGeneration; self.durableReplay = durableReplay
         self.providerManagedSignaling = providerManagedSignaling; self.hold = hold; self.mute = mute
+        self.video = video
     }
 }
 
@@ -30,7 +33,9 @@ public protocol BridgeEventReceiving: AnyObject, Sendable {
 
 /** Framework-neutral actor. Flutter and React Native only translate BridgeValue at their boundary. */
 public actor BridgeRuntime {
-    private static let version = "0.1.0"
+    private static let version = "0.2.0"
+    /// 0.2 only adds optional fields and commands, so 0.1 wrappers keep working.
+    private static let supportedVersions: Set<String> = ["0.1.0", "0.2.0"]
     private static let endReasons = ["localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered", "busy",
         "failed", "answeredElsewhere", "declinedElsewhere"]
     private static let identifier = try! NSRegularExpression(pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -58,7 +63,7 @@ public actor BridgeRuntime {
         "execution": .string("native"), "accountGeneration": .string(capabilities.accountGeneration),
         "nativeCalling": .bool(true), "durableReplay": .bool(capabilities.durableReplay),
         "providerManagedSignaling": .bool(capabilities.providerManagedSignaling),
-        "hold": .bool(capabilities.hold), "mute": .bool(capabilities.mute),
+        "hold": .bool(capabilities.hold), "mute": .bool(capabilities.mute), "video": .bool(capabilities.video),
         ]
     }
 
@@ -135,12 +140,14 @@ public actor BridgeRuntime {
     /// Records an invitation. Only `.accepted` means the platform should ring.
     @discardableResult
     public func reportIncoming(callID: String, displayName: String, handle: String,
-        observedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil) async throws -> IncomingOutcome {
+        observedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil,
+        video: Bool = false) async throws -> IncomingOutcome {
         _ = try requiredID(["callId": .string(callID)], "callId")
         _ = try requiredText(["displayName": .string(displayName)], "displayName", maxBytes: 256)
         _ = try requiredText(["handle": .string(handle)], "handle", maxBytes: 256)
         let outcome = try await coordinator.durableReportIncoming(callID: callID, displayName: displayName,
-            handle: handle, nowMs: observedAtMs ?? nowMs(), ringDeadlineAtMs: ringDeadlineAtMs, expiresAtMs: expiresAtMs)
+            handle: handle, nowMs: observedAtMs ?? nowMs(), ringDeadlineAtMs: ringDeadlineAtMs, expiresAtMs: expiresAtMs,
+            video: video)
         await publishNewEvents(); return outcome
     }
     /// Returns true when an outgoing call moved to connecting.
@@ -161,6 +168,16 @@ public actor BridgeRuntime {
     public func mediaInterrupted(callID: String, observedAtMs: Int64? = nil) async throws -> Bool {
         _ = try requiredID(["callId": .string(callID)], "callId")
         let changed = try await coordinator.durableMediaInterrupted(callID: callID, nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return changed
+    }
+    /// Video the media adapter observed: the camera taken by the OS or given back, and whether a
+    /// remote video track is available. Pass nil for what did not change. True when state changed.
+    @discardableResult
+    public func videoObserved(callID: String, localVideo: LocalVideo? = nil, remoteVideo: Bool? = nil,
+        observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let changed = try await coordinator.durableVideoObserved(callID: callID, localVideo: localVideo,
+            remoteVideo: remoteVideo, nowMs: observedAtMs ?? nowMs())
         await publishNewEvents(); return changed
     }
     /// Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later.
@@ -246,13 +263,24 @@ public actor BridgeRuntime {
         if type == .startCall {
             guard value["callId"] == nil, value["value"] == nil else { throw invalid("startCall contains forbidden fields.") }
             guard case .object(let input) = value["input"] else { throw invalid("input is required.") }
+            var video = false
+            if let raw = input["video"] {
+                guard case .bool(let flag) = raw else { throw invalid("input.video must be boolean.") }; video = flag
+            }
             return NativeCommand(operationID: operationID, type: type, callID: try requiredID(input, "callId"),
                 displayName: try requiredText(input, "displayName", maxBytes: 256),
-                handle: try requiredText(input, "handle", maxBytes: 256), deadlineAtMs: deadline)
+                handle: try requiredText(input, "handle", maxBytes: 256), deadlineAtMs: deadline, video: video)
         }
         guard value["input"] == nil else { throw invalid("input is only valid for startCall.") }
+        if type == .switchCamera {
+            guard case .string(let name) = value["value"], let facing = CameraFacing(rawValue: name) else {
+                throw invalid("value must be front or back.")
+            }
+            return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
+                deadlineAtMs: deadline, facing: facing)
+        }
         let bool: Bool?
-        if type == .setMuted || type == .setHeld {
+        if type == .setMuted || type == .setHeld || type == .setCamera {
             guard case .bool(let value) = value["value"] else { throw invalid("value is required.") }; bool = value
         } else {
             guard value["value"] == nil else { throw invalid("value is forbidden for this command.") }; bool = nil
@@ -292,6 +320,13 @@ public actor BridgeRuntime {
         if let item = value.acceptedAtMs { result["acceptedAtMs"] = .integer(item) }
         if let item = value.mediaConnectedAtMs { result["mediaConnectedAtMs"] = .integer(item) }
         if let item = value.endedAtMs { result["endedAtMs"] = .integer(item) }
+        // Video fields are omitted at their defaults, so 0.1 snapshots stay unchanged.
+        if value.video { result["video"] = .bool(true) }
+        if value.localVideo != .off {
+            result["localVideo"] = .string(value.localVideo.rawValue)
+            result["cameraFacing"] = .string((value.cameraFacing ?? .front).rawValue)
+        }
+        if value.remoteVideo { result["remoteVideo"] = .bool(true) }
         return result
     }
     private func eventMap(_ value: JournalEvent) -> BridgeObject {
@@ -303,7 +338,9 @@ public actor BridgeRuntime {
         return result
     }
     private func requireVersion(_ value: BridgeObject) throws {
-        guard value["contractVersion"] == .string(Self.version) else { throw invalid("Incompatible contractVersion.") }
+        guard case .string(let version) = value["contractVersion"], Self.supportedVersions.contains(version) else {
+            throw invalid("Incompatible contractVersion.")
+        }
     }
     private func requireSession(_ value: BridgeObject) throws {
         guard let activeSession, value["sessionId"] == .string(activeSession) else { throw invalid("Observation session is stale.") }

@@ -61,6 +61,10 @@ object CoordinatorCheckpointCodec {
         value.mediaConnectedAtMs?.let { put("mediaConnectedAtMs", it) }; value.endedAtMs?.let { put("endedAtMs", it) }
         value.ringDeadlineAtMs?.let { put("ringDeadlineAtMs", it) }
         if (value.mediaInterrupted) put("mediaInterrupted", true)
+        if (value.video) put("video", true)
+        if (value.localVideo != LocalVideo.off) put("localVideo", value.localVideo.name)
+        value.cameraFacing?.let { put("cameraFacing", it.name) }
+        if (value.remoteVideo) put("remoteVideo", true)
     }
     private fun decodeCall(value: JsonObject) = CallRecord(value.text("callId"), CallState.valueOf(value.text("state")),
         value.getValue("muted").jsonPrimitive.boolean, value.getValue("mediaReady").jsonPrimitive.boolean,
@@ -70,16 +74,23 @@ object CoordinatorCheckpointCodec {
         value["createdAtMs"]?.jsonPrimitive?.longOrNull, value["acceptedAtMs"]?.jsonPrimitive?.longOrNull,
         value["mediaConnectedAtMs"]?.jsonPrimitive?.longOrNull, value["endedAtMs"]?.jsonPrimitive?.longOrNull,
         value["ringDeadlineAtMs"]?.jsonPrimitive?.longOrNull,
-        value["mediaInterrupted"]?.jsonPrimitive?.booleanOrNull ?: false)
+        value["mediaInterrupted"]?.jsonPrimitive?.booleanOrNull ?: false,
+        value["video"]?.jsonPrimitive?.booleanOrNull ?: false,
+        value["localVideo"]?.jsonPrimitive?.contentOrNull?.let(LocalVideo::valueOf) ?: LocalVideo.off,
+        value["cameraFacing"]?.jsonPrimitive?.contentOrNull?.let(CameraFacing::valueOf),
+        value["remoteVideo"]?.jsonPrimitive?.booleanOrNull ?: false)
     private fun encodeCommand(value: NativeCommand) = buildJsonObject {
         put("operationId", value.operationId); put("type", value.type.name); put("callId", value.callId)
         value.value?.let { put("value", it) }; value.displayName?.let { put("displayName", it) }
         value.handle?.let { put("handle", it) }; put("deadlineAtMs", value.deadlineAtMs)
+        if (value.video) put("video", true); value.facing?.let { put("facing", it.name) }
     }
     private fun decodeCommand(value: JsonObject) = NativeCommand(value.text("operationId"),
         CommandType.valueOf(value.text("type")), value.text("callId"), value["value"]?.jsonPrimitive?.booleanOrNull,
         value["displayName"]?.jsonPrimitive?.contentOrNull, value["handle"]?.jsonPrimitive?.contentOrNull,
-        value.getValue("deadlineAtMs").jsonPrimitive.long)
+        value.getValue("deadlineAtMs").jsonPrimitive.long,
+        value["video"]?.jsonPrimitive?.booleanOrNull ?: false,
+        value["facing"]?.jsonPrimitive?.contentOrNull?.let(CameraFacing::valueOf))
     private fun encodeResult(value: NativeOperation) = buildJsonObject {
         put("operationId", value.operationId); put("status", value.status.name); value.errorCode?.let { put("errorCode", it) }
         value.completedAtMs?.let { put("completedAtMs", it) }

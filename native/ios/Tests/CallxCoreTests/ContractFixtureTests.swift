@@ -18,10 +18,10 @@ import Testing
         let value = fixture["value"] as Any
         #expect(throws: ContractViolation.self) {
             if path == "event.sequence" {
-                try validator.validateFixture(["event": ["contractVersion": "0.1.0", "eventId": "invalid-event",
+                try validator.validateFixture(["event": ["contractVersion": "0.2.0", "eventId": "invalid-event",
                     "sequence": value, "kind": "callChanged", "source": "local", "observedAtMs": 0]])
             } else if path == "command.operationId" {
-                try validator.validateFixture(["command": ["contractVersion": "0.1.0", "operationId": value,
+                try validator.validateFixture(["command": ["contractVersion": "0.2.0", "operationId": value,
                     "type": "answer", "callId": "call-1"]])
             } else {
                 try validator.validateFixture([path: value])

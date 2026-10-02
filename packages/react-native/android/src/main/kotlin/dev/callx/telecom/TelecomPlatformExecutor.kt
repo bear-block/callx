@@ -150,6 +150,8 @@ class TelecomPlatformExecutor(
                     ?: return PlatformOutcome.Rejected("invalidArgument", nowMs())
                 calls.resolve(command.callId)?.setHeld(value)
             }
+            // Camera commands need a video media adapter (ADR-0010); none is wired yet.
+            CommandType.setCamera, CommandType.switchCamera -> return PlatformOutcome.Rejected("unsupported", nowMs())
         } ?: return PlatformOutcome.Rejected("callNotFound", nowMs())
 
         return when (result) {

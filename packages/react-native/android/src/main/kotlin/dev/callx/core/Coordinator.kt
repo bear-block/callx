@@ -2,7 +2,10 @@ package dev.callx.core
 
 enum class CallState { incoming, outgoing, connecting, active, held, ended }
 enum class CallDirection { incoming, outgoing }
-enum class CommandType { startCall, answer, end, setMuted, setHeld }
+enum class CommandType { startCall, answer, end, setMuted, setHeld, setCamera, switchCamera }
+/** The local camera as the media adapter reports it (ADR-0010). */
+enum class LocalVideo { off, on, blocked }
+enum class CameraFacing { front, back }
 enum class OperationStatus { pending, applied, rejected, timedOut, unknown }
 data class CallRecord(val callId: String, val state: CallState, val muted: Boolean = false,
     val mediaReady: Boolean = false, val endReason: String? = null,
@@ -10,7 +13,14 @@ data class CallRecord(val callId: String, val state: CallState, val muted: Boole
     val createdAtMs: Long? = null, val acceptedAtMs: Long? = null,
     val mediaConnectedAtMs: Long? = null, val endedAtMs: Long? = null, val ringDeadlineAtMs: Long? = null,
     /** Media connected once and has since dropped; the call itself is unaffected. */
-    val mediaInterrupted: Boolean = false)
+    val mediaInterrupted: Boolean = false,
+    /** Offered or started as a video call. */
+    val video: Boolean = false,
+    val localVideo: LocalVideo = LocalVideo.off,
+    /** The camera in use or last chosen; null until the camera is first turned on or switched. */
+    val cameraFacing: CameraFacing? = null,
+    /** A remote video track is subscribed, so a view can render it. */
+    val remoteVideo: Boolean = false)
 /** A call that ended; its ID is never used again while the record is retained. */
 data class TerminalRecord(val callId: String, val reason: String, val endedAtMs: Long)
 /** Why an incoming invitation did or did not create a call. */
@@ -26,7 +36,11 @@ sealed interface IncomingOutcome {
     data object Expired : IncomingOutcome
 }
 data class NativeCommand(val operationId: String, val type: CommandType, val callId: String,
-    val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long)
+    val value: Boolean? = null, val displayName: String? = null, val handle: String? = null, val deadlineAtMs: Long,
+    /** startCall only. */
+    val video: Boolean = false,
+    /** switchCamera only. */
+    val facing: CameraFacing? = null)
 data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null,
     val completedAtMs: Long? = null)
 sealed interface Preparation {
@@ -75,7 +89,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         terminal[callId]?.takeIf { nowMs - it.endedAtMs < TERMINAL_RETENTION_MS }
     @Synchronized fun reportIncoming(callId: String, nowMs: Long = 0,
         displayName: String? = null, handle: String? = null,
-        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null, video: Boolean = false): IncomingOutcome {
         expireRinging(nowMs)
         terminalRecord(callId, nowMs)?.let { return IncomingOutcome.Ended(it.reason) }
         val current = call
@@ -87,7 +101,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         if (current != null && current.state != CallState.ended) return IncomingOutcome.Busy
         val deadline = listOfNotNull(ringDeadlineAtMs, expiresAtMs).minOrNull()
         call = CallRecord(callId, CallState.incoming, displayName = displayName, handle = handle,
-            direction = CallDirection.incoming, createdAtMs = nowMs, ringDeadlineAtMs = deadline)
+            direction = CallDirection.incoming, createdAtMs = nowMs, ringDeadlineAtMs = deadline, video = video)
         journal.append("callChanged", nowMs, callId, source = EventSource.platform)
         return IncomingOutcome.Accepted
     }
@@ -161,6 +175,24 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         call = current.copy(mediaInterrupted = true)
         journal.append("callChanged", nowMs, callId, source = EventSource.media); return true
     }
+    /**
+     * Video state the media adapter observed. The adapter can only report the camera taken by the
+     * OS ([LocalVideo.blocked]) or given back ([LocalVideo.on]); turning it on or off is a command.
+     * True when state changed.
+     */
+    @Synchronized fun videoObserved(callId: String, localVideo: LocalVideo?, remoteVideo: Boolean?, nowMs: Long): Boolean {
+        val current = call ?: return false
+        if (current.callId != callId || current.state !in setOf(CallState.connecting, CallState.active, CallState.held)) return false
+        val local = when (localVideo) {
+            LocalVideo.blocked -> if (current.localVideo == LocalVideo.on) LocalVideo.blocked else current.localVideo
+            LocalVideo.on -> if (current.localVideo == LocalVideo.blocked) LocalVideo.on else current.localVideo
+            LocalVideo.off, null -> current.localVideo
+        }
+        val next = current.copy(localVideo = local, remoteVideo = remoteVideo ?: current.remoteVideo)
+        if (next == current) return false
+        call = next
+        journal.append("callChanged", nowMs, callId, source = EventSource.media); return true
+    }
     /** Ends the live call, or records a tombstone so a later invitation for this ID cannot ring. */
     @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0): Boolean {
         if (end(callId, reason, EventSource.signaling, nowMs)) return true
@@ -170,7 +202,7 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     private fun end(callId: String, reason: String, source: EventSource, nowMs: Long): Boolean {
         val current = call ?: return false; if (current.callId != callId || current.state == CallState.ended) return false
         call = current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
-            endedAtMs = nowMs, ringDeadlineAtMs = null)
+            endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false)
         recordTerminal(callId, reason, nowMs)
         journal.append("callChanged", nowMs, callId, source = source)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
@@ -238,13 +270,17 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             CommandType.end -> null
             CommandType.setMuted, CommandType.setHeld -> if (command.value == null) "invalidArgument"
                 else if (current.state in setOf(CallState.active, CallState.held)) null else "invalidState"
+            CommandType.setCamera -> if (command.value == null) "invalidArgument"
+                else if (current.state in setOf(CallState.connecting, CallState.active, CallState.held)) null else "invalidState"
+            CommandType.switchCamera -> if (command.facing == null) "invalidArgument"
+                else if (current.state in setOf(CallState.connecting, CallState.active, CallState.held)) null else "invalidState"
             CommandType.startCall -> null
         }
     }
     private fun apply(command: NativeCommand, nowMs: Long) {
         if (command.type == CommandType.startCall) {
             call = CallRecord(command.callId, CallState.outgoing, displayName = command.displayName,
-                handle = command.handle, direction = CallDirection.outgoing, createdAtMs = nowMs)
+                handle = command.handle, direction = CallDirection.outgoing, createdAtMs = nowMs, video = command.video)
             return
         }
         val current = call ?: return
@@ -254,10 +290,14 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
                 val reason = if (current.state == CallState.incoming) "declined" else "localHangup"
                 recordTerminal(current.callId, reason, nowMs)
                 current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
-                    endedAtMs = nowMs, ringDeadlineAtMs = null)
+                    endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false)
             }
             CommandType.setMuted -> current.copy(muted = command.value!!)
             CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
+            CommandType.setCamera -> if (command.value!!)
+                current.copy(localVideo = LocalVideo.on, cameraFacing = current.cameraFacing ?: CameraFacing.front)
+                else current.copy(localVideo = LocalVideo.off)
+            CommandType.switchCamera -> current.copy(cameraFacing = command.facing)
             CommandType.startCall -> current
         }
     }
@@ -292,9 +332,9 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableReportIncoming(callId: String, nowMs: Long,
         displayName: String? = null, handle: String? = null,
-        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null): IncomingOutcome {
+        ringDeadlineAtMs: Long? = null, expiresAtMs: Long? = null, video: Boolean = false): IncomingOutcome {
         val before = checkpoint()
-        val outcome = reportIncoming(callId, nowMs, displayName, handle, ringDeadlineAtMs, expiresAtMs)
+        val outcome = reportIncoming(callId, nowMs, displayName, handle, ringDeadlineAtMs, expiresAtMs, video)
         persistOrRestore(before); return outcome
     }
     @Synchronized fun durablePlatformAnswered(callId: String, nowMs: Long): Boolean {
@@ -332,6 +372,9 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableMediaInterrupted(callId: String, nowMs: Long): Boolean {
         val before = checkpoint(); val result = mediaInterrupted(callId, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableVideoObserved(callId: String, localVideo: LocalVideo?, remoteVideo: Boolean?, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = videoObserved(callId, localVideo, remoteVideo, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long): Boolean {
         val before = checkpoint(); val result = remoteEnded(callId, reason, nowMs); persistOrRestore(before); return result

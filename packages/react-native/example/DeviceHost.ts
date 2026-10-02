@@ -46,6 +46,9 @@ export async function createDeviceDemo(): Promise<Demo> {
       async remoteAnswered() { await invoke('remoteAnswered', {callId: await currentCallId()}); },
       async remoteEnded() { await invoke('remoteEnded', {callId: await currentCallId()}); },
       async mediaConnected() { await invoke('mediaConnected', {callId: await currentCallId()}); },
+      // On a device, video state comes from the media adapter, not from the example.
+      async remoteVideo() { throw new CallxError('unsupported', 'Remote video comes from the media adapter on a device.'); },
+      async cameraBlocked() { throw new CallxError('unsupported', 'The OS blocks the camera on a device.'); },
       async reset() { throw new CallxError('unsupported', 'Device calls must end through the native lifecycle.'); },
     },
   };

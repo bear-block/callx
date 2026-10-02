@@ -1,7 +1,7 @@
 import {NativeCallxBackend} from './native.js';
 
-/** Contract v0 candidate. */
-export const CONTRACT_VERSION = '0.1.0' as const;
+/** Contract v0 candidate; 0.2 adds video (ADR-0010). */
+export const CONTRACT_VERSION = '0.2.0' as const;
 export const CALL_STATES = ['incoming', 'outgoing', 'connecting', 'active', 'held', 'ended'] as const;
 export const END_REASONS = ['localHangup', 'declined', 'remoteEnded', 'callerCancelled',
   'unanswered', 'busy', 'failed', 'answeredElsewhere', 'declinedElsewhere'] as const;
@@ -17,6 +17,9 @@ export type SessionOpenStatus = 'fresh' | 'resumed' | 'resynced';
 export type EventKind = 'callChanged' | 'operationCompleted' | 'resyncRequired';
 export type ErrorCode = typeof ERROR_CODES[number];
 export type ExecutionMode = 'native' | 'preview';
+/** The local camera: `blocked` means it was on and the OS took it, for example in the background. */
+export type LocalVideo = 'off' | 'on' | 'blocked';
+export type CameraFacing = 'front' | 'back';
 export interface Call {
   readonly callId: string;
   readonly displayName: string;
@@ -29,6 +32,14 @@ export interface Call {
    * The call is still live; show a reconnecting state. Absent means false.
    */
   readonly mediaInterrupted?: boolean;
+  /** Offered or started as a video call. Absent means false. */
+  readonly video?: boolean;
+  /** Absent means `off`. */
+  readonly localVideo?: LocalVideo;
+  /** Present while `localVideo` is not `off`. */
+  readonly cameraFacing?: CameraFacing;
+  /** A remote video track is available to render. Absent means false. */
+  readonly remoteVideo?: boolean;
   readonly endReason?: EndReason;
   readonly createdAtMs?: number;
   readonly acceptedAtMs?: number;
@@ -85,7 +96,11 @@ export interface ObservationSession {
   readonly snapshot: ObservationSnapshot;
   readonly replay: readonly CallEvent[];
 }
-export interface CallInput { callId: string; displayName: string; handle: string }
+export interface CallInput {
+  callId: string; displayName: string; handle: string;
+  /** Report the call to CallKit and Telecom as a video call. */
+  video?: boolean;
+}
 export interface CallxConfig {
   /**
    * @deprecated Ignored; kept so `setup({appName})` keeps compiling. The system call screen shows
@@ -103,6 +118,8 @@ export interface Capabilities {
   readonly providerManagedSignaling: boolean;
   readonly hold: boolean;
   readonly mute: boolean;
+  /** A video media adapter is installed; `setCamera` and `switchCamera` work. */
+  readonly video: boolean;
 }
 export interface CommandOptions { readonly operationId?: string; readonly deadlineAtMs?: number }
 /**
@@ -113,7 +130,8 @@ export interface PushToken { readonly type: 'voip' | 'fcm'; readonly token: stri
 export type Command =
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'startCall'; input: CallInput }
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'answer' | 'end'; callId: string }
-  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'setMuted' | 'setHeld'; callId: string; value: boolean };
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'setMuted' | 'setHeld' | 'setCamera'; callId: string; value: boolean }
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'switchCamera'; callId: string; value: CameraFacing };
 export class CallxError extends Error {
   constructor(public readonly code: string, message: string) {
     super(message);
@@ -161,6 +179,18 @@ export class Callx {
   }
   async setHeld(callId: string, value: boolean, options?: CommandOptions): Promise<CommandResult> {
     return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setHeld', callId, value});
+  }
+  /**
+   * Turns the local camera on or off. Applied once the media adapter publishes or stops the
+   * camera; rejected with `permissionDenied` without the camera permission, `mediaNotReady` while
+   * the app is in the background, and `unsupported` without a video adapter.
+   */
+  async setCamera(callId: string, on: boolean, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setCamera', callId, value: on});
+  }
+  /** Chooses the front or back camera; remembered while the camera is off. */
+  async switchCamera(callId: string, facing: CameraFacing, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'switchCamera', callId, value: facing});
   }
   /** The push token to register with your backend after sign-in and on each launch. */
   async getPushToken(): Promise<PushToken | null> { return this.backend.getPushToken(); }

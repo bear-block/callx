@@ -136,3 +136,30 @@ test('unsubscribe preserves call, observer exceptions do not fail applied comman
   assert.deepEqual(seen,['0','1']);
   assert.equal((await callx.getSnapshot()).call.state,'connecting');
 });
+test('video: camera is a command, remote video and a blocked camera are observed', async () => {
+  const {callx, simulator} = createCallxPreview();
+  assert.equal((await callx.setup()).video, true);
+  await simulator.incoming({callId:'v', displayName:'A', handle:'sip:a@example.invalid', video:true});
+  let call = (await callx.getSnapshot()).call;
+  assert.equal(call.video, true); assert.equal(call.localVideo, undefined);
+  assert.equal((await callx.setCamera('v', true).catch((error) => error)).code, 'invalidState');
+  await callx.answer('v');
+  await callx.switchCamera('v', 'back');
+  call = (await callx.getSnapshot()).call;
+  // Like native, the chosen camera shows only while the camera is on.
+  assert.equal(call.cameraFacing, undefined);
+  assert.equal((await callx.setCamera('v', true)).status, 'applied');
+  call = (await callx.getSnapshot()).call;
+  assert.equal(call.localVideo, 'on'); assert.equal(call.cameraFacing, 'back');
+  await simulator.mediaConnected(); await simulator.remoteVideo(true); await simulator.cameraBlocked(true);
+  call = (await callx.getSnapshot()).call;
+  assert.equal(call.state, 'active'); assert.equal(call.remoteVideo, true); assert.equal(call.localVideo, 'blocked');
+  await simulator.cameraBlocked(false);
+  assert.equal((await callx.getSnapshot()).call.localVideo, 'on');
+  await callx.setCamera('v', false);
+  call = (await callx.getSnapshot()).call;
+  assert.equal(call.localVideo, undefined); assert.equal(call.cameraFacing, undefined);
+  await simulator.remoteEnded();
+  call = (await callx.getSnapshot()).call;
+  assert.equal(call.video, true); assert.equal(call.remoteVideo, undefined);
+});

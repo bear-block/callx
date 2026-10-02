@@ -15,6 +15,7 @@ class ContractValidator(private val manifest: JsonObject) {
     private val statuses = values("commandStatuses"); private val errors = values("errorCodes")
     private val events = values("eventKinds"); private val sources = values("eventSources")
     private val lookups = values("operationLookupStatuses"); private val sessions = values("sessionOpenStatuses")
+    private val localVideoStates = values("localVideoStates"); private val facings = values("cameraFacings")
 
     fun fixture(value: JsonObject) {
         value["command"]?.jsonObject?.let(::command); value["result"]?.jsonObject?.let(::result)
@@ -48,9 +49,14 @@ class ContractValidator(private val manifest: JsonObject) {
             val name = input.string("displayName"); require(name.isNotEmpty() && name.toByteArray().size <= 256, "displayName invalid")
             val handle = input.string("handle"); require(handle.isNotEmpty() && handle.toByteArray().size <= 256, "handle invalid")
             require(value["callId"] == null && value["value"] == null, "startCall forbidden fields")
+            input["video"]?.let { boolean(it, "command.input.video") }
         } else {
             id(value["callId"], "command.callId")
-            if (type in setOf("setMuted", "setHeld")) boolean(value["value"], "command.value") else require(value["value"] == null, "value forbidden")
+            when (type) {
+                "switchCamera" -> member(value["value"], facings, "command.value")
+                in setOf("setMuted", "setHeld", "setCamera") -> boolean(value["value"], "command.value")
+                else -> require(value["value"] == null, "value forbidden")
+            }
             require(value["input"] == null, "input forbidden")
         }
     }
@@ -71,6 +77,11 @@ class ContractValidator(private val manifest: JsonObject) {
         if (state == "ended") member(value["endReason"], reasons, "$path.endReason") else require(value["endReason"] == null, "live reason")
         value["mediaInterrupted"]?.let { boolean(it, "$path.mediaInterrupted")
             if (it.jsonPrimitive.boolean) require(state in setOf("active", "held") && value["mediaReady"]?.jsonPrimitive?.boolean == true, "interrupted media") }
+        listOf("video", "remoteVideo").forEach { field -> value[field]?.let { boolean(it, "$path.$field") } }
+        value["localVideo"]?.let { member(it, localVideoStates, "$path.localVideo") }
+        val cameraLive = value["localVideo"]?.let { it.jsonPrimitive.content != "off" } == true
+        if (cameraLive) member(value["cameraFacing"], facings, "$path.cameraFacing")
+        else require(value["cameraFacing"] == null, "cameraFacing needs a camera that is not off")
         listOf("createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs").forEach { field -> value[field]?.let { timestamp(it, "$path.$field") } }
     }
     private fun snapshot(value: JsonObject) {

@@ -54,8 +54,9 @@ final class NativeCallxBackend implements CallxBackend {
   @override
   Future<CallxCapabilities> setup([
     CallxConfig config = const CallxConfig(),
-  ]) async =>
-      _capabilities(await _invoke('setup', {'contractVersion': contractVersion}));
+  ]) async => _capabilities(
+    await _invoke('setup', {'contractVersion': contractVersion}),
+  );
 
   @override
   Future<CommandResult> execute(CallCommand command) async =>
@@ -211,11 +212,13 @@ final class NativeCallxBackend implements CallxBackend {
     if (value.deadlineAtMs != null) 'deadlineAtMs': value.deadlineAtMs,
     if (value.callId != null) 'callId': value.callId,
     if (value.value != null) 'value': value.value,
+    if (value.facing != null) 'value': value.facing!.name,
     if (value.input != null)
       'input': {
         'callId': value.input!.callId,
         'displayName': value.input!.displayName,
         'handle': value.input!.handle,
+        if (value.input!.video) 'video': true,
       },
   };
 
@@ -229,6 +232,7 @@ final class NativeCallxBackend implements CallxBackend {
         providerManagedSignaling: map['providerManagedSignaling'] == true,
         hold: map['hold'] == true,
         mute: map['mute'] == true,
+        video: map['video'] == true,
       );
 
   CommandResult _result(Map<Object?, Object?> map) => CommandResult(
@@ -267,6 +271,14 @@ final class NativeCallxBackend implements CallxBackend {
     muted: map['muted'] == true,
     mediaReady: map['mediaReady'] == true,
     mediaInterrupted: map['mediaInterrupted'] == true,
+    video: map['video'] == true,
+    localVideo: map['localVideo'] == null
+        ? LocalVideo.off
+        : _enum(LocalVideo.values, _string(map, 'localVideo')),
+    cameraFacing: map['cameraFacing'] == null
+        ? null
+        : _enum(CameraFacing.values, _string(map, 'cameraFacing')),
+    remoteVideo: map['remoteVideo'] == true,
     endReason: map['endReason'] == null
         ? null
         : _enum(EndReason.values, _string(map, 'endReason')),

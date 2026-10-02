@@ -7,14 +7,14 @@ test('native transport preserves envelopes and filters session events', async ()
   let captured;
   let eventListener;
   const module = {
-    async setup(value) { captured = value; return {contractVersion:'0.1.0', coreVersion:'0.1.0',
+    async setup(value) { captured = value; return {contractVersion:'0.2.0', coreVersion:'0.1.0',
       execution:'native', accountGeneration:'generation-1', nativeCalling:true, durableReplay:true,
       providerManagedSignaling:false, hold:true, mute:true}; },
-    async execute(value) { captured = value; return {contractVersion:'0.1.0', operationId:value.operationId,
+    async execute(value) { captured = value; return {contractVersion:'0.2.0', operationId:value.operationId,
       status:'applied', execution:'native', completedAtMs:1100}; },
-    async queryOperation(value) { captured = value; return {contractVersion:'0.1.0', ...value, status:'unavailable'}; },
-    async openSession() { return {contractVersion:'0.1.0', sessionId:'session-1',
-      accountGeneration:'generation-1', status:'fresh', snapshot:{contractVersion:'0.1.0',watermark:'0',calls:[]}, replay:[]}; },
+    async queryOperation(value) { captured = value; return {contractVersion:'0.2.0', ...value, status:'unavailable'}; },
+    async openSession() { return {contractVersion:'0.2.0', sessionId:'session-1',
+      accountGeneration:'generation-1', status:'fresh', snapshot:{contractVersion:'0.2.0',watermark:'0',calls:[]}, replay:[]}; },
     async acknowledge(value) { captured = value; }, async closeSession(value) { captured = value; },
     async getSnapshot() { return {sequence:'0', call:null}; }, dispose() {},
   };
@@ -22,19 +22,19 @@ test('native transport preserves envelopes and filters session events', async ()
   const backend = new NativeCallxBackend({module, rn:{NativeModules:{Callx:module}, NativeEventEmitter:Emitter}});
   const callx = new Callx(backend);
   assert.equal((await callx.setup()).nativeCalling, true);
-  assert.deepEqual(captured, {contractVersion:'0.1.0'});
+  assert.deepEqual(captured, {contractVersion:'0.2.0'});
   // The deprecated appName still compiles and is not sent.
   await callx.setup({appName:'Acme'});
-  assert.deepEqual(captured, {contractVersion:'0.1.0'});
+  assert.deepEqual(captured, {contractVersion:'0.2.0'});
   await callx.startCall({callId:'call-1', displayName:'hao.dev7', handle:'sip:hao.dev7@example.invalid'},
     {operationId:'op-1', deadlineAtMs:5000});
-  assert.deepEqual(captured, {contractVersion:'0.1.0', operationId:'op-1', deadlineAtMs:5000,
+  assert.deepEqual(captured, {contractVersion:'0.2.0', operationId:'op-1', deadlineAtMs:5000,
     type:'startCall', input:{callId:'call-1', displayName:'hao.dev7', handle:'sip:hao.dev7@example.invalid'}});
   const received = []; const off = callx.observeEvents('session-1', event => received.push(event));
   await new Promise(resolve => setImmediate(resolve));
   eventListener({sessionId:'other', eventId:'skip'});
   eventListener({sessionId:'session-1', eventId:'event-1', sequence:'1', kind:'callChanged',
-    source:'platform', observedAtMs:1200, contractVersion:'0.1.0'});
+    source:'platform', observedAtMs:1200, contractVersion:'0.2.0'});
   assert.equal(received.length, 1); off(); assert.equal(eventListener, undefined);
 });
 
@@ -45,8 +45,8 @@ function sessionHarness() {
   let sequence = 0;
   const module = {
     async openSession(value) { calls.push(['openSession', value]); sessions++;
-      return {contractVersion:'0.1.0', sessionId:`session-${sessions}`, accountGeneration:'generation-1',
-        status:'fresh', snapshot:{contractVersion:'0.1.0', watermark:`${sequence}`, calls:[]}, replay:[]}; },
+      return {contractVersion:'0.2.0', sessionId:`session-${sessions}`, accountGeneration:'generation-1',
+        status:'fresh', snapshot:{contractVersion:'0.2.0', watermark:`${sequence}`, calls:[]}, replay:[]}; },
     // Mirrors the Android module, which resolves these with null.
     async acknowledge(value) { calls.push(['acknowledge', value]); return null; },
     async closeSession(value) { calls.push(['closeSession', value]); return null; },
@@ -56,7 +56,7 @@ function sessionHarness() {
   class Emitter { addListener(_name, listener) { listeners.add(listener); return {remove() { listeners.delete(listener); }}; } }
   const callx = new Callx(new NativeCallxBackend({module, rn:{NativeModules:{Callx:module}, NativeEventEmitter:Emitter}}));
   const emit = sessionId => { sequence++; for (const listener of listeners) listener({sessionId, eventId:`event-${sequence}`,
-    sequence:`${sequence}`, kind:'callChanged', source:'platform', observedAtMs:1000 + sequence, contractVersion:'0.1.0'}); };
+    sequence:`${sequence}`, kind:'callChanged', source:'platform', observedAtMs:1000 + sequence, contractVersion:'0.2.0'}); };
   return {callx, calls, emit, sessions: () => sessions};
 }
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));

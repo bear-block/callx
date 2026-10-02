@@ -1,5 +1,5 @@
 {
-  "contractVersion": "0.1.0",
+  "contractVersion": "0.2.0",
   "wireEncoding": {
     "counter": "unsigned decimal string",
     "timestamp": "integer milliseconds since Unix epoch within 0..9007199254740991",
@@ -27,7 +27,9 @@
     "answer": 4000,
     "end": 4000,
     "setMuted": 4000,
-    "setHeld": 4000
+    "setHeld": 4000,
+    "setCamera": 4000,
+    "switchCamera": 4000
   },
   "callStates": [
     "incoming",
@@ -57,7 +59,9 @@
     "answer",
     "end",
     "setMuted",
-    "setHeld"
+    "setHeld",
+    "setCamera",
+    "switchCamera"
   ],
   "commandStatuses": [
     "applied",
@@ -108,6 +112,16 @@
     "durableReplay",
     "providerManagedSignaling",
     "hold",
-    "mute"
+    "mute",
+    "video"
+  ],
+  "localVideoStates": [
+    "off",
+    "on",
+    "blocked"
+  ],
+  "cameraFacings": [
+    "front",
+    "back"
   ]
 }

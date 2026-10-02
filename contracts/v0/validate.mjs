@@ -71,11 +71,16 @@ export function validateCommand(value) {
     boundedString(input.displayName, manifest.limits.displayNameMaxUtf8Bytes, 'command.input.displayName');
     boundedString(input.handle, manifest.limits.handleMaxUtf8Bytes, 'command.input.handle');
     if (input.handle.length === 0) throw new Error('command.input.handle is required');
+    if (input.video !== undefined && typeof input.video !== 'boolean') throw new Error('command.input.video must be boolean');
     if (command.callId !== undefined || command.value !== undefined) throw new Error('startCall has forbidden fields');
   } else {
     id(command.callId, 'command.callId');
-    const hasValue = command.type === 'setMuted' || command.type === 'setHeld';
-    if (hasValue !== (typeof command.value === 'boolean')) throw new Error('command.value shape is invalid');
+    if (command.type === 'switchCamera') {
+      member(command.value, manifest.cameraFacings, 'command.value');
+    } else {
+      const hasValue = ['setMuted', 'setHeld', 'setCamera'].includes(command.type);
+      if (hasValue !== (typeof command.value === 'boolean')) throw new Error('command.value shape is invalid');
+    }
     if (command.input !== undefined) throw new Error('non-start command cannot contain input');
   }
   return true;
@@ -117,6 +122,13 @@ export function validateCall(value, path = 'call') {
       throw new Error('only connected media can be interrupted');
     }
   }
+  for (const field of ['video', 'remoteVideo']) {
+    if (call[field] !== undefined && typeof call[field] !== 'boolean') throw new Error(`${path}.${field} must be boolean`);
+  }
+  if (call.localVideo !== undefined) member(call.localVideo, manifest.localVideoStates, `${path}.localVideo`);
+  const cameraLive = call.localVideo !== undefined && call.localVideo !== 'off';
+  if (cameraLive) member(call.cameraFacing, manifest.cameraFacings, `${path}.cameraFacing`);
+  else if (call.cameraFacing !== undefined) throw new Error('cameraFacing requires a camera that is not off');
   for (const field of ['createdAtMs', 'acceptedAtMs', 'mediaConnectedAtMs', 'endedAtMs']) {
     if (call[field] !== undefined) timestamp(call[field], `${path}.${field}`);
   }

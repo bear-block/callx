@@ -37,6 +37,9 @@ public final class CallKitTransactionSubmitter: PlatformTransactionSubmitter, @u
                 return .rejected(errorCode: "invalidArgument", completedAtMs: nowMs())
             }
             action = CXStartCallAction(call: callUUID, handle: CXHandle(type: .generic, value: handle))
+        case .setCamera, .switchCamera:
+            // CallKit has no camera action; a video media adapter performs these (ADR-0010).
+            return .rejected(errorCode: "unsupported", completedAtMs: nowMs())
         }
         let actionUUID = action.uuid
         index.register(actionUUID: actionUUID, operationID: command.operationID)

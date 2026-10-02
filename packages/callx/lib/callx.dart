@@ -2,7 +2,8 @@ library;
 
 import 'src/native_backend.dart';
 
-const contractVersion = '0.1.0';
+/// Contract v0 candidate; 0.2 adds video (ADR-0010).
+const contractVersion = '0.2.0';
 
 enum CallState { incoming, outgoing, connecting, active, held, ended }
 
@@ -49,15 +50,24 @@ enum CallxErrorCode {
 
 enum ExecutionMode { native, preview }
 
+/// The local camera. [blocked] means it was on and the OS took it, for example in the background.
+enum LocalVideo { off, on, blocked }
+
+enum CameraFacing { front, back }
+
 final class CallInput {
   const CallInput({
     required this.callId,
     required this.displayName,
     required this.handle,
+    this.video = false,
   });
   final String callId;
   final String displayName;
   final String handle;
+
+  /// Report the call to CallKit and Telecom as a video call.
+  final bool video;
 }
 
 /// The device's push token for Callx invitations: `voip` (APNs PushKit) on iOS, `fcm` on
@@ -89,6 +99,10 @@ final class Call {
     this.muted = false,
     this.mediaReady = false,
     this.mediaInterrupted = false,
+    this.video = false,
+    this.localVideo = LocalVideo.off,
+    this.cameraFacing,
+    this.remoteVideo = false,
     this.endReason,
     this.createdAtMs,
     this.acceptedAtMs,
@@ -105,6 +119,16 @@ final class Call {
   /// Media connected once and has since dropped, for example while the media SDK
   /// reconnects. The call is still live; show a reconnecting state.
   final bool mediaInterrupted;
+
+  /// Offered or started as a video call.
+  final bool video;
+  final LocalVideo localVideo;
+
+  /// The camera in use; non-null while [localVideo] is not [LocalVideo.off].
+  final CameraFacing? cameraFacing;
+
+  /// A remote video track is available to render.
+  final bool remoteVideo;
   final EndReason? endReason;
   final int? createdAtMs;
   final int? acceptedAtMs;
@@ -115,6 +139,10 @@ final class Call {
     bool? muted,
     bool? mediaReady,
     bool? mediaInterrupted,
+    bool? video,
+    LocalVideo? localVideo,
+    CameraFacing? cameraFacing,
+    bool? remoteVideo,
     EndReason? endReason,
     int? createdAtMs,
     int? acceptedAtMs,
@@ -128,6 +156,13 @@ final class Call {
     muted: muted ?? this.muted,
     mediaReady: mediaReady ?? this.mediaReady,
     mediaInterrupted: mediaInterrupted ?? this.mediaInterrupted,
+    video: video ?? this.video,
+    localVideo: localVideo ?? this.localVideo,
+    // The camera shows only while it is not off, as on the wire.
+    cameraFacing: (localVideo ?? this.localVideo) == LocalVideo.off
+        ? null
+        : cameraFacing ?? this.cameraFacing,
+    remoteVideo: remoteVideo ?? this.remoteVideo,
     endReason: endReason ?? this.endReason,
     createdAtMs: createdAtMs ?? this.createdAtMs,
     acceptedAtMs: acceptedAtMs ?? this.acceptedAtMs,
@@ -225,6 +260,7 @@ final class CallxCapabilities {
     required this.providerManagedSignaling,
     required this.hold,
     required this.mute,
+    this.video = false,
   });
   String get contract => contractVersion;
   final String coreVersion;
@@ -235,6 +271,9 @@ final class CallxCapabilities {
   final bool providerManagedSignaling;
   final bool hold;
   final bool mute;
+
+  /// A video media adapter is installed; [Callx.setCamera] and [Callx.switchCamera] work.
+  final bool video;
 }
 
 final class PlatformError {
@@ -270,7 +309,15 @@ final class CallxException implements Exception {
   String toString() => '$code: $message';
 }
 
-enum CommandType { startCall, answer, end, setMuted, setHeld }
+enum CommandType {
+  startCall,
+  answer,
+  end,
+  setMuted,
+  setHeld,
+  setCamera,
+  switchCamera,
+}
 
 final class CallCommand {
   const CallCommand(
@@ -280,6 +327,7 @@ final class CallCommand {
     this.callId,
     this.input,
     this.value,
+    this.facing,
   });
   String get contract => contractVersion;
   final CommandType type;
@@ -288,6 +336,9 @@ final class CallCommand {
   final String? callId;
   final CallInput? input;
   final bool? value;
+
+  /// [CommandType.switchCamera] only.
+  final CameraFacing? facing;
 }
 
 /// The default backend delegates to the configured native runtime.
@@ -373,10 +424,37 @@ final class Callx {
     options: options,
   );
 
+  /// Turns the local camera on or off. Applied once the media adapter publishes or stops the
+  /// camera; rejected with `permissionDenied` without the camera permission, `mediaNotReady`
+  /// while the app is in the background, and `unsupported` without a video adapter.
+  Future<CommandResult> setCamera(
+    String callId,
+    bool on, {
+    CommandOptions? options,
+  }) async => _executeForCall(
+    CommandType.setCamera,
+    callId,
+    value: on,
+    options: options,
+  );
+
+  /// Chooses the front or back camera; remembered while the camera is off.
+  Future<CommandResult> switchCamera(
+    String callId,
+    CameraFacing facing, {
+    CommandOptions? options,
+  }) async => _executeForCall(
+    CommandType.switchCamera,
+    callId,
+    facing: facing,
+    options: options,
+  );
+
   Future<CommandResult> _executeForCall(
     CommandType type,
     String callId, {
     bool? value,
+    CameraFacing? facing,
     CommandOptions? options,
   }) async {
     final operation = _operation(options);
@@ -387,6 +465,7 @@ final class Callx {
         deadlineAtMs: operation.deadlineAtMs,
         callId: callId,
         value: value,
+        facing: facing,
       ),
     );
   }

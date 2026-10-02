@@ -258,7 +258,7 @@ class TelecomIngress(
             }
             // Core-Telecom requires a notification within five seconds of adding any call.
             CommandType.startCall -> presenter.showOutgoing(command.callId, command.displayName ?: command.callId)
-            CommandType.setMuted, CommandType.setHeld -> Unit
+            CommandType.setMuted, CommandType.setHeld, CommandType.setCamera, CommandType.switchCamera -> Unit
         }
     }
 

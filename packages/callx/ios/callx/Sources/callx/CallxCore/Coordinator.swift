@@ -2,7 +2,10 @@ import Foundation
 
 public enum CallState: String, Codable, Sendable { case incoming, outgoing, connecting, active, held, ended }
 public enum CallDirection: String, Codable, Sendable { case incoming, outgoing }
-public enum CommandType: String, Codable, Sendable { case startCall, answer, end, setMuted, setHeld }
+public enum CommandType: String, Codable, Sendable { case startCall, answer, end, setMuted, setHeld, setCamera, switchCamera }
+/// The local camera as the media adapter reports it (ADR-0010).
+public enum LocalVideo: String, Codable, Sendable { case off, on, blocked }
+public enum CameraFacing: String, Codable, Sendable { case front, back }
 public enum OperationStatus: String, Codable, Sendable { case pending, applied, rejected, timedOut, unknown }
 
 public struct CallRecord: Codable, Equatable, Sendable {
@@ -26,16 +29,38 @@ public struct CallRecord: Codable, Equatable, Sendable {
     }
     // Optional so checkpoints written before this field existed still decode.
     private var mediaInterruptedFlag: Bool?
+    /// Offered or started as a video call.
+    public var video: Bool {
+        get { videoFlag ?? false }
+        set { videoFlag = newValue ? true : nil }
+    }
+    public var localVideo: LocalVideo {
+        get { localVideoState ?? .off }
+        set { localVideoState = newValue == .off ? nil : newValue }
+    }
+    /// The camera in use or last chosen; nil until the camera is first turned on or switched.
+    public var cameraFacing: CameraFacing?
+    /// A remote video track is subscribed, so a view can render it.
+    public var remoteVideo: Bool {
+        get { remoteVideoFlag ?? false }
+        set { remoteVideoFlag = newValue ? true : nil }
+    }
+    // Optional, like mediaInterruptedFlag, so 0.1 checkpoints still decode.
+    private var videoFlag: Bool?
+    private var localVideoState: LocalVideo?
+    private var remoteVideoFlag: Bool?
     public init(callID: String, state: CallState, muted: Bool = false, mediaReady: Bool = false,
         endReason: String? = nil, displayName: String? = nil, handle: String? = nil,
         direction: CallDirection? = nil, createdAtMs: Int64? = nil, acceptedAtMs: Int64? = nil,
         mediaConnectedAtMs: Int64? = nil, endedAtMs: Int64? = nil, ringDeadlineAtMs: Int64? = nil,
-        mediaInterrupted: Bool = false) {
+        mediaInterrupted: Bool = false, video: Bool = false, localVideo: LocalVideo = .off,
+        cameraFacing: CameraFacing? = nil, remoteVideo: Bool = false) {
         self.callID = callID; self.state = state; self.muted = muted
         self.mediaReady = mediaReady; self.endReason = endReason; self.displayName = displayName
         self.handle = handle; self.direction = direction; self.createdAtMs = createdAtMs
         self.acceptedAtMs = acceptedAtMs; self.mediaConnectedAtMs = mediaConnectedAtMs; self.endedAtMs = endedAtMs
         self.ringDeadlineAtMs = ringDeadlineAtMs; self.mediaInterrupted = mediaInterrupted
+        self.video = video; self.localVideo = localVideo; self.cameraFacing = cameraFacing; self.remoteVideo = remoteVideo
     }
 }
 
@@ -70,10 +95,17 @@ public struct NativeCommand: Codable, Equatable, Sendable {
     public let displayName: String?
     public let handle: String?
     public let deadlineAtMs: Int64
+    /// startCall only.
+    public var video: Bool { videoFlag ?? false }
+    /// switchCamera only.
+    public let facing: CameraFacing?
+    private let videoFlag: Bool?
     public init(operationID: String, type: CommandType, callID: String, value: Bool? = nil,
-        displayName: String? = nil, handle: String? = nil, deadlineAtMs: Int64) {
+        displayName: String? = nil, handle: String? = nil, deadlineAtMs: Int64, video: Bool = false,
+        facing: CameraFacing? = nil) {
         self.operationID = operationID; self.type = type; self.callID = callID
         self.value = value; self.displayName = displayName; self.handle = handle; self.deadlineAtMs = deadlineAtMs
+        self.videoFlag = video ? true : nil; self.facing = facing
     }
 }
 
@@ -165,7 +197,7 @@ public actor CallCoordinator {
 
     @discardableResult
     public func reportIncoming(callID: String, displayName: String? = nil, handle: String? = nil, nowMs: Int64 = 0,
-        ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil) -> IncomingOutcome {
+        ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil, video: Bool = false) -> IncomingOutcome {
         expireRinging(nowMs: nowMs)
         if let record = terminalRecord(callID: callID, nowMs: nowMs) { return .ended(reason: record.reason) }
         if let current = call, current.callID == callID {
@@ -175,7 +207,7 @@ public actor CallCoordinator {
         if let current = call, current.state != .ended { return .busy }
         let deadline = [ringDeadlineAtMs, expiresAtMs].compactMap { $0 }.min()
         call = CallRecord(callID: callID, state: .incoming, displayName: displayName, handle: handle,
-            direction: .incoming, createdAtMs: nowMs, ringDeadlineAtMs: deadline)
+            direction: .incoming, createdAtMs: nowMs, ringDeadlineAtMs: deadline, video: video)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .platform)
         return .accepted
     }
@@ -256,6 +288,25 @@ public actor CallCoordinator {
         return true
     }
 
+    /// Video state the media adapter observed. The adapter can only report the camera taken by the
+    /// OS (`.blocked`) or given back (`.on`); turning it on or off is a command. True when state changed.
+    @discardableResult
+    public func videoObserved(callID: String, localVideo: LocalVideo?, remoteVideo: Bool?, nowMs: Int64) -> Bool {
+        guard var current = call, current.callID == callID,
+              [.connecting, .active, .held].contains(current.state) else { return false }
+        let before = current
+        switch localVideo {
+        case .blocked: if current.localVideo == .on { current.localVideo = .blocked }
+        case .on: if current.localVideo == .blocked { current.localVideo = .on }
+        case .off, nil: break
+        }
+        if let remoteVideo { current.remoteVideo = remoteVideo }
+        guard current != before else { return false }
+        call = current
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .media)
+        return true
+    }
+
     /// Ends the live call, or records a tombstone so a later invitation for this ID cannot ring.
     @discardableResult
     public func remoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64 = 0) -> Bool {
@@ -270,7 +321,8 @@ public actor CallCoordinator {
     private func end(callID: String, reason: String, source: EventSource, nowMs: Int64) -> Bool {
         guard var current = call, current.callID == callID, current.state != .ended else { return false }
         current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false; current.endReason = reason
-        current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; call = current
+        current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; current.localVideo = .off; current.remoteVideo = false
+        call = current
         recordTerminal(callID: callID, reason: reason, nowMs: nowMs)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: source)
         let affected = pending.filter { $0.value.command.callID == callID }
@@ -395,6 +447,9 @@ public actor CallCoordinator {
         case .setMuted, .setHeld:
             if command.value == nil { return "invalidArgument" }
             return current.state == .active || current.state == .held ? nil : "invalidState"
+        case .setCamera, .switchCamera:
+            if command.type == .setCamera ? command.value == nil : command.facing == nil { return "invalidArgument" }
+            return [.connecting, .active, .held].contains(current.state) ? nil : "invalidState"
         case .startCall: return nil
         }
     }
@@ -402,7 +457,7 @@ public actor CallCoordinator {
     private func apply(_ command: NativeCommand, nowMs: Int64) {
         if command.type == .startCall {
             call = CallRecord(callID: command.callID, state: .outgoing, displayName: command.displayName,
-                handle: command.handle, direction: .outgoing, createdAtMs: nowMs)
+                handle: command.handle, direction: .outgoing, createdAtMs: nowMs, video: command.video)
             return
         }
         guard var current = call, current.callID == command.callID, current.state != .ended else { return }
@@ -413,9 +468,13 @@ public actor CallCoordinator {
             recordTerminal(callID: current.callID, reason: reason, nowMs: nowMs)
             current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false
             current.endReason = reason
-            current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil
+            current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; current.localVideo = .off; current.remoteVideo = false
         case .setMuted: current.muted = command.value!
         case .setHeld: current.state = command.value! ? .held : .active
+        case .setCamera:
+            if command.value! { current.localVideo = .on; current.cameraFacing = current.cameraFacing ?? .front }
+            else { current.localVideo = .off }
+        case .switchCamera: current.cameraFacing = command.facing
         case .startCall: break
         }
         call = current
@@ -463,10 +522,10 @@ public actor CallCoordinator {
     }
     @discardableResult
     public func durableReportIncoming(callID: String, displayName: String? = nil, handle: String? = nil,
-        nowMs: Int64, ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil) throws -> IncomingOutcome {
+        nowMs: Int64, ringDeadlineAtMs: Int64? = nil, expiresAtMs: Int64? = nil, video: Bool = false) throws -> IncomingOutcome {
         let before = checkpoint()
         let outcome = reportIncoming(callID: callID, displayName: displayName, handle: handle, nowMs: nowMs,
-            ringDeadlineAtMs: ringDeadlineAtMs, expiresAtMs: expiresAtMs)
+            ringDeadlineAtMs: ringDeadlineAtMs, expiresAtMs: expiresAtMs, video: video)
         try persist(orRestore: before); return outcome
     }
     @discardableResult public func durablePlatformAnswered(callID: String, nowMs: Int64) throws -> Bool {
@@ -498,6 +557,12 @@ public actor CallCoordinator {
     }
     @discardableResult public func durableMediaInterrupted(callID: String, nowMs: Int64) throws -> Bool {
         let before = checkpoint(); let result = mediaInterrupted(callID: callID, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    @discardableResult
+    public func durableVideoObserved(callID: String, localVideo: LocalVideo?, remoteVideo: Bool?, nowMs: Int64) throws -> Bool {
+        let before = checkpoint()
+        let result = videoObserved(callID: callID, localVideo: localVideo, remoteVideo: remoteVideo, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
     @discardableResult

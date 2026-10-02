@@ -114,15 +114,12 @@ void main() {
     });
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     final callx = Callx();
-    expect(
-      (await callx.setup()).execution,
-      ExecutionMode.native,
-    );
-    expect(setupArguments, {'contractVersion': '0.1.0'});
+    expect((await callx.setup()).execution, ExecutionMode.native);
+    expect(setupArguments, {'contractVersion': '0.2.0'});
     // The deprecated appName still compiles and is not sent.
     // ignore: deprecated_member_use_from_same_package
     await callx.setup(const CallxConfig(appName: 'Acme'));
-    expect(setupArguments, {'contractVersion': '0.1.0'});
+    expect(setupArguments, {'contractVersion': '0.2.0'});
     await callx.startCall(
       const CallInput(
         callId: 'call-1',
@@ -133,7 +130,24 @@ void main() {
     );
     expect(captured!['contractVersion'], contractVersion);
     expect(captured!['type'], 'startCall');
-    expect((captured!['input'] as Map)['handle'], 'sip:hao.dev7@example.invalid');
+    expect(
+      (captured!['input'] as Map)['handle'],
+      'sip:hao.dev7@example.invalid',
+    );
+    expect((captured!['input'] as Map).containsKey('video'), isFalse);
+    await callx.switchCamera(
+      'call-1',
+      CameraFacing.back,
+      options: const CommandOptions(operationId: 'op-2'),
+    );
+    expect(captured!['type'], 'switchCamera');
+    expect(captured!['value'], 'back');
+    await callx.setCamera(
+      'call-1',
+      true,
+      options: const CommandOptions(operationId: 'op-3'),
+    );
+    expect(captured!['value'], true);
   });
   test('caller operationId survives wrapper and result', () async {
     final preview = CallxPreview();
@@ -438,4 +452,54 @@ void main() {
       expect(calls.last.arguments, {'sessionId': 'session-3'});
     });
   });
+
+  test(
+    'video: camera is a command, remote video and a blocked camera are observed',
+    () async {
+      final preview = CallxPreview();
+      final callx = preview.callx;
+      expect((await callx.setup()).video, isTrue);
+      await preview.simulator.incoming(
+        const CallInput(
+          callId: 'v',
+          displayName: 'A',
+          handle: 'sip:a@example.invalid',
+          video: true,
+        ),
+      );
+      var call = (await callx.getSnapshot()).call!;
+      expect(call.video, isTrue);
+      expect(call.localVideo, LocalVideo.off);
+      await expectLater(
+        callx.setCamera('v', true),
+        throwsA(isA<CallxException>()),
+      );
+      await callx.answer('v');
+      await callx.switchCamera('v', CameraFacing.back);
+      // Like native, the chosen camera shows only while the camera is on.
+      expect((await callx.getSnapshot()).call!.cameraFacing, isNull);
+      expect((await callx.setCamera('v', true)).status, CommandStatus.applied);
+      call = (await callx.getSnapshot()).call!;
+      expect(call.localVideo, LocalVideo.on);
+      expect(call.cameraFacing, CameraFacing.back);
+      await preview.simulator.mediaConnected();
+      await preview.simulator.remoteVideo(true);
+      await preview.simulator.cameraBlocked(true);
+      call = (await callx.getSnapshot()).call!;
+      expect(call.state, CallState.active);
+      expect(call.remoteVideo, isTrue);
+      expect(call.localVideo, LocalVideo.blocked);
+      await preview.simulator.cameraBlocked(false);
+      expect((await callx.getSnapshot()).call!.localVideo, LocalVideo.on);
+      await callx.setCamera('v', false);
+      call = (await callx.getSnapshot()).call!;
+      expect(call.localVideo, LocalVideo.off);
+      expect(call.cameraFacing, isNull);
+      await preview.simulator.remoteEnded();
+      call = (await callx.getSnapshot()).call!;
+      expect(call.video, isTrue);
+      expect(call.remoteVideo, isFalse);
+      await callx.dispose();
+    },
+  );
 }

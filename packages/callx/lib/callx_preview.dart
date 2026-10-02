@@ -9,6 +9,12 @@ abstract interface class CallxSimulator {
   Future<void> remoteAnswered();
   Future<void> mediaConnected();
   Future<void> remoteEnded();
+
+  /// Simulates the remote side publishing or stopping video.
+  Future<void> remoteVideo(bool available);
+
+  /// Simulates the OS taking the camera (`true`) or giving it back (`false`).
+  Future<void> cameraBlocked(bool blocked);
   Future<void> reset();
 }
 
@@ -38,6 +44,9 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   bool _ready = false;
   bool _disposed = false;
 
+  /// The chosen camera; the call shows it only while the camera is not off, like native.
+  CameraFacing? _facing;
+
   void _guard({bool requireSetup = true}) {
     if (_disposed) {
       throw const CallxException('disposed', 'Preview has been disposed.');
@@ -62,6 +71,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       providerManagedSignaling: false,
       hold: true,
       mute: true,
+      video: true,
     );
   }
 
@@ -104,6 +114,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
 
   void _create(CallInput input, CallDirection direction) {
     _guard();
+    _facing = null;
     if (input.callId.trim().isEmpty ||
         input.displayName.trim().isEmpty ||
         input.handle.trim().isEmpty) {
@@ -123,6 +134,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
         state: direction == CallDirection.incoming
             ? CallState.incoming
             : CallState.outgoing,
+        video: input.video,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
     );
@@ -133,7 +145,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
     _guard();
     final fingerprint =
         '${command.type.name}|${command.callId ?? command.input?.callId}|'
-        '${command.input?.displayName}|${command.value}';
+        '${command.input?.displayName}|${command.value}|${command.facing}';
     final previous = _operations[command.operationId];
     if (previous != null) {
       if (previous.fingerprint == fingerprint) return previous.result;
@@ -178,12 +190,48 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
             call.copyWith(
               state: CallState.ended,
               mediaReady: false,
+              localVideo: LocalVideo.off,
+              remoteVideo: false,
               endedAtMs: DateTime.now().millisecondsSinceEpoch,
               endReason: call.state == CallState.incoming
                   ? EndReason.declined
                   : EndReason.localHangup,
             ),
           );
+        case CommandType.setCamera:
+        case CommandType.switchCamera:
+          if (call.state != CallState.connecting &&
+              call.state != CallState.active &&
+              call.state != CallState.held) {
+            throw const CallxException(
+              'invalidState',
+              'Answer before using the camera.',
+            );
+          }
+          if (command.type == CommandType.switchCamera) {
+            if (command.facing == null) {
+              throw const CallxException(
+                'invalidArgument',
+                'facing is required.',
+              );
+            }
+            _facing = command.facing;
+            _commit(call.copyWith(cameraFacing: command.facing));
+          } else {
+            if (command.value == null) {
+              throw const CallxException(
+                'invalidArgument',
+                'value is required.',
+              );
+            }
+            _facing ??= CameraFacing.front;
+            _commit(
+              call.copyWith(
+                localVideo: command.value! ? LocalVideo.on : LocalVideo.off,
+                cameraFacing: _facing,
+              ),
+            );
+          }
         case CommandType.setMuted:
         case CommandType.setHeld:
           if (command.value == null) {
@@ -415,10 +463,27 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       call.copyWith(
         state: CallState.ended,
         mediaReady: false,
+        localVideo: LocalVideo.off,
+        remoteVideo: false,
         endedAtMs: DateTime.now().millisecondsSinceEpoch,
         endReason: EndReason.remoteEnded,
       ),
     );
+  }
+
+  @override
+  Future<void> remoteVideo(bool available) async {
+    _commit(_requireCall().copyWith(remoteVideo: available));
+  }
+
+  @override
+  Future<void> cameraBlocked(bool blocked) async {
+    final call = _requireCall();
+    if (blocked && call.localVideo == LocalVideo.on) {
+      _commit(call.copyWith(localVideo: LocalVideo.blocked));
+    } else if (!blocked && call.localVideo == LocalVideo.blocked) {
+      _commit(call.copyWith(localVideo: LocalVideo.on));
+    }
   }
 
   @override

@@ -1,6 +1,12 @@
 import {Callx, CallxError, CONTRACT_VERSION} from './index.js';
 import type {Call, CallEvent, CallInput, CallxBackend, CallxConfig, Capabilities, Command, CommandResult, ObservationSession, OperationLookup, Snapshot} from './index.js';
 
+/** Video fields reset when a call ends; whether it was a video call stays. */
+function withoutLiveVideo(call: Call): Call {
+  const {localVideo: _local, cameraFacing: _facing, remoteVideo: _remote, ...rest} = call;
+  return rest;
+}
+
 /** Memory-only UX simulator. No OS UI, microphone, push, timers, network, or replay. */
 class PreviewBackend implements CallxBackend {
   private readonly accountGeneration = 'preview-generation-1';
@@ -14,6 +20,8 @@ class PreviewBackend implements CallxBackend {
   private listeners = new Set<(snapshot: Snapshot) => void>();
   private sequence = 0n;
   private ready = false;
+  /** The chosen camera; the call shows it only while the camera is not off, like native. */
+  private facing?: 'front' | 'back';
   private disposed = false;
   private notifying = false;
   private notifications: Snapshot[] = [];
@@ -27,7 +35,7 @@ class PreviewBackend implements CallxBackend {
     return {contractVersion: CONTRACT_VERSION, coreVersion: 'preview', execution: 'preview',
       accountGeneration: this.accountGeneration,
       nativeCalling: false, durableReplay: false, providerManagedSignaling: false,
-      hold: true, mute: true};
+      hold: true, mute: true, video: true};
   }
   private commit(call: Call | null): void {
     this.snapshot = Object.freeze({sequence: String(++this.sequence), call: call ? Object.freeze({...call}) : null});
@@ -65,14 +73,16 @@ class PreviewBackend implements CallxBackend {
     this.guard();
     if (!input.callId.trim() || !input.displayName.trim() || !input.handle.trim()) throw new CallxError('invalidArgument', 'callId, displayName and handle are required.');
     if (this.snapshot.call && this.snapshot.call.state !== 'ended') throw new CallxError('busy', 'One live call is supported.');
-    this.commit({...input, direction, state: direction, muted: false, mediaReady: false,
+    const {video, ...rest} = input;
+    this.facing = undefined;
+    this.commit({...rest, ...(video ? {video: true} : {}), direction, state: direction, muted: false, mediaReady: false,
       createdAtMs: Date.now()});
   }
   async execute(command: Command): Promise<CommandResult> {
     this.guard();
     const fingerprint = JSON.stringify(command.type === 'startCall'
       ? {type: command.type, input: command.input}
-      : command.type === 'setMuted' || command.type === 'setHeld'
+      : 'value' in command
         ? {type: command.type, callId: command.callId, value: command.value}
         : {type: command.type, callId: command.callId});
     const previous = this.operations.get(command.operationId);
@@ -91,8 +101,19 @@ class PreviewBackend implements CallxBackend {
           this.commit({...call, state: 'connecting', acceptedAtMs: Date.now()});
           break;
         case 'end':
-          this.commit({...call, state: 'ended', mediaReady: false, endedAtMs: Date.now(),
+          this.commit({...withoutLiveVideo(call), state: 'ended', mediaReady: false, endedAtMs: Date.now(),
             endReason: call.state === 'incoming' ? 'declined' : 'localHangup'});
+          break;
+        case 'setCamera':
+          if (!['connecting', 'active', 'held'].includes(call.state)) throw new CallxError('invalidState', 'Answer before using the camera.');
+          this.facing ??= 'front';
+          this.commit(command.value ? {...call, localVideo: 'on', cameraFacing: this.facing}
+            : (({localVideo: _l, cameraFacing: _f, ...rest}) => rest)(call));
+          break;
+        case 'switchCamera':
+          if (!['connecting', 'active', 'held'].includes(call.state)) throw new CallxError('invalidState', 'Answer before using the camera.');
+          this.facing = command.value;
+          this.commit(call.localVideo && call.localVideo !== 'off' ? {...call, cameraFacing: command.value} : call);
           break;
         case 'setMuted':
         case 'setHeld':
@@ -182,7 +203,19 @@ class PreviewBackend implements CallxBackend {
   }
   async remoteEnded(): Promise<void> {
     const call = this.requireCall();
-    this.commit({...call, state: 'ended', mediaReady: false, endedAtMs: Date.now(), endReason: 'remoteEnded'});
+    this.commit({...withoutLiveVideo(call), state: 'ended', mediaReady: false, endedAtMs: Date.now(), endReason: 'remoteEnded'});
+  }
+  /** Simulates the remote side publishing or stopping video. */
+  async remoteVideo(available: boolean): Promise<void> {
+    const call = this.requireCall();
+    const {remoteVideo: _r, ...rest} = call;
+    this.commit(available ? {...rest, remoteVideo: true} : rest);
+  }
+  /** Simulates the OS taking the camera (`true`) or giving it back (`false`). */
+  async cameraBlocked(blocked: boolean): Promise<void> {
+    const call = this.requireCall();
+    if (blocked && call.localVideo === 'on') this.commit({...call, localVideo: 'blocked'});
+    if (!blocked && call.localVideo === 'blocked') this.commit({...call, localVideo: 'on'});
   }
   async reset(): Promise<void> { this.guard(); this.commit(null); }
   dispose(): void { this.disposed = true; this.listeners.clear(); this.eventListeners.clear(); this.pendingSessionEvents = []; }
@@ -196,6 +229,8 @@ export function createCallxPreview() {
       remoteAnswered: () => backend.remoteAnswered(),
       mediaConnected: () => backend.mediaConnected(),
       remoteEnded: () => backend.remoteEnded(),
+      remoteVideo: (available: boolean) => backend.remoteVideo(available),
+      cameraBlocked: (blocked: boolean) => backend.cameraBlocked(blocked),
       reset: () => backend.reset(),
     },
   };
