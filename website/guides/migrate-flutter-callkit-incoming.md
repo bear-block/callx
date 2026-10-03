@@ -10,6 +10,10 @@ native push hook) asks it to, and reports actions back as events. Callx goes fur
 core receives the push, decides whether to ring, records every action durably and tells Dart the
 resulting state.
 
+Before removing packages, read [rollout and rollback](/guides/migration-rollout) and audit your
+backend routes and media owner. Migrating a development build and retiring old production
+clients are separate steps.
+
 ## What changes conceptually
 
 | flutter_callkit_incoming | Callx |
@@ -63,8 +67,8 @@ callx.snapshots.listen((snapshot) => render(snapshot.call));
    handlers.
 2. **Install** `callx` and follow the [Flutter quick start](/guide/flutter), including the
    native bootstrap and the FCM service.
-3. **Change the push payload** to the [Callx invitation](/guides/backend). Keep sending the old
-   one while old app versions are in use; Callx ignores messages without a `callx` field.
+3. **Change the push payload** to the [Callx invitation](/guides/backend). Route old payloads to old installations and Callx payloads to migrated installations.
+   Do not enable both presenters for one invitation.
 4. **Move media start** to the [LiveKit adapter](/guide/livekit) or the
    [native listener](/guides/own-media).
 5. **Replace the event listener** with `callx.snapshots`.
@@ -72,9 +76,27 @@ callx.snapshots.listen((snapshot) => render(snapshot.call));
 
 ## Differences to plan for
 
-- The Android incoming screen is Callx's native screen or your own Activity
-  (`fullScreenIntent`). Callx does not take styling parameters like `CallKitParams.android`;
-  provide your own Activity for a custom design.
+- Android uses the native incoming presenter. Customization currently uses Kotlin presenter
+  hooks in `CallxBootstrapConfig`; a unified Dart appearance switch is planned. See
+  [native host integration](/guides/native-host) and [UI choices](/guide/call-ui).
 - On iOS, provide your `CXProviderConfiguration` (icon, ringtone) through the bootstrap's
   `providerConfiguration`.
 - One live call at a time.
+
+## A complete migration journey
+
+Start with [your personalized setup](/guide/setup), then use
+[migration rollout and rollback](/guides/migration-rollout) to audit handlers, route payloads
+per installation, replace native/media ownership, verify mixed app versions and plan rollback.
+The API mapping above is one part of that journey.
+
+Before deleting old answer-event code, identify everything it did: accepting on your backend,
+joining media, starting timers and navigating. Move backend/media work to the native lifecycle
+owner; timers/navigation render the observed accepted call. Keep exactly one room join path.
+A framework observer may see an already-active call when it starts; do not assume you will
+always receive a fresh connecting transition.
+
+After the first foreground call works, repeat with the framework runtime stopped and with the
+screen locked. Confirm native callbacks complete their backend responsibilities, and that
+opening the app reconciles the current snapshot without re-answering. Compare dated results
+against [verification status](/project/status).

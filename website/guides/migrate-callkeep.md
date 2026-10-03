@@ -7,7 +7,11 @@ description: "Map react-native-callkeep's API and events to Callx, and move the 
 
 `react-native-callkeep` exposes CallKit and ConnectionService to JavaScript: your JavaScript
 displays calls, listens for system actions and reports state back. Callx moves that loop into
-native code, so the main change is deleting code rather than rewriting it.
+native code, so migration moves lifecycle ownership, media startup and backend callbacks as well as UI code.
+
+Before removing packages, read [rollout and rollback](/guides/migration-rollout) and audit your
+backend routes and media owner. Migrating a development build and retiring old production
+clients are separate steps.
 
 ## What changes conceptually
 
@@ -67,8 +71,8 @@ callx.observe(({call}) => render(call));
 2. **Install** `@bear-block/callx`, follow the [React Native](/guide/react-native) or
    [Expo](/guide/expo) quick start.
 3. **Change the push payload** your backend sends to the [Callx invitation](/guides/backend).
-   During the migration, send both formats if old app versions are still in use; Callx ignores
-   messages without a `callx` field.
+   Route the old format to old installations and Callx invitations to migrated installations.
+   Do not send both incoming reporting paths to the same installation.
 4. **Move media start** to the adapter or the native listener
    ([bring your own media](/guides/own-media)).
 5. **Replace event listeners** with `callx.observe` and the commands above.
@@ -79,3 +83,21 @@ callx.observe(({call}) => render(call));
 
 Callx supports one live call. If your app relies on multiple simultaneous calls, call merging or
 `updateDisplay`, check the [roadmap](/project/roadmap) before migrating.
+
+## A complete migration journey
+
+Start with [your personalized setup](/guide/setup), then use
+[migration rollout and rollback](/guides/migration-rollout) to audit handlers, route payloads
+per installation, replace native/media ownership, verify mixed app versions and plan rollback.
+The API mapping above is one part of that journey.
+
+Before deleting old answer-event code, identify everything it did: accepting on your backend,
+joining media, starting timers and navigating. Move backend/media work to the native lifecycle
+owner; timers/navigation render the observed accepted call. Keep exactly one room join path.
+A framework observer may see an already-active call when it starts; do not assume you will
+always receive a fresh connecting transition.
+
+After the first foreground call works, repeat with the framework runtime stopped and with the
+screen locked. Confirm native callbacks complete their backend responsibilities, and that
+opening the app reconciles the current snapshot without re-answering. Compare dated results
+against [verification status](/project/status).
