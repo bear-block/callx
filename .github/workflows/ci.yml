@@ -84,6 +84,8 @@ jobs:
       - run: npm ci
       - name: Kotlin core, Telecom and LiveKit adapter tests
         run: npm run native:android:test
+      - name: Standalone Android packaging consumer
+        run: sh tool/check-native-packaging.sh android
       - name: Flutter example APK
         working-directory: packages/callx/example
         run: flutter build apk --debug
@@ -125,6 +127,8 @@ jobs:
         run: npm run native:ios:test
       - name: CallKit and PushKit on the Simulator
         run: npm run native:ios:simulator-test
+      - name: Standalone Swift packaging consumer
+        run: sh tool/check-native-packaging.sh ios
       - name: LiveKit adapter on the Simulator
         run: sh tool/ios-simulator-test.sh adapters/livekit/native/ios/CallxLiveKit CallxLiveKit
       - name: Flutter example for the Simulator

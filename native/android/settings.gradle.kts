@@ -10,5 +10,8 @@ dependencyResolutionManagement {
 rootProject.name = "callx-core"
 include(":telecom")
 // Canonical adapter sources, vendored into the adapter packages by native:sync.
-include(":livekit")
-project(":livekit").projectDir = file("../../adapters/livekit/native/android")
+// A native core consumer can build without configuring or resolving a provider SDK.
+if (providers.gradleProperty("callxIncludeLiveKit").orNull != "false") {
+    include(":livekit")
+    project(":livekit").projectDir = file("../../adapters/livekit/native/android")
+}

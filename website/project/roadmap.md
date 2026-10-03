@@ -55,8 +55,8 @@ Custom presentation retains native call ownership and the required system integr
 |---|---|---|
 | [Interactive setup guide](/guide/setup) | Implemented in docs | Select framework, OS, presentation, media, backend and migration path; generate a supported integration checklist |
 | [Detailed migration journeys](/guides/migration-rollout) | Implemented in docs | CallKeep and flutter_callkit_incoming: ownership, backend routing, staged rollout and rollback |
-| Standalone Android SDK | Planned; not published | Kotlin API and native example using the existing core; optional Compose UI to be scoped |
-| Standalone iOS SDK | Planned; not published | Swift API and native example using the existing core; optional SwiftUI UI to be scoped |
+| Standalone Android SDK | In development; not published | Local Maven packaging and independent consumer compile check; Kotlin API and runnable native example pending; optional Compose UI to be scoped |
+| Standalone iOS SDK | In development; not published | Root Swift package and independent iOS consumer compile check; Swift API and runnable native example pending; optional SwiftUI UI to be scoped |
 | Callx hosted backend service | Future direction; unavailable | A separate optional service; authentication, signaling, push delivery, operations and pricing need their own design |
 
 Standalone SDKs must reuse the same native core and contract as Flutter and React Native.

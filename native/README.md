@@ -35,6 +35,41 @@ visibility rule is not a secure deletion policy.
 
 ## Check and distribute
 
+### Standalone native packaging (development)
+
+Native packaging is under development, **not a published native SDK release**. It uses
+the canonical sources below without Flutter, React Native, Firebase or a media provider.
+The friendly Kotlin/Swift API and runnable native call examples are still pending.
+The fixtures in `native/consumers` are compile checks, not demo applications.
+
+- Swift: add this repository checkout as a local Swift package and select `CallxCore`.
+  The root `Package.swift` targets the same sources as `native/ios/Package.swift`.
+  iOS requires version 15 or later. macOS supports domain tests, not CallKit calling.
+- Android: build `dev.callx:callx-android:0.0.0-SNAPSHOT` and its transitive
+  `dev.callx:callx-core` locally with the command below. Artifacts go to
+  `native/android/build/native-repository`; these coordinates are development-only,
+  not available from Maven Central. A host needs AndroidX, minSdk 29, compileSdk 36
+  and JDK 17. See `consumers/android` for a consumer using only the local Maven artifacts.
+
+```sh
+sh tool/check-native-packaging.sh android
+sh tool/check-native-packaging.sh ios
+```
+
+Android publication excludes the LiveKit project with `-PcallxIncludeLiveKit=false`.
+Normal native development still includes it. An experimental artifact version can be set
+with `-PcallxNativeVersion=...` on both the publisher and consumer Gradle invocations.
+No remote publishing repository is configured.
+
+Native hosts use `CallxBootstrap` at the application entry point, pass an empty `install`
+callback when no framework bridge is present, and retain the returned pipeline. On iOS,
+await `ready.value` before issuing runtime commands. Media, push credentials, app
+permissions and backend signaling must still be integrated; compiling a consumer does
+not establish call/device acceptance. Do not combine standalone artifacts with the
+vendored Flutter/RN core in the same host: hybrid symbol/runtime ownership is not supported.
+
+### Canonical checks
+
 From the repository root:
 
 ```sh

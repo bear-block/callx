@@ -14,3 +14,7 @@ GoogleService-Info.plist
 
 # Local preview screenshots (tool/check-preview-browser.mjs).
 /build/
+
+# Root Swift package build products.
+/.build/
+/.swiftpm/
