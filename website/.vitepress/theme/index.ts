@@ -6,6 +6,7 @@ import SponsorCallout from './components/SponsorCallout.vue';
 import SponsorList from './components/SponsorList.vue';
 import SponsorPrompt from './components/SponsorPrompt.vue';
 import CallDemoShowcase from './components/CallDemoShowcase.vue';
+import SetupGuide from './components/SetupGuide.vue';
 import './custom.css';
 
 export default {
@@ -16,6 +17,7 @@ export default {
   }),
   enhanceApp({app}) {
     app.component('CallDemoShowcase', CallDemoShowcase);
+    app.component('SetupGuide', SetupGuide);
     app.component('SponsorCallout', SponsorCallout);
     app.component('SponsorList', SponsorList);
   },

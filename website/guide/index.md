@@ -9,6 +9,9 @@ Callx turns a push from your backend into a real phone call: the system incoming
 iOS and Android, answer and decline from anywhere, and a call state your app can trust. This
 page explains the pieces; the next pages install them.
 
+Not sure which pages apply? [Personalize your setup](/guide/setup) to get a checklist for your
+framework, platforms, UI, media and backend. Then follow [your first real call](/guide/first-call).
+
 ## The pieces of a call
 
 ```mermaid

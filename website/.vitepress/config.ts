@@ -66,6 +66,8 @@ export default withMermaid(defineConfig({
         text: 'Get started',
         items: [
           {text: 'Overview', link: '/guide/'},
+          {text: 'Personalize your setup', link: '/guide/setup'},
+          {text: 'Your first real call', link: '/guide/first-call'},
           {text: 'Flutter', link: '/guide/flutter'},
           {text: 'React Native', link: '/guide/react-native'},
           {text: 'Expo', link: '/guide/expo'},
@@ -97,6 +99,7 @@ export default withMermaid(defineConfig({
           {text: 'Write a media adapter', link: '/guides/write-an-adapter'},
           {text: 'Provider-managed signaling', link: '/guides/provider-managed'},
           {text: 'Test on devices', link: '/guides/testing'},
+          {text: 'Migration rollout and rollback', link: '/guides/migration-rollout'},
           {text: 'Migrate from react-native-callkeep', link: '/guides/migrate-callkeep'},
           {text: 'Migrate from flutter_callkit_incoming', link: '/guides/migrate-flutter-callkit-incoming'},
           {text: 'Troubleshooting', link: '/guides/troubleshooting'},

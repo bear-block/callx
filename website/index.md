@@ -13,7 +13,7 @@ hero:
   actions:
     - theme: brand
       text: Get started
-      link: /guide/
+      link: /guide/setup
     - theme: alt
       text: Why Callx?
       link: /why
