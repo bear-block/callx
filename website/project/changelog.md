@@ -18,7 +18,7 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
-## 0.4.0 — publication pending {#release-0-4-0}
+## 3.0.0 — publication pending {#release-3-0-0}
 
 ### Features
 
@@ -38,7 +38,7 @@ lifecycle APIs keep their signatures. See [phone features and migration](/guide/
 
 Automated checks cover command behavior and platform mappings. Physical headset/Bluetooth,
 Recents/Siri launch and SIP/IVR acceptance remain pending. This section is preparation, not a
-claim that 0.4.0 has been published.
+claim that 3.0.0 has been published.
 
 ## Website documentation update — 2026-10-04
 

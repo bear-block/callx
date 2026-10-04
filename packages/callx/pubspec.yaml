@@ -1,6 +1,6 @@
 name: callx
 description: Native call coordination for Flutter using CallKit and Android Core-Telecom.
-version: 0.4.0
+version: 3.0.0
 homepage: https://bear-block.github.io/callx/
 repository: https://github.com/bear-block/callx/tree/main/packages/callx
 issue_tracker: https://github.com/bear-block/callx/issues
