@@ -19,5 +19,13 @@
             android:taskAffinity="dev.callx.incoming"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:turnScreenOn="true" />
+        <!-- The missed-call notification's Call back button: records the request and opens the app. -->
+        <activity
+            android:name="dev.callx.telecom.CallxCallBackActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
     </application>
 </manifest>

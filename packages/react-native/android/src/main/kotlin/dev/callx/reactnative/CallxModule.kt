@@ -7,6 +7,7 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableNativeMap
 import dev.callx.core.BridgeRuntime
 import dev.callx.core.BridgeViolation
+import kotlinx.coroutines.launch
 
 /** The Callx TurboModule; NativeCallxSpec is generated from src/specs/NativeCallx.ts. */
 class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
@@ -82,6 +83,20 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
         }, notifyPending = false)
     }
     override fun dispose() = Unit
+
+    // Backend events from JavaScript (ADR-0014): the same ingress calls native host code makes.
+    override fun remoteAnswered(value: ReadableMap, promise: Promise) = signal(value, promise, answered = true)
+    override fun remoteEnded(value: ReadableMap, promise: Promise) = signal(value, promise, answered = false)
+    private fun signal(value: ReadableMap, promise: Promise, answered: Boolean) {
+        val ingress = dev.callx.telecom.CallxBootstrap.started?.ingress
+            ?: return promise.reject("notConfigured", "Callx was not started with CallxModule.bootstrap.")
+        val callId = value.getString("callId") ?: return promise.reject("invalidArgument", "callId is required.")
+        val reason = if (value.hasKey("reason")) value.getString("reason") ?: "remoteEnded" else "remoteEnded"
+        dev.callx.telecom.CallxBootstrap.scope.launch {
+            try { promise.resolve(if (answered) ingress.remoteAnswered(callId) else ingress.remoteEnded(callId, reason)) }
+            catch (error: Throwable) { reject(promise, error) }
+        }
+    }
 
     override fun configurePictureInPicture(options: ReadableMap) {
         val automatic = options.hasKey("automatic") && options.getBoolean("automatic")

@@ -9,6 +9,7 @@ import dev.callx.core.BridgeRuntime
 import dev.callx.core.CameraFacing
 import dev.callx.core.CallState
 import dev.callx.core.CallRecord
+import dev.callx.core.CallSignal
 import dev.callx.core.CommandType
 import dev.callx.core.IncomingOutcome
 import dev.callx.core.IncomingReportDecision
@@ -114,6 +115,7 @@ class TelecomIngress(
         @Volatile internal var active: TelecomIngress? = null
         /** Ringing stopped without anyone answering, here or elsewhere. */
         private val MISSED_REASONS = setOf("unanswered", "callerCancelled")
+        private val SIGNAL_TYPES = setOf("call.accepted", "call.ended")
     }
 
     init {
@@ -288,7 +290,16 @@ class TelecomIngress(
      */
     fun handlePush(data: Map<String, String>, priority: Int? = null, originalPriority: Int? = null,
         timeoutMs: Long = PUSH_WAIT_MS): Boolean {
-        if (!data.containsKey(InvitationCodec.PAYLOAD_KEY)) return false
+        val payload = data[InvitationCodec.PAYLOAD_KEY] ?: return false
+        if (InvitationCodec.type(payload) in SIGNAL_TYPES) {
+            val signal = try { InvitationCodec.decodeSignal(payload) } catch (_: InvitationViolation) { null }
+            listener?.onPushReceived(signal?.callId, priority, originalPriority)
+            if (signal != null) {
+                val work = scope.async { handleSignal(signal) }
+                runBlocking { withTimeoutOrNull(timeoutMs) { work.await() } }
+            }
+            return true
+        }
         val invitation = try { InvitationCodec.decodeData(data) } catch (_: InvitationViolation) { null }
         listener?.onPushReceived(invitation?.callId, priority, originalPriority)
         // The work runs in the application scope, so it finishes even if waiting times out.
@@ -297,38 +308,64 @@ class TelecomIngress(
         return true
     }
 
+    /**
+     * A backend event that arrived as a push (ADR-0014): `call.ended` ends the call or records
+     * it so a late invitation cannot ring; `call.accepted` connects an outgoing call.
+     */
+    suspend fun handleSignal(signal: CallSignal) {
+        try {
+            when (signal) {
+                is CallSignal.Accepted -> remoteAnswered(signal.callId)
+                is CallSignal.Ended -> remoteEnded(signal.callId, signal.reason)
+            }
+        } catch (_: IllegalArgumentException) {
+            // An invalid call ID or reason; nothing changes.
+        }
+    }
+
     /** Handles an invitation that arrived over signaling while the app runs. */
     suspend fun handleInvitation(invitation: Invitation): IncomingOutcome? = process(invitation)
 
-    /** Ends the call for a remote terminal event, or records it so a late invitation cannot ring. */
-    suspend fun remoteEnded(callId: String, reason: String = "remoteEnded") {
+    /**
+     * Ends the call for a remote terminal event, or records it so a late invitation cannot ring.
+     * Returns true when a live call ended.
+     */
+    suspend fun remoteEnded(callId: String, reason: String = "remoteEnded"): Boolean {
         val ended = synchronized(presentationLock) {
             runtime.remoteEnded(callId, reason).also {
                 cancelRing(callId); dismissCall(callId)
             }
         }
         if (ended) sessions.resolve(callId)?.disconnect(causeFor(reason))
+        return ended
     }
 
     /** Cold-process bootstrap only. Persist termination before cleaning up platform state.
      * Never call for a Dart/JS engine restart in the same process. */
     suspend fun recoverAfterProcessDeath(): CallRecord? {
         val recovered = synchronized(presentationLock) {
+            // A call that ended in an earlier process was announced then; only an end made by this
+            // recovery (a ring that expired while the process was dead) is a new missed call.
+            val wasLive = runtime.currentCall()?.let { it.state != CallState.ended } == true
             runtime.recoverAfterProcessDeath()?.also {
-                cancelRing(it.callId); dismissCall(it.callId)
+                cancelRing(it.callId); dismissCall(it.callId, announceMissed = wasLive)
             }
         }
         if (recovered != null) sessions.resolve(recovered.callId)?.disconnect(causeFor(recovered.endReason ?: "failed"))
         return recovered
     }
 
-    /** Records that the remote party accepted an outgoing call and makes the Telecom call active. */
-    suspend fun remoteAnswered(callId: String) {
+    /**
+     * Records that the remote party accepted an outgoing call and makes the Telecom call active.
+     * Returns true when the call moved to connecting.
+     */
+    suspend fun remoteAnswered(callId: String): Boolean {
         val answered = synchronized(presentationLock) {
             runtime.remoteAnswered(callId).also { if (it) presentAnswered(callId, answeredAt(callId)) }
         }
         // setHeld(false) is CallControlScope.setActive for a Core-Telecom call.
         if (answered) sessions.resolve(callId)?.setHeld(false)
+        return answered
     }
 
     /** Routes call audio to an endpoint reported by [TelecomIngressListener.onAudioEndpointsChanged]. */
@@ -470,10 +507,10 @@ class TelecomIngress(
     }
     private fun cancelRing(callId: String) { ringJobs.remove(callId)?.cancel() }
     /** Every terminal path ends here, whichever presenter the host uses. */
-    private fun dismissCall(callId: String) {
+    private fun dismissCall(callId: String, announceMissed: Boolean = true) {
         callAudio.remove(callId)
         presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
-        missedCall(callId)?.let { runCatching { presenter.showMissed(it) } }
+        if (announceMissed) missedCall(callId)?.let { runCatching { presenter.showMissed(it) } }
         (media as? CallxMediaAdapter)?.stop(callId)
         listener?.onCallEnded(callId)
     }

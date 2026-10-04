@@ -65,6 +65,31 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler, F
         // Keep Flutter's scene/engine connection and other launch handlers running.
         return false
     }
+    /// Backend events from Dart (ADR-0014): the same ingress calls native host code makes.
+    private func signal(_ call: FlutterMethodCall, result: FlutterResultBox) {
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        guard #available(iOS 15.0, *), let ingress = CallxBootstrap.started?.ingress else {
+            result.complete(FlutterError(code: "notConfigured",
+                message: "Callx was not started with CallxPlugin.bootstrap.", details: nil)); return
+        }
+        guard let callID = arguments["callId"] as? String else {
+            result.complete(FlutterError(code: "invalidArgument", message: "callId is required.", details: nil)); return
+        }
+        let reason = arguments["reason"] as? String ?? "remoteEnded"
+        let answered = call.method == "remoteAnswered"
+        Task {
+            do {
+                let changed = answered ? try await ingress.remoteAnswered(callID: callID)
+                    : try await ingress.remoteEnded(callID: callID, reason: reason)
+                result.complete(changed)
+            } catch let error as BridgeError {
+                result.complete(FlutterError(code: error.code, message: error.message, details: nil))
+            } catch {
+                result.complete(FlutterError(code: "internal", message: error.localizedDescription, details: nil))
+            }
+        }
+    }
+
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let runtime = Self.hostRuntime
         switch call.method {
@@ -74,6 +99,7 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler, F
             "providerManagedSignaling": false, "hold": false, "mute": false, "video": false, "dtmf": false,
         ])
         case "dispose": result(nil)
+        case "remoteAnswered", "remoteEnded": signal(call, result: FlutterResultBox(result))
         default:
             guard let runtime else { result(FlutterError(code: "notConfigured",
                 message: "Native Callx host has not been configured.", details: nil)); return }

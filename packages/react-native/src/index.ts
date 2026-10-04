@@ -1,4 +1,4 @@
-import {NativeCallxBackend} from './native.js';
+import {loadNative, NativeCallxBackend} from './native.js';
 
 /** Contract v0; 0.3 adds phone features (ADR-0013). */
 export const CONTRACT_VERSION = '0.3.0' as const;
@@ -236,4 +236,35 @@ export class Callx {
   /** Preview contract: initial snapshot is delivered immediately; unsubscribe does not end a call. */
   observe(listener: (snapshot: Snapshot) => void): () => void { return this.backend.observe(listener); }
   dispose(): void { this.transport.dispose(); }
+}
+
+const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+async function signal(method: 'remoteAnswered' | 'remoteEnded', value: {callId: string; reason?: string}): Promise<boolean> {
+  if (!ID.test(value.callId)) throw new CallxError('invalidArgument', 'callId is invalid.');
+  const {module} = await loadNative();
+  const call = method === 'remoteAnswered' ? module.remoteAnswered : module.remoteEnded;
+  if (!call) throw new CallxError('nativeUnavailable', 'This Callx native module predates backend events; rebuild the app.');
+  return call.call(module, value as {callId: string; reason: string});
+}
+
+/**
+ * The callee accepted this device's outgoing call (`call.accepted` from your backend, ADR-0014).
+ * Resolves true when the call moved to `connecting`; media starts and the call becomes active
+ * once it flows. Works while JavaScript runs; needs the native bootstrap (notConfigured otherwise).
+ */
+export function reportRemoteAnswered(callId: string): Promise<boolean> {
+  return signal('remoteAnswered', {callId});
+}
+
+/**
+ * Your backend ended the call (`call.ended`). `reason` is from this device's point of view, for
+ * example `callerCancelled` or `answeredElsewhere`. Resolves true when a live call ended; for a
+ * call that has not rung yet, Callx records the ID so it never rings.
+ */
+export function reportRemoteEnded(callId: string, reason: EndReason = 'remoteEnded'): Promise<boolean> {
+  if (!(END_REASONS as readonly string[]).includes(reason)) {
+    return Promise.reject(new CallxError('invalidArgument', 'reason is unsupported.'));
+  }
+  return signal('remoteEnded', {callId, reason});
 }

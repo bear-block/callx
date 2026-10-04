@@ -3,6 +3,7 @@ package dev.callx.telecom
 import dev.callx.core.BridgeCapabilities
 import dev.callx.core.BridgeRuntime
 import dev.callx.core.CallCoordinator
+import dev.callx.core.CoordinatorFileStore
 import dev.callx.core.Invitation
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -47,13 +48,14 @@ private class DtmfAdapter(var sent: Boolean = true) : CallxMediaAdapter, CallxDt
     override suspend fun sendDtmf(callId: String, digits: String): Boolean { tones += digits; return sent }
 }
 
-private class ParityHarness(media: MediaMuteController, ringTimeoutMs: Long = 45_000) {
+private class ParityHarness(media: MediaMuteController, ringTimeoutMs: Long = 45_000,
+    coordinator: CallCoordinator = CallCoordinator(), nowMs: () -> Long = System::currentTimeMillis) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val sessions = ParitySessions()
     val presenter = RecordingPresenter()
-    val ingress = TelecomIngress(scope, presenter, media = media, ringTimeoutMs = ringTimeoutMs)
-    val runtime = BridgeRuntime(CallCoordinator(), ingress.executor(TelecomPlatformExecutor(scope, sessions, media)),
-        BridgeCapabilities("generation-1", true, false, true, true, dtmf = ingress.supportsDtmf))
+    val ingress = TelecomIngress(scope, presenter, media = media, ringTimeoutMs = ringTimeoutMs, nowMs = nowMs)
+    val runtime = BridgeRuntime(coordinator, ingress.executor(TelecomPlatformExecutor(scope, sessions, media)),
+        BridgeCapabilities("generation-1", true, false, true, true, dtmf = ingress.supportsDtmf), nowMs = nowMs)
     init { ingress.attach(runtime, sessions) }
     fun call() = runtime.getSnapshot()["call"] as Map<*, *>
     fun command(type: String, value: Any? = null) = runtime.execute(mapOf("contractVersion" to "0.3.0",
@@ -143,5 +145,36 @@ class PhoneParityTelecomTest {
         assertEquals(2, signals, "JS drains the pending request after installing its event listener")
         assertEquals("late", CallxCallRequests.take(2_100)?.handle)
         CallxCallRequests.setListener(null)
+    }
+
+    @Test fun aNewProcessDoesNotRepeatAMissedCallFromAnEarlierOne() {
+        val path = kotlin.io.path.createTempDirectory("callx-missed").resolve("coordinator.json")
+        val first = ParityHarness(DtmfAdapter(), coordinator = CallCoordinator(CoordinatorFileStore(path)))
+        try {
+            first.ring()
+            runBlocking { first.ingress.remoteEnded("call-1", "callerCancelled") }
+            assertEquals(1, first.presenter.missed.size)
+        } finally { first.scope.cancel() }
+        val next = ParityHarness(DtmfAdapter(), coordinator = CallCoordinator(CoordinatorFileStore(path)))
+        try {
+            runBlocking { next.ingress.recoverAfterProcessDeath() }
+            assertEquals(emptyList(), next.presenter.missed)
+        } finally { next.scope.cancel() }
+    }
+
+    @Test fun aRingThatExpiredWhileTheProcessWasDeadIsMissedOnce() {
+        val path = kotlin.io.path.createTempDirectory("callx-missed").resolve("coordinator.json")
+        var clock = 1_000_000L
+        val first = ParityHarness(DtmfAdapter(), ringTimeoutMs = 30_000,
+            coordinator = CallCoordinator(CoordinatorFileStore(path)), nowMs = { clock })
+        try { first.ring() } finally { first.scope.cancel() }
+        clock += 60_000
+        val next = ParityHarness(DtmfAdapter(), coordinator = CallCoordinator(CoordinatorFileStore(path)), nowMs = { clock })
+        try {
+            runBlocking { next.ingress.recoverAfterProcessDeath() }
+            assertEquals("unanswered", next.call()["endReason"]); assertEquals(1, next.presenter.missed.size)
+            runBlocking { next.ingress.recoverAfterProcessDeath() }
+            assertEquals(1, next.presenter.missed.size)
+        } finally { next.scope.cancel() }
     }
 }

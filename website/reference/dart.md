@@ -184,6 +184,13 @@ doneLabel, cameraPausedLabel and localPreviewLabel. Hosts can replace videoBuild
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
 
+## Backend events (3.0.1)
+
+`CallxSignaling.remoteAnswered(callId)` and `CallxSignaling.remoteEnded(callId, {reason})` hand
+`call.accepted` and `call.ended` from your Dart signaling client to the native ingress. Both
+return `Future<bool>`: true when the call changed. They throw `CallxException` with
+`notConfigured` without `CallxPlugin.bootstrap`. See [call flows](/backend/call-flows#where-signaling-events-enter-callx).
+
 ## System call requests
 
 `Callx.callRequests` (also `CallxCallRequests.requests`) is a `Stream<CallRequest>` with

@@ -14,6 +14,8 @@ for package_dir in "$repo_dir/packages/callx" "$repo_dir/packages/react-native";
   diff -qr "$repo_dir/native/android/telecom/src/main/kotlin/dev/callx/telecom" \
     "$package_dir/android/src/main/kotlin/dev/callx/telecom" || status=1
   diff -qr "$repo_dir/native/ios/Sources/CallxCore" "$package_dir/$core_dir" || status=1
+  cmp -s "$repo_dir/native/android/telecom/src/main/AndroidManifest.xml" "$package_dir/android/src/main/AndroidManifest.xml" ||
+    { echo "AndroidManifest.xml differs in $package_dir"; status=1; }
 done
 cmp -s "$repo_dir/packages/callx/example/ios/Runner/ConsoleReporter.swift" \
   "$repo_dir/packages/react-native/example/device-host/ios/ConsoleReporter.swift" ||

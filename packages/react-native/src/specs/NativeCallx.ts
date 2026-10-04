@@ -16,6 +16,9 @@ export interface Spec extends TurboModule {
   takeCallRequest(): Promise<Object | null>;
   releaseCallRequests(): void;
   dispose(): void;
+  // Backend events from JavaScript (ADR-0014); resolve true when the call changed.
+  remoteAnswered(value: Object): Promise<boolean>;
+  remoteEnded(value: Object): Promise<boolean>;
   // Picture-in-picture for video calls (ADR-0010 addendum), Android and iOS.
   configurePictureInPicture(options: Object): void;
   enterPictureInPicture(): Promise<boolean>;

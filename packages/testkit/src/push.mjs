@@ -71,11 +71,12 @@ export function fcmMessage(options, payload) {
   if (message === 'invite') data = { callx: JSON.stringify(payload) };
   else if (message === 'end' || message === 'accept') {
     if (!options.callId) throw new Error(`--message ${message} needs --call-id.`);
-    data = { callxTest: JSON.stringify(message === 'end'
-      ? { type: 'call.ended', callId: options.callId, reason: options.reason ?? 'remoteEnded' }
-      : { type: 'call.accepted', callId: options.callId }) };
+    // The production format (ADR-0014): Callx 3.0.1+ applies it natively, even to a killed app.
+    data = { callx: JSON.stringify(message === 'end'
+      ? { schemaVersion: 1, type: 'call.ended', callId: options.callId, reason: options.reason ?? 'remoteEnded' }
+      : { schemaVersion: 1, type: 'call.accepted', callId: options.callId }) };
   } else throw new Error('--message must be invite, end or accept.');
-  // Only a visible invitation warrants high priority. Test-only signals make no notification.
+  // Only a visible invitation warrants high priority. Signals make no notification.
   // The TTL lets FCM hold a message while the device's connection is down (a fresh boot, Doze,
   // a network switch). An invitation lives until it expires, since the core ignores it after
   // that; a zero TTL drops it whenever the device is not connected at that very moment.

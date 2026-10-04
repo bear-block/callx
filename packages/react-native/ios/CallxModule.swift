@@ -63,6 +63,28 @@ public final class CallxModuleImpl: NSObject {
     }
     // Event delivery belongs to start/stopObserving; one Callx instance must not stop it for others.
     @objc public func dispose() {}
+    // Backend events from JavaScript (ADR-0014): the same ingress calls native host code makes.
+    @objc public func remoteAnswered(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        signal(value, answered: true, ReactPromiseBox(resolve, reject))
+    }
+    @objc public func remoteEnded(_ value: NSDictionary, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        signal(value, answered: false, ReactPromiseBox(resolve, reject))
+    }
+    private func signal(_ value: NSDictionary, answered: Bool, _ callback: ReactPromiseBox) {
+        guard #available(iOS 15.0, *), let ingress = CallxBootstrap.started?.ingress else {
+            callback.reject(BridgeError("notConfigured", "Callx was not started with CallxReactNativeHost.bootstrap.")); return
+        }
+        guard let callID = value["callId"] as? String else {
+            callback.reject(BridgeError("invalidArgument", "callId is required.")); return
+        }
+        let reason = value["reason"] as? String ?? "remoteEnded"
+        Task {
+            do {
+                callback.resolve(answered ? try await ingress.remoteAnswered(callID: callID)
+                    : try await ingress.remoteEnded(callID: callID, reason: reason))
+            } catch { callback.reject(error) }
+        }
+    }
     @objc public func configurePictureInPicture(_ options: NSDictionary) {
         let automatic = options["automatic"] as? Bool ?? false
         Task { @MainActor in CallxPictureInPicture.shared.configure(automatic: automatic) }

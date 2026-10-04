@@ -50,8 +50,9 @@ On iOS the bootstrap records the VoIP token itself.
 |---|---|
 | `handlePush(data, priority, originalPriority)` (Android) | Rings or rejects a forwarded FCM message; `false` if it is not a Callx invitation |
 | `handleInvitation(invitation)` | An invitation that arrived over signaling |
-| `remoteAnswered(callId)` | The remote side answered an outgoing call |
-| `remoteEnded(callId, reason)` | The remote side ended or cancelled; recorded even before the invitation |
+| `remoteAnswered(callId)` | The remote side answered an outgoing call; returns whether the call changed (3.0.1) |
+| `remoteEnded(callId, reason)` | The remote side ended or cancelled; recorded even before the invitation; returns whether a live call ended (3.0.1) |
+| `handleSignal(signal)` (Android, 3.0.1) | A `call.ended` or `call.accepted` that arrived by push; `handlePush` calls it |
 | `silenceIncoming(callId)` (Android) | Stops the ringtone |
 | `requestAudioEndpoint(callId, endpoint)` (Android) | Switches audio route through Telecom; Dart/JS use `setAudioRoute` |
 | `supportsVideo`, `supportsDtmf` (Android) | Whether the installed media adapter carries video or keypad tones |

@@ -14,6 +14,8 @@ export interface NativeModule {
   takeCallRequest(): Promise<CallRequest | null>;
   releaseCallRequests(): void;
   dispose(): void;
+  remoteAnswered?(value: {callId: string}): Promise<boolean>;
+  remoteEnded?(value: {callId: string; reason: string}): Promise<boolean>;
 }
 
 export type ReactNativeShape = {
@@ -35,21 +37,7 @@ export class NativeCallxBackend implements CallxBackend {
   constructor(binding?: {module: NativeModule; rn: ReactNativeShape}) {
     if (binding) this.loaded = Promise.resolve(binding);
   }
-  private async native(): Promise<{module: NativeModule; rn: ReactNativeShape}> {
-    try {
-      const rn = (await import('./react-native-bindings.js')).bindings as unknown as ReactNativeShape;
-      if (!rn?.NativeModules) throw new CallxError('nativeUnavailable', 'React Native bindings are unavailable.');
-      // The TurboModule under the New Architecture; the legacy registry otherwise.
-      const module = (rn.TurboModuleRegistry?.get('Callx') ?? rn.NativeModules.Callx) as NativeModule | undefined;
-      if (!module) throw new CallxError('nativeUnavailable', 'Callx native module is not linked.');
-      return {module, rn};
-    } catch (error) {
-      if (error instanceof CallxError) throw error;
-      const cause = error instanceof Error ? error.message : String(error);
-      throw new CallxError('nativeUnavailable', `React Native or the Callx native module is unavailable: ${cause}`);
-    }
-  }
-  private binding() { return this.loaded ??= this.native(); }
+  private binding() { return this.loaded ??= loadNative(); }
   async setup(_config?: CallxConfig) { return (await this.binding()).module.setup({contractVersion: CONTRACT_VERSION}); }
   async execute(command: Command) { return (await this.binding()).module.execute(command); }
   async queryOperation(operationId: string, accountGeneration: string) {
@@ -135,4 +123,20 @@ export class NativeCallxBackend implements CallxBackend {
     return () => { active = false; subscription?.remove(); release?.(); release = undefined; };
   }
   dispose() { void this.binding().then(({module}) => module.dispose()); }
+}
+
+/** Loads React Native and the Callx module lazily, so non-React Native hosts get nativeUnavailable. */
+export async function loadNative(): Promise<{module: NativeModule; rn: ReactNativeShape}> {
+  try {
+    const rn = (await import('./react-native-bindings.js')).bindings as unknown as ReactNativeShape;
+    if (!rn?.NativeModules) throw new CallxError('nativeUnavailable', 'React Native bindings are unavailable.');
+    // The TurboModule under the New Architecture; the legacy registry otherwise.
+    const module = (rn.TurboModuleRegistry?.get('Callx') ?? rn.NativeModules.Callx) as NativeModule | undefined;
+    if (!module) throw new CallxError('nativeUnavailable', 'Callx native module is not linked.');
+    return {module, rn};
+  } catch (error) {
+    if (error instanceof CallxError) throw error;
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new CallxError('nativeUnavailable', `React Native or the Callx native module is unavailable: ${cause}`);
+  }
 }

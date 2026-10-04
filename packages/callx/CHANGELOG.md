@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased (3.0.1)
+
+- Adds backend events from app code: Dart `CallxSignaling.remoteAnswered` / `remoteEnded` and
+  TypeScript `reportRemoteAnswered` / `reportRemoteEnded`, so a Dart or JavaScript signaling
+  client can connect outgoing calls and end calls without native code (ADR-0014).
+- Android: `handlePush` also accepts `call.ended` and `call.accepted` under the `callx` key, so a
+  normal-priority FCM message stops a ringing call even when the app was killed.
+- Native `remoteEnded` / `remoteAnswered` now return whether the call changed.
+- Fixes the Android missed-call **Call back** button doing nothing: the package manifest lacked
+  `CallxCallBackActivity` (the native source sync skipped the core manifest; it is now synced and
+  checked).
+- Fixes an old missed-call notification reappearing each time the process starts cold.
+
 ## 3.0.0 — 2026-10-04
 
 - Adds observed audio routes and `setAudioRoute`, active-call `sendDtmf`, and `setDisplayName`.

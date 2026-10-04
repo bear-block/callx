@@ -286,6 +286,15 @@ CallxControlGlyph is optional; hosts can supply their own icons. renderVideo sup
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
 
+## Backend events (3.0.1)
+
+`reportRemoteAnswered(callId)` and `reportRemoteEnded(callId, reason = 'remoteEnded')`, exported
+from `@bear-block/callx`, hand `call.accepted` and `call.ended` from your JavaScript signaling
+client to the native ingress. Both resolve `true` when the call changed, and reject with
+`notConfigured` without the native bootstrap, `invalidArgument` for an invalid ID or reason, and
+`nativeUnavailable` when the installed native module predates them (rebuild the app). See
+[call flows](/backend/call-flows#where-signaling-events-enter-callx).
+
 ## System call requests
 
 `callx.addCallRequestListener(listener)` returns an unsubscribe function. The listener receives

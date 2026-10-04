@@ -9,6 +9,15 @@ data class Invitation(val callId: String, val displayName: String, val handle: S
     /** Report the call to the OS as a video call (ADR-0010). */
     val video: Boolean = false)
 
+/** A backend event sent as a push instead of over signaling (ADR-0014, Android only). */
+sealed interface CallSignal {
+    val callId: String
+    /** `call.accepted`: the callee accepted this device's outgoing call. */
+    data class Accepted(override val callId: String) : CallSignal
+    /** `call.ended`, with the end reason from this device's point of view. */
+    data class Ended(override val callId: String, val reason: String) : CallSignal
+}
+
 class InvitationViolation(message: String) : IllegalArgumentException(message)
 
 object InvitationCodec {
@@ -20,6 +29,29 @@ object InvitationCodec {
 
     /** Returns null when the FCM data map carries no Callx invitation, so the host can handle it. */
     fun decodeData(data: Map<String, String>): Invitation? = data[PAYLOAD_KEY]?.let(::decode)
+
+    private val END_REASONS = setOf("localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered",
+        "busy", "failed", "answeredElsewhere", "declinedElsewhere")
+
+    /** The payload's `type`, or null when it is not a JSON object with a string type. */
+    fun type(json: String): String? = try {
+        (Json.parseToJsonElement(json) as? JsonObject)?.get("type")?.let { it as? JsonPrimitive }
+            ?.takeIf { it.isString }?.content
+    } catch (_: Exception) { null }
+
+    /** Decodes `call.accepted` or `call.ended`; `reason` defaults to `remoteEnded`. */
+    fun decodeSignal(json: String): CallSignal {
+        val value = try { Json.parseToJsonElement(json) } catch (error: Exception) { invalid("payload is not JSON") }
+        val payload = value as? JsonObject ?: invalid("payload must be an object")
+        if (integer(payload, "schemaVersion") != 1L) invalid("schemaVersion must be 1")
+        val callId = id(payload, "callId") ?: invalid("callId is required")
+        return when (text(payload, "type")) {
+            "call.accepted" -> CallSignal.Accepted(callId)
+            "call.ended" -> CallSignal.Ended(callId, (text(payload, "reason") ?: "remoteEnded")
+                .also { if (it !in END_REASONS) invalid("reason is unsupported") })
+            else -> invalid("type must be call.accepted or call.ended")
+        }
+    }
 
     fun decode(json: String): Invitation {
         val value = try { Json.parseToJsonElement(json) } catch (error: Exception) { invalid("payload is not JSON") }

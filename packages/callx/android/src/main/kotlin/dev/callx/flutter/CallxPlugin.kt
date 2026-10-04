@@ -10,6 +10,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.launch
 
 class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, ActivityAware {
     private lateinit var methods: MethodChannel
@@ -82,6 +83,7 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
                 "providerManagedSignaling" to false, "hold" to false, "mute" to false, "video" to false, "dtmf" to false,
             )) else invoke(runtime, call, result)
             "dispose" -> result.success(null)
+            "remoteAnswered", "remoteEnded" -> signal(call, result)
             else -> if (runtime == null) unavailable(result) else invoke(runtime, call, result)
         }
     }
@@ -105,6 +107,21 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
             }
         } catch (error: Throwable) { failure(result, error) }
     }
+    /** Backend events from Dart (ADR-0014): the same ingress calls native host code makes. */
+    private fun signal(call: MethodCall, result: MethodChannel.Result) {
+        val ingress = dev.callx.telecom.CallxBootstrap.started?.ingress
+            ?: return result.error("notConfigured", "Callx was not started with CallxPlugin.bootstrap.", null)
+        val callId = call.argument<String>("callId")
+            ?: return result.error("invalidArgument", "callId is required.", null)
+        val reason = call.argument<String>("reason") ?: "remoteEnded"
+        dev.callx.telecom.CallxBootstrap.scope.launch {
+            val outcome = runCatching {
+                if (call.method == "remoteAnswered") ingress.remoteAnswered(callId) else ingress.remoteEnded(callId, reason)
+            }
+            main.post { outcome.fold({ result.success(it) }, { failure(result, it) }) }
+        }
+    }
+
     private fun failure(result: MethodChannel.Result, error: Throwable) {
         val violation = error as? BridgeViolation
         result.error(violation?.code ?: "internal", error.message ?: "Native Callx operation failed.", null)

@@ -167,6 +167,14 @@ content-type: application/json
 | `expiresAtMs` | No | After this time the call does not ring; also caps the ring deadline |
 | `video` | No | `true` rings as a video call: CallKit `hasVideo` and Core-Telecom's video call type. See [video calls](/guide/video) |
 
+## Android: push signals (3.0.1)
+
+On Android, `call.ended` and `call.accepted` may also travel as FCM data messages under the
+`callx` key, with **normal** priority and the same JSON as the signaling events below. Callx
+maps them to `remoteEnded` / `remoteAnswered` without app code, so a killed app stops ringing
+when the caller cancels. `call.ended` carries `reason` (default `remoteEnded`). Older cores
+ignore these messages without ringing. See [call flows](/backend/call-flows#caller-cancels-or-nobody-answers).
+
 ## Signaling events
 
 Send `call.accepted` and `call.ended` over your authenticated signaling connection (a WebSocket
@@ -187,11 +195,11 @@ or your provider's channel), not as pushes:
 The native host deduplicates by `eventId` and per-call `revision`, then maps each event
 ([where these enter Callx](/backend/call-flows#where-signaling-events-enter-callx)):
 
-| Observation | Host calls |
+| Observation | Host calls (native), or from app code (3.0.1) |
 |---|---|
 | Invitation over signaling while the app runs | `ingress.handleInvitation(invitation)` |
-| The callee accepted your outgoing call | `ingress.remoteAnswered(callId)` |
-| Another device of this user answered | `ingress.remoteEnded(callId, "answeredElsewhere")` |
+| The callee accepted your outgoing call | `ingress.remoteAnswered(callId)`; Dart `CallxSignaling.remoteAnswered`, TS `reportRemoteAnswered` |
+| Another device of this user answered | `ingress.remoteEnded(callId, "answeredElsewhere")`; Dart `CallxSignaling.remoteEnded`, TS `reportRemoteEnded` |
 | The caller cancelled before an answer | `ingress.remoteEnded(callId, "callerCancelled")` |
 | The other party hung up | `ingress.remoteEnded(callId, "remoteEnded")` |
 | Media actually flows | `runtime.mediaConnected(callId)` (adapters do this) |

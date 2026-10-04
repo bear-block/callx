@@ -17,6 +17,8 @@ for package_dir in "$repo_dir/packages/callx" "$repo_dir/packages/react-native";
   cp "$repo_dir"/native/android/telecom/src/main/kotlin/dev/callx/telecom/*.kt \
     "$package_dir/android/src/main/kotlin/dev/callx/telecom/"
   cp "$repo_dir"/native/ios/Sources/CallxCore/*.swift "$package_dir/$core_dir/"
+  # The manifest declares the core's activities and receivers; a missing entry fails at run time.
+  cp "$repo_dir/native/android/telecom/src/main/AndroidManifest.xml" "$package_dir/android/src/main/AndroidManifest.xml"
 done
 
 # Adapters: canonical sources in adapters/<provider>/native, vendored into each adapter package.

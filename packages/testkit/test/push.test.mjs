@@ -31,7 +31,7 @@ test('FCM test signals need a call ID', () => {
   assert.throws(() => fcmMessage({ token: 't', message: 'end' }, invitation({})), /--call-id/);
   const { message } = fcmMessage({ token: 't', message: 'end', callId: 'c1', reason: 'callerCancelled' }, invitation({}));
   assert.deepEqual(message.android, { priority: 'NORMAL', ttl: '30s' });
-  assert.deepEqual(JSON.parse(message.data.callxTest), { type: 'call.ended', callId: 'c1', reason: 'callerCancelled' });
+  assert.deepEqual(JSON.parse(message.data.callx), { schemaVersion: 1, type: 'call.ended', callId: 'c1', reason: 'callerCancelled' });
   assert.equal(fcmMessage({ token: 't', message: 'accept', callId: 'c1' }, invitation({})).message.android.priority, 'NORMAL');
   assert.throws(() => fcmMessage({ token: 't', message: 'ring' }, invitation({})), /must be invite/);
 });

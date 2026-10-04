@@ -5,6 +5,7 @@ import 'src/call_requests.dart';
 
 export 'src/call_requests.dart';
 export 'src/picture_in_picture.dart';
+export 'src/signaling.dart';
 export 'src/video_view.dart';
 
 /// Contract v0 candidate; 0.2 adds video (ADR-0010), 0.3 audio routes, DTMF and renaming (ADR-0013).

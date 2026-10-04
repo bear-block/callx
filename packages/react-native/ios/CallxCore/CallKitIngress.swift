@@ -133,7 +133,9 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     }
 
     /// Ends the call for a remote terminal event, or records it so a late invitation cannot ring.
-    public func remoteEnded(callID: String, reason: String = "remoteEnded") async throws {
+    /// Returns true when a live call ended.
+    @discardableResult
+    public func remoteEnded(callID: String, reason: String = "remoteEnded") async throws -> Bool {
         let ended = try await runtime.remoteEnded(callID: callID, reason: reason)
         if ended { markRegistration(callID, action: .ended(reason)) }
         cancelRing(callID)
@@ -141,6 +143,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
             reporter.reportCall(with: uuids.uuid(for: callID), endedAt: Date(), reason: Self.endedReason(reason))
             announceEnded(callID)
         }
+        return ended
     }
 
     /// Cold-process bootstrap only: terminate checkpoint calls whose media session was lost.
@@ -156,11 +159,13 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     }
 
     /// Records that the remote party accepted an outgoing call and tells CallKit it connected.
-    public func remoteAnswered(callID: String) async throws {
-        if try await runtime.remoteAnswered(callID: callID) {
-            reporter.reportOutgoingCall(with: uuids.uuid(for: callID), connectedAt: Date())
-            announceAnswered(callID)
-        }
+    /// Returns true when the call moved to connecting.
+    @discardableResult
+    public func remoteAnswered(callID: String) async throws -> Bool {
+        guard try await runtime.remoteAnswered(callID: callID) else { return false }
+        reporter.reportOutgoingCall(with: uuids.uuid(for: callID), connectedAt: Date())
+        announceAnswered(callID)
+        return true
     }
 
     func receive(_ payload: [AnyHashable: Any], mustReport: Bool, completion: @escaping () -> Void) {

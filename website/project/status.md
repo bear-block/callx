@@ -62,7 +62,7 @@ Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 | Audio routes: listing and `setAudioRoute` (Android endpoints, iOS audio session) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | DTMF through the adapter, CallKit keypad (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | `setDisplayName` (CallKit, Android notification) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
-| Android missed-call notification and Call back | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| Android missed-call notification and Call back (fixed after 3.0.0) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | iOS call requests from Recents and Siri | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | **Frameworks** | | | |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
@@ -94,10 +94,19 @@ counts as a device pass.
 | Calls before the first unlock after a reboot are missed | Platform limit today; direct-boot support is on the [roadmap](/project/roadmap) |
 | Below Android 14, Telecom records video calls as audio | Core-Telecom limit; video itself works. See [video calls](/guide/video#platform-notes) |
 | The Android emulator exposes the speaker only | Earpiece and Bluetooth switching remain unverified |
+| 3.0.0: the Android missed-call **Call back** button does nothing, and an old missed-call notification can reappear when the app starts | Fixed for 3.0.1 ([changelog](/project/changelog#unreleased)) |
 
 ## Evidence
 
 Newest first. Each record names the build, the platform and the date.
+
+### Android cancel push and Call back — 2026-10-04 {#android-cancel-push}
+
+Development build after 3.0.0 (Flutter example, debug), Android 16 / API 36 emulator, real FCM.
+With the app killed, an invitation rang through Telecom; a normal-priority `call.ended` push
+(`callerCancelled`) stopped the ringing in about a second with no app code running; one
+missed-call notification appeared; **Call back** opened the app and removed it. The same run
+found the two 3.0.0 defects listed under known issues.
 
 ### Automated checks for 3.0.0 — 2026-10-04 {#release-3-0-0-checks}
 

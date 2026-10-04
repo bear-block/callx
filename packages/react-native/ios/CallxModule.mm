@@ -68,6 +68,12 @@ RCT_EXPORT_MODULE(Callx)
 }
 - (void)releaseCallRequests { [_impl releaseCallRequests]; }
 - (void)dispose { [_impl dispose]; }
+- (void)remoteAnswered:(NSDictionary *)value resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [_impl remoteAnswered:value resolve:resolve reject:reject];
+}
+- (void)remoteEnded:(NSDictionary *)value resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [_impl remoteEnded:value resolve:resolve reject:reject];
+}
 - (void)configurePictureInPicture:(NSDictionary *)options { [_impl configurePictureInPicture:options]; }
 - (void)enterPictureInPicture:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   [_impl enterPictureInPicture:resolve reject:reject];

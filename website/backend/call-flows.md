@@ -29,11 +29,28 @@ and when the user starts a call; close it when the call ends.
 app, lock screen). A "caller cancelled" event must still stop the ringing, and an "accepted"
 event must still start the caller's media.
 
-If your signaling client lives in Dart or JavaScript, forward these events to the native
-ingress through a small platform channel, as the Flutter example app does
-(`remoteAnswered` / `remoteEnded` in its `MainActivity` and `AppDelegate`). Callx does not yet
-expose these ingress calls to Dart or TypeScript directly. Such a client only works while the
-app runs, so keep the server-side expiry (below) as the backstop.
+If your signaling client lives in Dart or JavaScript, hand the events over with the framework
+API (from 3.0.1). They make the same ingress calls and resolve true when the call changed:
+
+```dart
+// call.accepted for your outgoing call
+await CallxSignaling.remoteAnswered(event.callId);
+// call.ended, with the reason from this device's point of view
+await CallxSignaling.remoteEnded(event.callId, reason: EndReason.callerCancelled);
+```
+
+```ts
+import {reportRemoteAnswered, reportRemoteEnded} from '@bear-block/callx';
+
+await reportRemoteAnswered(event.callId);
+await reportRemoteEnded(event.callId, 'callerCancelled');
+```
+
+They need the native bootstrap (`notConfigured` otherwise) and work while Dart or JavaScript
+runs. That covers outgoing calls, since the caller has the app open. For an incoming call that
+rings while the app was killed, add the [Android push signal](#caller-cancels-or-nobody-answers),
+and keep the server-side expiry as the backstop on both platforms. On 3.0.0, forward these
+events through a small platform channel, as the Flutter example app does.
 
 ## Incoming call, app killed
 
@@ -150,9 +167,19 @@ On Android, the callee gets a missed-call notification with **Call back** automa
 in your own history; send your own missed-call push only if you turned Callx's off.
 
 A callee device that is not connected to signaling (no socket yet) still stops ringing at
-expiry. On Android you may also send `call.ended` as a **normal-priority** FCM data message
-under your own key, and have your messaging service call `ingress.remoteEnded`. Never put it
-under the `callx` key, which Callx reserves for invitations.
+expiry. On Android (from 3.0.1) you can also stop it at once: send `call.ended` as a
+**normal-priority** FCM data message under the same `callx` key, and Callx ends the call
+itself, with no app code running:
+
+```json
+{"message": {"token": "ANDROID_FCM_TOKEN", "android": {"priority": "NORMAL", "ttl": "30s"},
+  "data": {"callx": "{\"schemaVersion\":1,\"type\":\"call.ended\",\"callId\":\"85a4fd88-…\",\"reason\":\"callerCancelled\"}"}}}
+```
+
+`call.accepted` works the same way. Use normal priority: these messages show nothing, and FCM
+deprioritizes apps whose high-priority messages do not. Callx 3.0.0 and older ignore these
+payloads without ringing, so sending them to mixed app versions is safe. iOS has no
+equivalent, because every VoIP push must ring.
 
 ## Call back from Recents or a missed call
 

@@ -333,3 +333,13 @@ private final class RecordingSystemMute: CXSetMutedCallAction, @unchecked Sendab
     }
 }
 #endif
+
+#if os(iOS)
+@Test func remoteMethodsReportWhetherTheCallChanged() async throws {
+    let h = Harness()
+    await h.push("call-1")
+    #expect(try await h.ingress.remoteEnded(callID: "call-1", reason: "callerCancelled"))
+    #expect(try await !h.ingress.remoteEnded(callID: "call-1", reason: "callerCancelled"))
+    #expect(try await !h.ingress.remoteAnswered(callID: "call-1"))
+}
+#endif

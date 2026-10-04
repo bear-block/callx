@@ -505,3 +505,62 @@ class TelecomIngressTest {
     }
 
 }
+
+/** ADR-0014: backend events sent as normal-priority FCM messages under the `callx` key. */
+class PushSignalTest {
+    private fun signal(h: Harness, json: String) = h.ingress.handlePush(mapOf("callx" to json))
+
+    @Test fun aCancelPushStopsTheRingingAndLeavesAMissedCall() {
+        val h = Harness()
+        try {
+            assertTrue(h.push("call-1")); assertEquals("incoming", h.state())
+            assertTrue(signal(h, """{"schemaVersion":1,"type":"call.ended","callId":"call-1","reason":"callerCancelled"}"""))
+            assertEquals("ended", h.state()); assertEquals("callerCancelled", h.endReason())
+            assertEquals(listOf("call-1"), h.presenter.dismissed.distinct())
+            assertEquals("call-1", h.listener.pushes.last().first)
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun aCancelThatArrivesFirstKeepsTheLateInvitationSilent() {
+        val h = Harness()
+        try {
+            assertTrue(signal(h, """{"schemaVersion":1,"type":"call.ended","callId":"call-2","reason":"callerCancelled"}"""))
+            assertTrue(h.push("call-2"))
+            assertTrue(h.presenter.incoming.isEmpty())
+            assertEquals(IncomingOutcome.Ended("callerCancelled"), h.listener.rejected.single().second)
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun anAcceptedPushConnectsAnOutgoingCall() {
+        val h = Harness()
+        try {
+            h.runtime.execute(mapOf("contractVersion" to "0.3.0", "operationId" to "start", "type" to "startCall",
+                "input" to mapOf("callId" to "call-3", "displayName" to "hao.dev7", "handle" to "+84901")))
+                .toCompletableFuture().join()
+            assertEquals("outgoing", h.state())
+            assertTrue(signal(h, """{"schemaVersion":1,"type":"call.accepted","callId":"call-3"}"""))
+            assertEquals("connecting", h.state())
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun invalidSignalsChangeNothing() {
+        val h = Harness()
+        try {
+            assertTrue(h.push("call-4"))
+            assertTrue(signal(h, """{"schemaVersion":1,"type":"call.ended","callId":"call-4","reason":"bored"}"""))
+            assertTrue(signal(h, """{"schemaVersion":2,"type":"call.ended","callId":"call-4"}"""))
+            assertTrue(signal(h, """{"schemaVersion":1,"type":"call.ended","callId":"bad id"}"""))
+            assertEquals("incoming", h.state())
+        } finally { h.scope.cancel() }
+    }
+
+    @Test fun remoteMethodsReportWhetherTheCallChanged() = runBlocking {
+        val h = Harness()
+        try {
+            h.push("call-5")
+            assertTrue(h.ingress.remoteEnded("call-5", "callerCancelled"))
+            assertFalse(h.ingress.remoteEnded("call-5", "callerCancelled"))
+            assertFalse(h.ingress.remoteAnswered("call-5"))
+        } finally { h.scope.cancel() }
+    }
+}
