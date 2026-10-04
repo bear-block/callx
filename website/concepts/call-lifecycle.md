@@ -91,7 +91,8 @@ Your host passes one of these when it reports a remote end; any other value is r
 ## Rules that keep calls from coming back
 
 - A `callId` is never reused. The core keeps a ledger of ended calls (24 hours, 1,000 calls),
-  so a late or duplicate invitation for an ended call never rings.
+  so a late or duplicate invitation for an ended call is rejected while its tombstone is retained.
+  Your backend must expire invitations and never reuse call IDs beyond that retention window.
 - A remote end for a call that has not rung yet is recorded too, so a cancel that overtakes its
   invitation still wins.
 - An unanswered call ends at its ring deadline: 45 seconds, or the invitation's `expiresAtMs`

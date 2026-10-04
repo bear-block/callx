@@ -14,7 +14,7 @@ and where it has not been yet.
 
 **Last updated:** 2026-10-04 · **Packages:** `0.2.3` · **Contract:** `0.2.0`
 
-Version 0.2.2 includes native video, Android PiP and optional framework UI. The results below
+Version 0.2.3 includes native video, Android PiP and optional framework UI. The results below
 describe the tested platforms and builds; publication does not establish physical-device
 or iOS video acceptance.
 

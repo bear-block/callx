@@ -35,10 +35,10 @@ That race is the source of the bugs that call integrations are known for:
 | A cancelled call rings again a minute later | A delayed push arrived after the cancel, and nothing remembered the call had ended |
 | The notification stays after the caller hangs up | The end event arrived while the app was killed |
 
-We read the 570 issues filed against `react-native-callkeep` and the issues of newer libraries
-before designing Callx. Answer and end state getting out of sync (158 issues), killed and
-background apps (141) and missing incoming UI (135) are the largest groups. Most of them share
-this one cause.
+Callx addresses failure modes around native reporting deadlines, delayed or duplicate pushes,
+missed framework events and media readiness. Its contract separates native acceptance from
+media connection and exposes explicit command results and replay. These are design choices;
+[verification status](/project/status) records where their behavior has been tested.
 
 ## The Callx approach: native owns the call
 
@@ -64,8 +64,9 @@ sequenceDiagram
 ```
 
 - **The native core decides whether a call may ring.** Duplicates, expired invitations, a
-  second call and calls that were already cancelled never ring, even when the cancel arrived
-  before the invitation.
+  second call and calls recorded as cancelled are checked before reporting. Cancellation
+  tombstones are retained within the account scope for up to 24 hours/1,000 ended calls;
+  the backend must expire invitations and never reuse call IDs.
 - **Every action is committed natively first.** An answer from the lock screen, a decline from
   a watch, a hang-up from a car: each is written to a durable journal before your UI hears of
   it.
@@ -88,9 +89,11 @@ Android app, ring before the first unlock after a reboot, or keep an OEM battery
 killing a process. Callx documents these limits on the [platform pages](/platforms/android)
 instead of hiding them.
 
-**No phone-home.** The library sends nothing anywhere. There is no telemetry, not even opt-in.
+**No Callx telemetry.** There is no Callx analytics endpoint. Your app supplies push
+integration, signaling and media credentials; configured media adapters contact your token
+endpoint and provider. This is separate from usage tracking.
 
-**Small, stable surfaces.** One contract (`0.2.0` in version 0.2.2 packages), checked by executable fixtures on Swift,
+**Small, stable surfaces.** One contract (`0.2.0` in version 0.2.3 packages), checked by executable fixtures on Swift,
 Kotlin, Dart and TypeScript. Package versions move in lockstep.
 
 ## Build on the native foundation
@@ -120,7 +123,7 @@ there is no Callx server between your users.
 
 ## Who Callx is for
 
-- **Teams adding voice calls** to a consumer or business app: support lines, telehealth,
+- **Teams adding voice or video calls** to a consumer or business app: support lines, telehealth,
   marketplaces, dating, field services.
 - **Teams already on a media SDK** (LiveKit, Agora, Twilio Video, Daily…) who need the phone
   side to behave like a real phone.

@@ -18,9 +18,17 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
+## Website documentation update — 2026-10-04
+
+Compare now describes 0.2.3, distinguishes system video reporting from media/UI/PiP, and
+links the officially reviewed alternatives. Homepage, package/API reference and video setup
+use the current version; UI options and upgrade guidance are synchronized with source.
+Historical release/test dates remain intact. No additional npm/pub release accompanies this
+website update.
+
 ## Unreleased
 
-No additional changes queued.
+No additional SDK changes queued.
 
 ## 0.2.3 — 2026-10-04 {#release-0-2-3}
 

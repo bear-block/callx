@@ -45,8 +45,8 @@ These fragments assume your existing screen properties and imports. See [Call UI
 for complete composition. `controlsPinned` keeps controls visible for host dialogs or commands;
 `controlsTimeoutMs` (TS) or `controlsTimeout` (Dart) changes the idle timeout.
 
-The preview anchors near the top safe area independently of the header. Use `previewPosition`
-and preview customization when composing your own layout. `CallxCallControl` defaults to 58dp;
+The preview anchors near the top safe area independently of the header. Use `previewAlignment`/`previewSize` in Flutter or `previewPosition`/`previewStyle` in RN
+for preview customization when composing your own layout. `CallxCallControl` defaults to 58dp;
 `size` overrides its diameter. `leadingControls` supplies top-left actions and `endControl`
 provides a separate End slot. Custom controls retain their own dimensions and behavior.
 

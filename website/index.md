@@ -33,20 +33,22 @@ features:
     details: A durable journal, idempotent commands and replayable events. After a crash, a reload or a reboot, your UI catches up from a snapshot instead of guessing.
   - icon: 🔌
     title: Bring your own everything
-    details: No hosted service, no Firebase dependency, no media lock-in. Use your backend and media engine, or install an adapter such as LiveKit and write no native code.
+    details: No required Callx hosted service or media vendor. Android FCM integration needs Firebase configuration. Use your backend and media engine, or install an adapter such as LiveKit and write no native code.
   - icon: 🔕
     title: Your screens, with continuation
     details: Build your own UI or customize the supplied call overlay and mini-call. Android system PiP keeps a compact call visible outside the app. Native still owns the call state.
   - icon: 🛡️
     title: Private by default
-    details: MIT licensed. The library never phones home. Credentials stay on the device, encrypted with the Android Keystore and the iOS keychain.
+    details: MIT licensed. No Callx telemetry endpoint. Persisted media configuration uses Android Keystore and iOS keychain; your app chooses its backend and media provider.
 ---
 
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
 ::: info Release and development
-Version 0.2.2 includes contract 0.2.0, native video, Android PiP and optional call overlays
-with an in-app mini-call. See [status](/project/status) for what has been verified.
+Version **0.2.3** is published on npm and pub.dev, with contract 0.2.0, native video, Android PiP
+and optional call overlays. This release adds customizable controls, foreground-aware auto-hide
+and native Android locked-call controls. Read the [release notes](/project/changelog#release-0-2-3)
+and [upgrade guide](/guide/upgrade-0-2-3). See [status](/project/status) for what has been verified.
 :::
 
 <CallFeatureGallery />

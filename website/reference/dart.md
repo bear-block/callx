@@ -5,8 +5,8 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
-::: info Development reference
-This page describes version 0.2.2 with contract 0.2.0, native video and Android PiP.
+::: info Released reference
+This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
 See [status](/project/status) for verification limits and [changelog](/project/changelog).
 :::
 
@@ -153,3 +153,27 @@ import 'package:callx_livekit/callx_livekit.dart';
 await CallxLiveKit.configure(LiveKitConfig(tokenUrl: url, headers: {...}));
 await CallxLiveKit.reset();
 ```
+
+## Optional call UI (0.2.3)
+
+Import `package:callx/callx_ui.dart` in Flutter or `@bear-block/callx/ui` in React Native.
+UI observes snapshots and invokes host callbacks; it never creates another native call owner.
+
+| Export / option | Purpose / default |
+|---|---|
+| CallxCallOverlay, CallxMiniCall, CallxPresentationController | Root presentation and in-app minimize/expand |
+| CallxCallScreen | Supplied voice/video layout with host controls and media rendering |
+| CallxCallControl | Selected/disabled/destructive presentation; default size 58dp, host callback |
+| autoHideControls | true; connected video hides after idle timeout |
+| compactVideoControls | true; compact video row |
+| controlsPinned | false; pin while showing host dialogs or commands |
+| controlsTimeout | Five seconds; foreground return starts a fresh timeout |
+| leadingControls / endControl | Host top-left and End slots |
+| header / statusLabel / previewAlignment | Host header/status and preview placement |
+| CallxCallBrand | Background/accent/foreground/surface/danger colors and logo |
+
+Flutter uses SafeArea. Preview sizing uses previewSize; customize text with minimizeLabel,
+doneLabel, cameraPausedLabel and localPreviewLabel. Hosts can replace videoBuilder, controls and endControl.
+
+See [Call UI](/guide/call-ui) for composition and platform distinctions, and
+[upgrade 0.2.3](/guide/upgrade-0-2-3) for behavior changes from 0.2.2.

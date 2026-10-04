@@ -119,7 +119,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Reference',
         items: [
-          {text: 'JavaScript API', link: '/reference/javascript'},
+          {text: 'TypeScript API', link: '/reference/javascript'},
           {text: 'Dart API', link: '/reference/dart'},
           {text: 'Native API', link: '/reference/native'},
           {text: 'Expo config plugin', link: '/reference/expo-plugin'},

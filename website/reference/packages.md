@@ -9,21 +9,23 @@ description: "Every Callx package, what it contains, what it depends on and how 
 |---|---|---|---|
 | `callx` | [pub.dev](https://pub.dev/packages/callx) | Core for Flutter: Dart API, native core, CallKit and Telecom, push ingress, incoming UI, recovery, simulator | Flutter, the platform |
 | `@bear-block/callx` | [npm](https://www.npmjs.com/package/@bear-block/callx) | Core for React Native: TypeScript API, TurboModule, the same native core, Expo config plugin, simulator | React Native ≥ 0.76 |
-| `callx_livekit` | [pub.dev](https://pub.dev/packages/callx_livekit) | LiveKit audio adapter for Flutter | `callx`, LiveKit Android and Swift SDKs |
-| `@bear-block/callx-livekit` | [npm](https://www.npmjs.com/package/@bear-block/callx-livekit) | LiveKit audio adapter for React Native, Expo plugin | `@bear-block/callx`, LiveKit Android and Swift SDKs |
+| `callx_livekit` | [pub.dev](https://pub.dev/packages/callx_livekit) | LiveKit audio/video adapter for Flutter | `callx`, LiveKit Android and Swift SDKs |
+| `@bear-block/callx-livekit` | [npm](https://www.npmjs.com/package/@bear-block/callx-livekit) | LiveKit audio/video adapter for React Native, Expo plugin | `@bear-block/callx`, LiveKit Android and Swift SDKs |
 | `@bear-block/callx-testkit` | [npm](https://www.npmjs.com/package/@bear-block/callx-testkit) | Call console, test push sender, adapter conformance (development only) | Node.js |
 
 ## What the core does not depend on
 
-No Firebase, no media SDK, no analytics, no networking library. Your app keeps full control of
-those choices, and installing Callx adds no third-party service.
+The native coordination engine has no Firebase or media SDK dependency and no analytics.
+Android FCM push integration still requires Firebase configuration in the host app; the Expo
+plugin installs its messaging integration. LiveKit SDKs belong to the optional adapters.
+Your app supplies signaling and media credentials; no Callx hosted service is required.
 
 ## Versions
 
 - All packages release together with the **same version number**.
-- Adapters depend on the core with a caret range (`^0.1.0`), and check the media interface's
+- Adapters depend on the core with a caret range (`^0.2.3`), and check the media interface's
   `apiVersion` at bootstrap.
-- Version 0.2.2 uses [contract `0.2.0`](/reference/contract), with native video, Android PiP
+- Current version 0.2.3 uses [contract `0.2.0`](/reference/contract), with native video, Android PiP
   and optional call UI. Version 0.1.3 shipped contract `0.1.0`.
   Contract versions and media adapter API versions are separate from package versions.
 - Until 1.0, minor versions may contain breaking changes, always listed in the

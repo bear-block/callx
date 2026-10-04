@@ -5,8 +5,8 @@ description: "The framework-neutral contract that the Swift, Kotlin, Dart and Ty
 
 # Contract v0.2
 
-::: info Development reference
-This page describes version 0.2.2 with contract 0.2.0, native video and Android PiP.
+::: info Released reference
+This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
 See [status](/project/status) for verification limits and [changelog](/project/changelog).
 :::
 

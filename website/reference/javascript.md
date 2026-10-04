@@ -1,12 +1,12 @@
 ---
-title: "JavaScript API"
+title: "TypeScript API"
 description: "The complete TypeScript API of @bear-block/callx and @bear-block/callx-livekit."
 ---
 
-# JavaScript API
+# TypeScript API
 
-::: info Development reference
-This page describes version 0.2.2 with contract 0.2.0, native video and Android PiP.
+::: info Released reference
+This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
 See [status](/project/status) for verification limits and [changelog](/project/changelog).
 :::
 
@@ -251,3 +251,27 @@ interface LiveKitConfig {
   headers?: Record<string, string>;          // stored encrypted
 }
 ```
+
+## Optional call UI (0.2.3)
+
+Import `package:callx/callx_ui.dart` in Flutter or `@bear-block/callx/ui` in React Native.
+UI observes snapshots and invokes host callbacks; it never creates another native call owner.
+
+| Export / option | Purpose / default |
+|---|---|
+| CallxCallOverlay, CallxMiniCall, CallxPresentationController | Root presentation and in-app minimize/expand |
+| CallxCallScreen | Supplied voice/video layout with host controls and media rendering |
+| CallxCallControl | Selected/disabled/destructive presentation; default size 58dp, host callback |
+| autoHideControls | true; connected video hides after idle timeout |
+| compactVideoControls | true; compact video row |
+| controlsPinned | false; pin while showing host dialogs or commands |
+| controlsTimeoutMs | Five seconds; foreground return starts a fresh timeout |
+| leadingControls / endControl | Host top-left and End slots |
+| header / statusLabel / previewPosition | Host header/status and preview placement |
+| CallxCallBrand | Background/accent/foreground/surface/danger colors and logo |
+
+RN hosts can supply contentInsets from a safe-area provider, previewStyle, style and labels.
+CallxControlGlyph is optional; hosts can supply their own icons. renderVideo supplies the media surface.
+
+See [Call UI](/guide/call-ui) for composition and platform distinctions, and
+[upgrade 0.2.3](/guide/upgrade-0-2-3) for behavior changes from 0.2.2.
