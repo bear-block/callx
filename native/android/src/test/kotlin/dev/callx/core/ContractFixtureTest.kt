@@ -20,11 +20,11 @@ class ContractFixtureTest {
             assertFailsWith<ContractViolation> {
                 when (path) {
                     "event.sequence" -> validator.fixture(buildJsonObject { putJsonObject("event") {
-                        put("contractVersion", "0.2.0"); put("eventId", "invalid-event"); put("sequence", value)
+                        put("contractVersion", "0.3.0"); put("eventId", "invalid-event"); put("sequence", value)
                         put("kind", "callChanged"); put("source", "local"); put("observedAtMs", 0)
                     } })
                     "command.operationId" -> validator.fixture(buildJsonObject { putJsonObject("command") {
-                        put("contractVersion", "0.2.0"); put("operationId", value); put("type", "answer"); put("callId", "call-1")
+                        put("contractVersion", "0.3.0"); put("operationId", value); put("type", "answer"); put("callId", "call-1")
                     } })
                     else -> validator.fixture(buildJsonObject { put(path, value) })
                 }

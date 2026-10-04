@@ -16,6 +16,12 @@ class ContractValidator(private val manifest: JsonObject) {
     private val events = values("eventKinds"); private val sources = values("eventSources")
     private val lookups = values("operationLookupStatuses"); private val sessions = values("sessionOpenStatuses")
     private val localVideoStates = values("localVideoStates"); private val facings = values("cameraFacings")
+    private val routeKinds = values("audioRouteKinds"); private val dtmf = Regex(manifest.string("dtmfDigitPattern"))
+    private val routeNameMax = limits.int("audioRouteNameMaxUtf8Bytes")
+    private fun text(value: JsonElement?, maxBytes: Int, path: String) {
+        val text = value?.jsonPrimitive?.takeIf { it.isString }?.content
+        require(text != null && text.isNotEmpty() && text.toByteArray().size <= maxBytes, "$path invalid text")
+    }
 
     fun fixture(value: JsonObject) {
         value["command"]?.jsonObject?.let(::command); value["result"]?.jsonObject?.let(::result)
@@ -54,6 +60,9 @@ class ContractValidator(private val manifest: JsonObject) {
             id(value["callId"], "command.callId")
             when (type) {
                 "switchCamera" -> member(value["value"], facings, "command.value")
+                "setAudioRoute" -> text(value["value"], idMax, "command.value")
+                "sendDtmf" -> require(value["value"]?.jsonPrimitive?.takeIf { it.isString }?.content?.let(dtmf::matches) == true, "dtmf digits")
+                "setDisplayName" -> text(value["value"], 256, "command.value")
                 in setOf("setMuted", "setHeld", "setCamera") -> boolean(value["value"], "command.value")
                 else -> require(value["value"] == null, "value forbidden")
             }
@@ -82,6 +91,13 @@ class ContractValidator(private val manifest: JsonObject) {
         val cameraLive = value["localVideo"]?.let { it.jsonPrimitive.content != "off" } == true
         if (cameraLive) member(value["cameraFacing"], facings, "$path.cameraFacing")
         else require(value["cameraFacing"] == null, "cameraFacing needs a camera that is not off")
+        val routeIds = value["audioRoutes"]?.jsonArray?.mapIndexed { index, item ->
+            val route = item.jsonObject; text(route["id"], idMax, "$path.audioRoutes[$index].id")
+            member(route["kind"], routeKinds, "$path.audioRoutes[$index].kind"); text(route["name"], routeNameMax, "$path.audioRoutes[$index].name")
+            route.string("id")
+        }.orEmpty()
+        require(routeIds.toSet().size == routeIds.size, "audio route ids unique")
+        value["audioRoute"]?.let { text(it, idMax, "$path.audioRoute"); require(it.jsonPrimitive.content in routeIds, "audioRoute listed") }
         listOf("createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs").forEach { field -> value[field]?.let { timestamp(it, "$path.$field") } }
     }
     private fun snapshot(value: JsonObject) {

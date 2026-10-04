@@ -94,3 +94,13 @@ interface CallxVideoAdapter : CallxMediaAdapter {
     /** Stop rendering into [surface]. Idempotent. Main thread. */
     fun detach(callId: String, surface: CallxVideoSurface)
 }
+
+/**
+ * A media adapter that also sends keypad tones (ADR-0013), reported as the `dtmf` capability.
+ * Optional: adapters that do not implement it keep working, and `sendDtmf` is rejected as
+ * `unsupported`.
+ */
+interface CallxDtmfAdapter {
+    /** Sends [digits] (`0-9`, `*`, `#`) in order. Return true once all were sent, false if media is not ready. */
+    suspend fun sendDtmf(callId: String, digits: String): Boolean
+}

@@ -19,11 +19,13 @@ public struct BridgeCapabilities: Sendable {
     public let mute: Bool
     /// The media adapter supports video (ADR-0010).
     public let video: Bool
+    /// The media adapter sends keypad tones (ADR-0013).
+    public let dtmf: Bool
     public init(accountGeneration: String, durableReplay: Bool, providerManagedSignaling: Bool,
-        hold: Bool, mute: Bool, video: Bool = false) {
+        hold: Bool, mute: Bool, video: Bool = false, dtmf: Bool = false) {
         self.accountGeneration = accountGeneration; self.durableReplay = durableReplay
         self.providerManagedSignaling = providerManagedSignaling; self.hold = hold; self.mute = mute
-        self.video = video
+        self.video = video; self.dtmf = dtmf
     }
 }
 
@@ -33,9 +35,9 @@ public protocol BridgeEventReceiving: AnyObject, Sendable {
 
 /** Framework-neutral actor. Flutter and React Native only translate BridgeValue at their boundary. */
 public actor BridgeRuntime {
-    private static let version = "0.2.0"
-    /// 0.2 only adds optional fields and commands, so 0.1 wrappers keep working.
-    private static let supportedVersions: Set<String> = ["0.1.0", "0.2.0"]
+    private static let version = "0.3.0"
+    /// 0.2 and 0.3 only add optional fields and commands, so older wrappers keep working.
+    private static let supportedVersions: Set<String> = ["0.1.0", "0.2.0", "0.3.0"]
     private static let endReasons = ["localHangup", "declined", "remoteEnded", "callerCancelled", "unanswered", "busy",
         "failed", "answeredElsewhere", "declinedElsewhere"]
     private static let identifier = try! NSRegularExpression(pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
@@ -65,6 +67,7 @@ public actor BridgeRuntime {
         "nativeCalling": .bool(true), "durableReplay": .bool(capabilities.durableReplay),
         "providerManagedSignaling": .bool(capabilities.providerManagedSignaling),
         "hold": .bool(capabilities.hold), "mute": .bool(capabilities.mute), "video": .bool(capabilities.video),
+        "dtmf": .bool(capabilities.dtmf),
         ]
     }
 
@@ -181,6 +184,30 @@ public actor BridgeRuntime {
             remoteVideo: remoteVideo, nowMs: observedAtMs ?? nowMs())
         await publishNewEvents(); return changed
     }
+    /// Audio outputs the platform reports for the call, and the one in use (`current`, one of the
+    /// route ids). Returns true when state changed.
+    @discardableResult
+    public func audioRoutesObserved(callID: String, current: String?, routes: [AudioRoute],
+        observedAtMs: Int64? = nil) async throws -> Bool {
+        _ = try requiredID(["callId": .string(callID)], "callId")
+        let changed = try await coordinator.durableAudioRoutesObserved(callID: callID, current: current.map(Self.bounded),
+            routes: routes.map(Self.bounded), nowMs: observedAtMs ?? nowMs())
+        await publishNewEvents(); return changed
+    }
+    /// Platform labels can be long or empty; the contract allows 1–128 bytes for both.
+    private static func bounded(_ route: AudioRoute) -> AudioRoute {
+        let id = bounded(route.id), name = bounded(route.name)
+        return AudioRoute(id: id.isEmpty ? route.kind.rawValue : id, kind: route.kind,
+            name: name.isEmpty ? route.kind.rawValue : name)
+    }
+    private static func bounded(_ text: String) -> String {
+        var result = ""
+        for character in text {
+            guard result.utf8.count + String(character).utf8.count <= 128 else { break }
+            result.append(character)
+        }
+        return result
+    }
     /// Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later.
     @discardableResult
     public func remoteEnded(callID: String, reason: String = "remoteEnded", observedAtMs: Int64? = nil) async throws -> Bool {
@@ -296,6 +323,21 @@ public actor BridgeRuntime {
             return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
                 deadlineAtMs: deadline, facing: facing)
         }
+        switch type {
+        case .setAudioRoute:
+            return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
+                deadlineAtMs: deadline, audioRoute: try requiredText(value, "value", maxBytes: 128))
+        case .sendDtmf:
+            guard case .string(let digits) = value["value"], isDTMF(digits) else {
+                throw invalid("value must be 1-32 keypad digits.")
+            }
+            return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
+                deadlineAtMs: deadline, digits: digits)
+        case .setDisplayName:
+            return NativeCommand(operationID: operationID, type: type, callID: try requiredID(value, "callId"),
+                displayName: try requiredText(value, "value", maxBytes: 256), deadlineAtMs: deadline)
+        default: break
+        }
         let bool: Bool?
         if type == .setMuted || type == .setHeld || type == .setCamera {
             guard case .bool(let value) = value["value"] else { throw invalid("value is required.") }; bool = value
@@ -344,6 +386,12 @@ public actor BridgeRuntime {
             result["cameraFacing"] = .string((value.cameraFacing ?? .front).rawValue)
         }
         if value.remoteVideo { result["remoteVideo"] = .bool(true) }
+        // Absent until the platform reports routes, so 0.2 snapshots stay unchanged.
+        if !value.audioRoutes.isEmpty {
+            result["audioRoutes"] = .array(value.audioRoutes.map { .object(["id": .string($0.id),
+                "kind": .string($0.kind.rawValue), "name": .string($0.name)]) })
+        }
+        if let route = value.audioRoute { result["audioRoute"] = .string(route) }
         return result
     }
     private func eventMap(_ value: JournalEvent) -> BridgeObject {

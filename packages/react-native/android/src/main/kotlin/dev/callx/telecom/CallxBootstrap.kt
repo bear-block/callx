@@ -96,7 +96,7 @@ object CallxBootstrap {
         val coordinator = CallCoordinator(CoordinatorFileStore(path))
         val runtime = BridgeRuntime(coordinator, executor, BridgeCapabilities(config.accountGeneration,
             durableReplay = true, providerManagedSignaling = false, hold = true, mute = media != null,
-            video = ingress.supportsVideo))
+            video = ingress.supportsVideo, dtmf = ingress.supportsDtmf))
         ingress.attach(runtime, sessions)
         val video = media as? CallxVideoAdapter
         android.os.Handler(android.os.Looper.getMainLooper()).post { CallxVideoSurfaces.install(video) }

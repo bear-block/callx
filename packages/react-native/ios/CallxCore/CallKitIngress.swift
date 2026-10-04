@@ -36,6 +36,10 @@ public protocol CallKitIncomingReporting: AnyObject {
     func reportCall(with uuid: UUID, endedAt: Date?, reason: CXCallEndedReason)
     func reportOutgoingCall(with uuid: UUID, connectedAt: Date?)
     func reportCall(with uuid: UUID, updated update: CXCallUpdate)
+    func reportOutgoingCall(with uuid: UUID, startedConnectingAt: Date?)
+}
+public extension CallKitIncomingReporting {
+    func reportOutgoingCall(with uuid: UUID, startedConnectingAt: Date?) {}
 }
 extension CXProvider: CallKitIncomingReporting {}
 
@@ -60,6 +64,8 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     // Each call is announced answered and ended at most once; the ended set is bounded.
     private var announcedAnswered: Set<String> = []
     private var announcedEnded: [String] = []
+    /// Called once per answered call, to donate it to Siri (ADR-0013); `CallxBootstrap` sets it.
+    var donateAnswered: (@Sendable (CallRecord) -> Void)?
 
     /// Pass the same `uuids` to `CallKitTransactionSubmitter` and the `lifecycle` given to your
     /// `CallKitProviderDelegateAdapter`, so system-UI actions reach the coordinator.
@@ -85,6 +91,13 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
     public func cameraChanged(callID: String, on: Bool) {
         let update = CXCallUpdate()
         update.hasVideo = on
+        reporter.reportCall(with: uuids.uuid(for: callID), updated: update)
+    }
+
+    /// Tells CallKit the caller's new name (`setDisplayName`), so the call UI and Recents follow.
+    public func rename(callID: String, displayName: String) {
+        let update = CXCallUpdate()
+        update.localizedCallerName = displayName
         reporter.reportCall(with: uuids.uuid(for: callID), updated: update)
     }
 
@@ -247,6 +260,8 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         guard let call = action as? CXCallAction, let callID = uuids.callID(for: call.callUUID) else { return }
         if action is CXAnswerCallAction { announceAnswered(callID) }
         else if action is CXEndCallAction { announceEnded(callID) }
+        // The CallKit UI shows "connecting" until remoteAnswered reports connectedAt.
+        else if action is CXStartCallAction { reporter.reportOutgoingCall(with: call.callUUID, startedConnectingAt: Date()) }
     }
     private func announceAnswered(_ callID: String) {
         lock.lock()
@@ -255,6 +270,7 @@ public final class CallKitIngress: NSObject, PKPushRegistryDelegate, @unchecked 
         if first {
             media?.start(callID: callID, sink: OrderedMediaSink(runtime: runtime, callID: callID))
             listener?.callAnswered(callID: callID)
+            if let donate = donateAnswered { Task { [runtime] in if let call = await runtime.currentCall() { donate(call) } } }
         }
     }
     private func announceEnded(_ callID: String) {

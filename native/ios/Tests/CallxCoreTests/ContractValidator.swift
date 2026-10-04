@@ -14,6 +14,9 @@ public struct ContractManifest: Sendable {
     public let sessions: Set<String>
     public let localVideoStates: Set<String>
     public let cameraFacings: Set<String>
+    public let audioRouteKinds: Set<String>
+    public let dtmfPattern: String
+    public let audioRouteNameMaxBytes: Int
     public let identifierPattern: String
     public let identifierMaxBytes: Int
 
@@ -25,7 +28,9 @@ public struct ContractManifest: Sendable {
         guard let version = json["contractVersion"] as? String,
               let limits = json["limits"] as? [String: Any],
               let pattern = limits["identifierPattern"] as? String,
-              let maxBytes = limits["identifierMaxUtf8Bytes"] as? Int else {
+              let maxBytes = limits["identifierMaxUtf8Bytes"] as? Int,
+              let routeNameMax = limits["audioRouteNameMaxUtf8Bytes"] as? Int,
+              let dtmf = json["dtmfDigitPattern"] as? String else {
             throw ContractViolation("manifest shape")
         }
         self.version = version
@@ -35,6 +40,7 @@ public struct ContractManifest: Sendable {
         events = try strings("eventKinds"); sources = try strings("eventSources")
         lookups = try strings("operationLookupStatuses"); sessions = try strings("sessionOpenStatuses")
         localVideoStates = try strings("localVideoStates"); cameraFacings = try strings("cameraFacings")
+        audioRouteKinds = try strings("audioRouteKinds"); dtmfPattern = dtmf; audioRouteNameMaxBytes = routeNameMax
         identifierPattern = pattern; identifierMaxBytes = maxBytes
     }
 }
@@ -108,6 +114,13 @@ public struct ContractValidator: Sendable {
             try id(value["callId"], "command.callId")
             let type = value["type"] as? String
             if type == "switchCamera" { try member(value["value"], manifest.cameraFacings, "command.value") }
+            else if type == "setAudioRoute" { try text(value["value"], manifest.identifierMaxBytes, "command.value") }
+            else if type == "sendDtmf" {
+                guard let digits = value["value"] as? String,
+                      digits.range(of: manifest.dtmfPattern, options: .regularExpression) == digits.startIndex..<digits.endIndex && !digits.isEmpty
+                else { throw ContractViolation("command.value must be keypad digits") }
+            }
+            else if type == "setDisplayName" { try text(value["value"], 256, "command.value") }
             else if ["setMuted", "setHeld", "setCamera"].contains(type) { try boolean(value["value"], "command.value") }
             else if value["value"] != nil { throw ContractViolation("command.value forbidden") }
             guard value["input"] == nil else { throw ContractViolation("command.input forbidden") }
@@ -153,8 +166,30 @@ public struct ContractValidator: Sendable {
         if let local = value["localVideo"] as? String, local != "off" {
             try member(value["cameraFacing"], manifest.cameraFacings, "\(path).cameraFacing")
         } else if value["cameraFacing"] != nil { throw ContractViolation("cameraFacing needs a camera that is not off") }
+        var routeIDs: [String] = []
+        if let routes = value["audioRoutes"] {
+            guard let routes = routes as? [Any] else { throw ContractViolation("\(path).audioRoutes must be an array") }
+            for (index, item) in routes.enumerated() {
+                let route = try object(item, "\(path).audioRoutes[\(index)]")
+                try text(route["id"], manifest.identifierMaxBytes, "\(path).audioRoutes[\(index)].id")
+                try member(route["kind"], manifest.audioRouteKinds, "\(path).audioRoutes[\(index)].kind")
+                try text(route["name"], manifest.audioRouteNameMaxBytes, "\(path).audioRoutes[\(index)].name")
+                routeIDs.append(route["id"] as! String)
+            }
+            guard Set(routeIDs).count == routeIDs.count else { throw ContractViolation("audio route ids must be unique") }
+        }
+        if let route = value["audioRoute"] {
+            try text(route, manifest.identifierMaxBytes, "\(path).audioRoute")
+            guard routeIDs.contains(route as! String) else { throw ContractViolation("audioRoute must be listed") }
+        }
         for field in ["createdAtMs", "acceptedAtMs", "mediaConnectedAtMs", "endedAtMs"] {
             if let timestampValue = value[field] { try timestamp(timestampValue, "\(path).\(field)") }
+        }
+    }
+
+    private func text(_ value: Any?, _ maxBytes: Int, _ path: String) throws {
+        guard let text = value as? String, !text.isEmpty, text.utf8.count <= maxBytes else {
+            throw ContractViolation("\(path) invalid text")
         }
     }
 

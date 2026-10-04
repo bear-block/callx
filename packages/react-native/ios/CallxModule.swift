@@ -9,6 +9,7 @@ public final class CallxModuleImpl: NSObject {
     private var eventReceiver: ReactBridgeEventReceiver?
     /// Set by CallxModule.mm: sends a "callxEvent" to JavaScript.
     @objc public var emit: ((Any) -> Void)?
+    @objc public var emitCallRequest: ((Any) -> Void)?
     @objc public var emitPictureInPicture: ((Bool) -> Void)?
     static func configure(_ runtime: BridgeRuntime) {
         hostRuntime = runtime
@@ -30,9 +31,9 @@ public final class CallxModuleImpl: NSObject {
             return
         }
         resolve([
-            "contractVersion": "0.2.0", "coreVersion": "0.2.0", "execution": "native",
+            "contractVersion": "0.3.0", "coreVersion": "0.3.0", "execution": "native",
             "accountGeneration": "unconfigured", "nativeCalling": false, "durableReplay": false,
-            "providerManagedSignaling": false, "hold": false, "mute": false, "video": false,
+            "providerManagedSignaling": false, "hold": false, "mute": false, "video": false, "dtmf": false,
         ])
     }
 
@@ -71,6 +72,24 @@ public final class CallxModuleImpl: NSObject {
         Task { @MainActor in callback.resolve(CallxPictureInPicture.shared.enter()) }
     }
 
+    private let requestLock = NSLock()
+    private var callRequestListeners = 0
+    fileprivate var hasCallRequestListeners: Bool { requestLock.withLock { callRequestListeners > 0 } }
+    @objc public func releaseCallRequests() {
+        let empty = requestLock.withLock { callRequestListeners = max(0, callRequestListeners - 1); return callRequestListeners == 0 }
+        if empty { CallxCallRequests.setListener(nil) }
+    }
+    @objc public func takeCallRequest(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        requestLock.withLock { callRequestListeners += 1 }
+        let receiver = ReactCallRequestReceiver(self)
+        CallxCallRequests.setListener({ receiver.receive() }, notifyPending: false)
+        resolve(CallxCallRequests.take().map(Self.requestBody))
+    }
+    private static func requestBody(_ request: CallxCallRequest) -> [String: Any] {
+        var body: [String: Any] = ["handle": request.handle, "video": request.video]
+        if let name = request.displayName { body["displayName"] = name }
+        return body
+    }
     @objc public func startObserving() {
         let pipReceiver = ReactPiPEventReceiver(self)
         Task { @MainActor in
@@ -82,6 +101,7 @@ public final class CallxModuleImpl: NSObject {
     }
     @objc public func stopObserving() {
         Task { @MainActor in CallxPictureInPicture.shared.listener = nil }
+        CallxCallRequests.setListener(nil)
         eventReceiver = nil
         if let runtime = Self.hostRuntime { Task { await runtime.setEventReceiver(nil) } }
     }
@@ -98,6 +118,18 @@ public final class CallxModuleImpl: NSObject {
     }
 }
 
+private final class ReactCallRequestReceiver: @unchecked Sendable {
+    private weak var module: CallxModuleImpl?
+    init(_ module: CallxModuleImpl) { self.module = module }
+    func receive() {
+        DispatchQueue.main.async { [weak module] in
+            guard let module, module.hasCallRequestListeners, let request = CallxCallRequests.take() else { return }
+            var body: [String: Any] = ["handle": request.handle, "video": request.video]
+            if let name = request.displayName { body["displayName"] = name }
+            module.emitCallRequest?(body)
+        }
+    }
+}
 private final class ReactPiPEventReceiver: @unchecked Sendable {
     private weak var module: CallxModuleImpl?
     init(_ module: CallxModuleImpl) { self.module = module }

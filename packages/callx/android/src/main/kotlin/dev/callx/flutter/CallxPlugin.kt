@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, ActivityAware {
     private lateinit var methods: MethodChannel
+    private lateinit var requests: EventChannel
     private lateinit var events: EventChannel
     private val pictureInPicture = CallxPictureInPicturePlugin { hostRuntime }
     private val main = Handler(Looper.getMainLooper())
@@ -37,6 +38,22 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         events = EventChannel(binding.binaryMessenger, "dev.callx/events")
         methods.setMethodCallHandler(this)
         events.setStreamHandler(this)
+        requests = EventChannel(binding.binaryMessenger, "dev.callx/call_requests")
+        requests.setStreamHandler(object : EventChannel.StreamHandler {
+            private var active = false
+            override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
+                active = true
+                dev.callx.telecom.CallxCallRequests.setListener({ main.post {
+                    if (active) dev.callx.telecom.CallxCallRequests.take()?.let { request ->
+                        sink?.success(buildMap<String, Any> {
+                            put("handle", request.handle); put("video", request.video)
+                            request.displayName?.let { put("displayName", it) }
+                        })
+                    }
+                } })
+            }
+            override fun onCancel(arguments: Any?) { active = false; dev.callx.telecom.CallxCallRequests.setListener(null) }
+        })
         binding.platformViewRegistry.registerViewFactory("dev.callx/video", CallxVideoViewFactory())
         pictureInPicture.attach(binding)
     }
@@ -44,6 +61,8 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         methods.setMethodCallHandler(null)
         events.setStreamHandler(null)
+        requests.setStreamHandler(null)
+        dev.callx.telecom.CallxCallRequests.setListener(null)
         pictureInPicture.detach()
     }
 
@@ -57,10 +76,10 @@ class CallxPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel
         val runtime = hostRuntime
         when (call.method) {
             "setup" -> if (runtime == null) result.success(mapOf(
-                "contractVersion" to "0.2.0", "coreVersion" to "0.2.0",
+                "contractVersion" to "0.3.0", "coreVersion" to "0.3.0",
                 "execution" to "native", "accountGeneration" to "unconfigured",
                 "nativeCalling" to false, "durableReplay" to false,
-                "providerManagedSignaling" to false, "hold" to false, "mute" to false, "video" to false,
+                "providerManagedSignaling" to false, "hold" to false, "mute" to false, "video" to false, "dtmf" to false,
             )) else invoke(runtime, call, result)
             "dispose" -> result.success(null)
             else -> if (runtime == null) unavailable(result) else invoke(runtime, call, result)

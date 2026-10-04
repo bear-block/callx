@@ -1,5 +1,5 @@
 {
-  "contractVersion": "0.2.0",
+  "contractVersion": "0.3.0",
   "wireEncoding": {
     "counter": "unsigned decimal string",
     "timestamp": "integer milliseconds since Unix epoch within 0..9007199254740991",
@@ -20,7 +20,9 @@
     "journalRetentionMs": 86400000,
     "journalEventQuota": 2048,
     "journalEncodedByteQuota": 2097152,
-    "endedCallRetentionMs": 300000
+    "endedCallRetentionMs": 300000,
+    "audioRouteNameMaxUtf8Bytes": 128,
+    "dtmfDigitsMaxLength": 32
   },
   "defaultDeadlineMs": {
     "startCall": 10000,
@@ -29,7 +31,10 @@
     "setMuted": 4000,
     "setHeld": 4000,
     "setCamera": 4000,
-    "switchCamera": 4000
+    "switchCamera": 4000,
+    "setAudioRoute": 4000,
+    "sendDtmf": 4000,
+    "setDisplayName": 4000
   },
   "callStates": [
     "incoming",
@@ -61,7 +66,10 @@
     "setMuted",
     "setHeld",
     "setCamera",
-    "switchCamera"
+    "switchCamera",
+    "setAudioRoute",
+    "sendDtmf",
+    "setDisplayName"
   ],
   "commandStatuses": [
     "applied",
@@ -113,7 +121,8 @@
     "providerManagedSignaling",
     "hold",
     "mute",
-    "video"
+    "video",
+    "dtmf"
   ],
   "localVideoStates": [
     "off",
@@ -123,5 +132,13 @@
   "cameraFacings": [
     "front",
     "back"
+  ],
+  "dtmfDigitPattern": "^[0-9*#]{1,32}$",
+  "audioRouteKinds": [
+    "earpiece",
+    "speaker",
+    "bluetooth",
+    "wired",
+    "other"
   ]
 }

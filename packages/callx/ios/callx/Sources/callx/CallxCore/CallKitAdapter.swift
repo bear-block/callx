@@ -37,8 +37,8 @@ public final class CallKitTransactionSubmitter: PlatformTransactionSubmitter, @u
                 return .rejected(errorCode: "invalidArgument", completedAtMs: nowMs())
             }
             action = CXStartCallAction(call: callUUID, handle: CXHandle(type: .generic, value: handle))
-        case .setCamera, .switchCamera:
-            // CallKit has no camera action; a video media adapter performs these (ADR-0010).
+        case .setCamera, .switchCamera, .setAudioRoute, .sendDtmf, .setDisplayName:
+            // CallxCameraExecutor and CallxCallFeatureExecutor perform these (ADR-0010, ADR-0013).
             return .rejected(errorCode: "unsupported", completedAtMs: nowMs())
         }
         let actionUUID = action.uuid
@@ -131,7 +131,11 @@ public final class CallKitActionLifecycle: @unchecked Sendable {
     }
 }
 
-public enum CallKitActionKind: Sendable { case start(handle: String), answer, end, setMuted(Bool), setHeld(Bool) }
+public enum CallKitActionKind: Sendable {
+    case start(handle: String), answer, end, setMuted(Bool), setHeld(Bool)
+    /// Digits from the CallKit keypad (ADR-0013).
+    case playDTMF(String)
+}
 public protocol CallKitActionPerforming: Sendable {
     func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool
     func providerDidReset() async
@@ -173,6 +177,9 @@ public final class CallKitProviderDelegateAdapter: NSObject, CXProviderDelegate,
     }
     public func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
         perform(.setHeld(action.isOnHold), action: action)
+    }
+    public func provider(_ provider: CXProvider, perform action: CXPlayDTMFCallAction) {
+        perform(.playDTMF(action.digits), action: action)
     }
     public func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
         lifecycle.timedOut(action)

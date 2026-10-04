@@ -119,7 +119,7 @@ class VideoCallTest {
         val bridge = BridgeRuntime(core, PlatformCommandExecutor { CompletableFuture.completedFuture(PlatformOutcome.Applied(1_100)) },
             BridgeCapabilities("generation-1", true, false, true, true, video = true), nowMs = { 1_000 })
         assertEquals(true, bridge.setup(mapOf("contractVersion" to "0.2.0"))["video"])
-        assertEquals("0.2.0", bridge.setup(mapOf("contractVersion" to "0.1.0"))["contractVersion"])
+        assertEquals("0.3.0", bridge.setup(mapOf("contractVersion" to "0.1.0"))["contractVersion"])
         bridge.execute(mapOf("contractVersion" to "0.2.0", "operationId" to "start", "type" to "startCall",
             "input" to mapOf("callId" to "call-1", "displayName" to "hao.dev7", "handle" to "sip:a@example.invalid", "video" to true),
         )).toCompletableFuture().join()

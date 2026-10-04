@@ -156,6 +156,9 @@ class TelecomPlatformExecutor(
             }
             // TelecomIngress.executor routes camera commands to a video adapter (ADR-0010).
             CommandType.setCamera, CommandType.switchCamera -> return PlatformOutcome.Rejected("unsupported", nowMs())
+            // TelecomIngress.executor routes these to Telecom endpoints, the media adapter and the presenter (ADR-0013).
+            CommandType.setAudioRoute, CommandType.sendDtmf, CommandType.setDisplayName ->
+                return PlatformOutcome.Rejected("unsupported", nowMs())
         } ?: return PlatformOutcome.Rejected("callNotFound", nowMs())
 
         return when (result) {

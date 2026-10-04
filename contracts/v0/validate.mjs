@@ -77,6 +77,14 @@ export function validateCommand(value) {
     id(command.callId, 'command.callId');
     if (command.type === 'switchCamera') {
       member(command.value, manifest.cameraFacings, 'command.value');
+    } else if (command.type === 'setAudioRoute') {
+      boundedString(command.value, manifest.limits.identifierMaxUtf8Bytes, 'command.value');
+    } else if (command.type === 'sendDtmf') {
+      if (typeof command.value !== 'string' || command.value.match(new RegExp(manifest.dtmfDigitPattern))?.[0] !== command.value) {
+        throw new Error('command.value must be 1-32 keypad digits');
+      }
+    } else if (command.type === 'setDisplayName') {
+      boundedString(command.value, manifest.limits.displayNameMaxUtf8Bytes, 'command.value');
     } else {
       const hasValue = ['setMuted', 'setHeld', 'setCamera'].includes(command.type);
       if (hasValue !== (typeof command.value === 'boolean')) throw new Error('command.value shape is invalid');
@@ -129,6 +137,24 @@ export function validateCall(value, path = 'call') {
   const cameraLive = call.localVideo !== undefined && call.localVideo !== 'off';
   if (cameraLive) member(call.cameraFacing, manifest.cameraFacings, `${path}.cameraFacing`);
   else if (call.cameraFacing !== undefined) throw new Error('cameraFacing requires a camera that is not off');
+  if (call.audioRoutes !== undefined) {
+    if (!Array.isArray(call.audioRoutes)) throw new Error(`${path}.audioRoutes must be an array`);
+    const ids = new Set();
+    call.audioRoutes.forEach((value, index) => {
+      const route = object(value, `${path}.audioRoutes[${index}]`);
+      boundedString(route.id, manifest.limits.identifierMaxUtf8Bytes, `${path}.audioRoutes[${index}].id`);
+      member(route.kind, manifest.audioRouteKinds, `${path}.audioRoutes[${index}].kind`);
+      boundedString(route.name, manifest.limits.audioRouteNameMaxUtf8Bytes, `${path}.audioRoutes[${index}].name`);
+      if (ids.has(route.id)) throw new Error(`${path}.audioRoutes ids must be unique`);
+      ids.add(route.id);
+    });
+  }
+  if (call.audioRoute !== undefined) {
+    boundedString(call.audioRoute, manifest.limits.identifierMaxUtf8Bytes, `${path}.audioRoute`);
+    if (!(call.audioRoutes ?? []).some((route) => route.id === call.audioRoute)) {
+      throw new Error(`${path}.audioRoute must be one of audioRoutes`);
+    }
+  }
   for (const field of ['createdAtMs', 'acceptedAtMs', 'mediaConnectedAtMs', 'endedAtMs']) {
     if (call[field] !== undefined) timestamp(call[field], `${path}.${field}`);
   }

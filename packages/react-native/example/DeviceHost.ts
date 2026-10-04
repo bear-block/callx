@@ -54,6 +54,7 @@ export async function createDeviceDemo(): Promise<Demo> {
       // On a device, video state comes from the media adapter, not from the example.
       async remoteVideo() { throw new CallxError('unsupported', 'Remote video comes from the media adapter on a device.'); },
       async cameraBlocked() { throw new CallxError('unsupported', 'The OS blocks the camera on a device.'); },
+      async audioRoutes() { throw new CallxError('unsupported', 'Audio routes are reported by the OS on a device.'); },
       async reset() { throw new CallxError('unsupported', 'Device calls must end through the native lifecycle.'); },
     },
   };

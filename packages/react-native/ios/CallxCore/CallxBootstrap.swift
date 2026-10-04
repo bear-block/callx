@@ -21,6 +21,8 @@ public struct CallxBootstrapConfig {
     public var reconciliationProbe: (any OperationReconciliationProbe)?
     /// Register for VoIP pushes once recovery finishes. Off for hosts that ring only from signaling.
     public var startPushRegistry = true
+    /// Donate each answered call to Siri so the system can suggest calling back (ADR-0013).
+    public var donateCalls = true
     public var log: @Sendable (String) -> Void = { _ in }
     public init() {}
 }
@@ -59,6 +61,7 @@ public final class CallxBootstrap: @unchecked Sendable {
     /// ended; tell your backend). Wait for it before letting Dart or JavaScript call setup.
     public let ready: Task<CallRecord?, Error>
     private let delegate: CallKitProviderDelegateAdapter
+    private let routes: CallxAudioRoutes
     private let tokenRecorder: PushTokenRecorder
 
     nonisolated(unsafe) public private(set) static var started: CallxBootstrap?
@@ -85,15 +88,20 @@ public final class CallxBootstrap: @unchecked Sendable {
         let actionIndex = CallKitActionIndex()
         let registry = PlatformActionRegistry()
         let lifecycle = CallKitActionLifecycle(index: actionIndex, registry: registry, nowMs: nowMs)
-        let executor = CallxCameraExecutor(inner: RegistryBackedPlatformExecutor(
+        let routes = CallxAudioRoutes()
+        let dtmf = adapter as? any CallxDTMFAdapter
+        let ingressRef = IngressReference()
+        let features = CallxCallFeatureExecutor(inner: RegistryBackedPlatformExecutor(
             submitter: CallKitTransactionSubmitter(resolver: uuids, index: actionIndex, nowMs: nowMs), registry: registry),
-            video: video, nowMs: nowMs)
+            dtmf: dtmf, routes: routes,
+            rename: { callID, name in ingressRef.ingress?.rename(callID: callID, displayName: name) }, nowMs: nowMs)
+        let executor = CallxCameraExecutor(inner: features, video: video, nowMs: nowMs)
         let hostPerformer = config.performer ?? AcceptingPerformer()
         let performer: any CallKitActionPerforming = adapter.map {
             MediaRoutingPerformer(performer: hostPerformer, media: $0, uuids: uuids)
         } ?? hostPerformer
         let delegate = CallKitProviderDelegateAdapter(performer: performer, lifecycle: lifecycle,
-            audio: adapter ?? config.audio)
+            audio: RouteObservingAudioSession(inner: adapter ?? config.audio, routes: routes))
         provider.setDelegate(delegate, queue: nil)
         let url = config.checkpointURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("callx/\(config.accountGeneration)/coordinator.json")
@@ -101,12 +109,20 @@ public final class CallxBootstrap: @unchecked Sendable {
         let runtime = BridgeRuntime(coordinator: coordinator, executor: executor,
             capabilities: .init(accountGeneration: config.accountGeneration, durableReplay: true,
                 providerManagedSignaling: false, hold: true, mute: adapter != nil || config.audio != nil,
-                video: video != nil),
+                video: video != nil, dtmf: dtmf != nil),
             nowMs: nowMs)
         // The ingress holds its listener weakly; this bootstrap retains the recorder.
         let recorder = PushTokenRecorder(forwardingTo: config.listener)
         let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids, lifecycle: lifecycle,
             listener: recorder, media: adapter, nowMs: nowMs)
+        ingressRef.ingress = ingress
+        if config.donateCalls { ingress.donateAnswered = { CallxCallRequests.donate($0) } }
+        routes.onChange { current, list in
+            Task {
+                guard let call = await runtime.currentCall(), call.state != .ended else { return }
+                _ = try? await runtime.audioRoutesObserved(callID: call.callID, current: current, routes: list)
+            }
+        }
         executor.setCurrentCall { await runtime.currentCall() }
         Task { @MainActor in
             CallxVideoSurfaces.install(video)
@@ -116,7 +132,7 @@ public final class CallxBootstrap: @unchecked Sendable {
         let probe = config.reconciliationProbe ?? UnavailableProbe(nowMs: nowMs)
         let startPush = config.startPushRegistry
         self.runtime = runtime; self.ingress = ingress; self.provider = provider; self.uuids = uuids
-        self.media = status; self.delegate = delegate; self.tokenRecorder = recorder
+        self.media = status; self.delegate = delegate; self.tokenRecorder = recorder; self.routes = routes
         ready = Task {
             // New process only: persist termination and clean up CallKit before a push can ring.
             let recovered = try await ingress.recoverAfterProcessDeath()
@@ -167,6 +183,11 @@ private final class PushTokenRecorder: CallKitIngressListener, @unchecked Sendab
     func ringTimedOut(callID: String) { host?.ringTimedOut(callID: callID) }
     func callAnswered(callID: String) { host?.callAnswered(callID: callID) }
     func callEnded(callID: String) { host?.callEnded(callID: callID) }
+}
+
+/// The ingress is created after the executor that renames through it.
+private final class IngressReference: @unchecked Sendable {
+    weak var ingress: CallKitIngress?
 }
 
 private struct AcceptingPerformer: CallKitActionPerforming {

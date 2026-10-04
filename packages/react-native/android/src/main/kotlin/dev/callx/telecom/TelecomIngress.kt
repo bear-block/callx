@@ -3,6 +3,8 @@ package dev.callx.telecom
 import android.app.ActivityManager
 import android.telecom.DisconnectCause
 import androidx.core.telecom.CallEndpointCompat
+import dev.callx.core.AudioRoute
+import dev.callx.core.AudioRouteKind
 import dev.callx.core.BridgeRuntime
 import dev.callx.core.CameraFacing
 import dev.callx.core.CallState
@@ -42,6 +44,10 @@ interface IncomingCallPresenter {
     /** [answeredAtMs] is when the call was answered on either side; null while an outgoing call still rings. */
     fun showOngoing(callId: String, answeredAtMs: Long?)
     fun dismiss(callId: String)
+    /** The caller's name changed (`setDisplayName`); update what is showing. */
+    fun rename(callId: String, displayName: String) {}
+    /** An incoming call stopped ringing unanswered; [dismiss] already ran for it. */
+    fun showMissed(call: MissedCall) {}
 }
 
 /** Host callbacks for the library-owned call path. All methods have empty defaults. */
@@ -106,6 +112,8 @@ class TelecomIngress(
         const val PUSH_WAIT_MS = 8_000L
         /** The attached ingress that receives notification buttons. */
         @Volatile internal var active: TelecomIngress? = null
+        /** Ringing stopped without anyone answering, here or elsewhere. */
+        private val MISSED_REASONS = setOf("unanswered", "callerCancelled")
     }
 
     init {
@@ -119,6 +127,9 @@ class TelecomIngress(
     /** The installed media adapter carries video; reported as the `video` capability. */
     val supportsVideo: Boolean get() = media is CallxVideoAdapter
 
+    /** The installed media adapter sends keypad tones; reported as the `dtmf` capability. */
+    val supportsDtmf: Boolean get() = media is CallxDtmfAdapter
+
     private lateinit var runtime: BridgeRuntime
     private lateinit var sessions: IncomingTelecomSessions
     private data class Registration(var answered: Boolean = false, var endedReason: String? = null)
@@ -127,6 +138,8 @@ class TelecomIngress(
     private val ringJobs = ConcurrentHashMap<String, Job>()
     internal data class CallAudio(val current: CallEndpointCompat, val available: List<CallEndpointCompat>)
     private val callAudio = ConcurrentHashMap<String, CallAudio>()
+    // Each missed call is announced once, even when a late cancel ends it again; bounded.
+    private val missedAnnounced = ArrayDeque<String>()
 
     internal fun callSnapshot(callId: String): CallRecord? = runtime.currentCall()?.takeIf { it.callId == callId }
     internal fun audioSnapshot(callId: String): CallAudio? = callAudio[callId]
@@ -178,9 +191,10 @@ class TelecomIngress(
     val audioObserver: TelecomCallAudioObserver = object : TelecomCallAudioObserver {
         override suspend fun onMuteChanged(callId: String, muted: Boolean) = applySystemMute(callId, muted)
         override fun onEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>) {
-            synchronized(presentationLock) {
-                if (isLive(callId)) callAudio[callId] = CallAudio(current, available.toList())
+            val live = synchronized(presentationLock) {
+                isLive(callId).also { if (it) callAudio[callId] = CallAudio(current, available.toList()) }
             }
+            if (live) runtime.audioRoutesObserved(callId, current.identifier.toString(), available.map(::audioRoute))
             listener?.onAudioEndpointsChanged(callId, current, available)
         }
     }
@@ -190,10 +204,48 @@ class TelecomIngress(
      * native UI, and camera commands reach a [CallxVideoAdapter].
      */
     fun executor(inner: PlatformCommandExecutor) = PlatformCommandExecutor { command ->
-        if (command.type == CommandType.setCamera || command.type == CommandType.switchCamera) camera(command)
-        else inner.perform(command).whenComplete { outcome, _ ->
-            if (outcome is PlatformOutcome.Applied) runCatching { commandApplied(command) }
+        when (command.type) {
+            CommandType.setCamera, CommandType.switchCamera -> camera(command)
+            CommandType.setAudioRoute -> audioRoute(command)
+            CommandType.sendDtmf -> dtmf(command)
+            CommandType.setDisplayName -> rename(command)
+            else -> inner.perform(command).whenComplete { outcome, _ ->
+                if (outcome is PlatformOutcome.Applied) runCatching { commandApplied(command) }
+            }
         }
+    }
+
+    /** `setAudioRoute`: the coordinator already checked the id against the reported routes. */
+    private fun audioRoute(command: NativeCommand): CompletionStage<PlatformOutcome> = scope.future {
+        val endpoint = callAudio[command.callId]?.available?.firstOrNull { it.identifier.toString() == command.audioRoute }
+            ?: return@future PlatformOutcome.Rejected("invalidArgument", nowMs())
+        val applied = withTimeoutOrNull((command.deadlineAtMs - nowMs()).coerceAtLeast(1)) {
+            runCatching { requestAudioEndpoint(command.callId, endpoint) }.getOrDefault(false)
+        } ?: return@future PlatformOutcome.TimedOut(nowMs())
+        if (applied) PlatformOutcome.Applied(nowMs()) else PlatformOutcome.Rejected("platformRejected", nowMs())
+    }
+
+    /** `sendDtmf`: tones go through the media adapter; self-managed calls have no Telecom keypad. */
+    private fun dtmf(command: NativeCommand): CompletionStage<PlatformOutcome> = scope.future {
+        val adapter = media as? CallxDtmfAdapter ?: return@future PlatformOutcome.Rejected("unsupported", nowMs())
+        val digits = command.digits ?: return@future PlatformOutcome.Rejected("invalidArgument", nowMs())
+        withTimeoutOrNull((command.deadlineAtMs - nowMs()).coerceAtLeast(1)) {
+            val sent = try { adapter.sendDtmf(command.callId, digits) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Throwable) { false }
+            if (sent) PlatformOutcome.Applied(nowMs()) else PlatformOutcome.Rejected("mediaNotReady", nowMs())
+        } ?: PlatformOutcome.TimedOut(nowMs())
+    }
+
+    /**
+     * `setDisplayName`: Core-Telecom cannot rename a registered call, so only the notification
+     * follows; cars and watches keep the first name.
+     */
+    private fun rename(command: NativeCommand): CompletionStage<PlatformOutcome> {
+        val name = command.displayName
+            ?: return java.util.concurrent.CompletableFuture.completedFuture(PlatformOutcome.Rejected("invalidArgument", nowMs()))
+        synchronized(presentationLock) { if (isLive(command.callId)) presenter.rename(command.callId, name) }
+        return java.util.concurrent.CompletableFuture.completedFuture(PlatformOutcome.Applied(nowMs()))
     }
 
     /**
@@ -329,7 +381,8 @@ class TelecomIngress(
             }
             // Core-Telecom requires a notification within five seconds of adding any call.
             CommandType.startCall -> presenter.showOutgoing(command.callId, command.displayName ?: command.callId)
-            CommandType.setMuted, CommandType.setHeld, CommandType.setCamera, CommandType.switchCamera -> Unit
+            CommandType.setMuted, CommandType.setHeld, CommandType.setCamera, CommandType.switchCamera,
+            CommandType.setAudioRoute, CommandType.sendDtmf, CommandType.setDisplayName -> Unit
         }
     }
 
@@ -420,8 +473,20 @@ class TelecomIngress(
     private fun dismissCall(callId: String) {
         callAudio.remove(callId)
         presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
+        missedCall(callId)?.let { runCatching { presenter.showMissed(it) } }
         (media as? CallxMediaAdapter)?.stop(callId)
         listener?.onCallEnded(callId)
+    }
+    /** The ended call, when it rang here and stopped without an answer; once per call. */
+    private fun missedCall(callId: String): MissedCall? {
+        val call = runtime.currentCall()?.takeIf {
+            it.callId == callId && it.state == CallState.ended && it.direction == dev.callx.core.CallDirection.incoming &&
+                it.acceptedAtMs == null && it.endReason in MISSED_REASONS
+        } ?: return null
+        if (callId in missedAnnounced) return null
+        missedAnnounced.addLast(callId); if (missedAnnounced.size > 64) missedAnnounced.removeFirst()
+        return MissedCall(callId, call.displayName ?: return null, call.handle ?: return null, call.video,
+            call.endedAtMs ?: nowMs())
     }
     private fun presentAnswered(callId: String, answeredAtMs: Long?) {
         presenter.showOngoing(callId, answeredAtMs)
@@ -444,6 +509,14 @@ class TelecomIngress(
         DisconnectCause.REMOTE -> "remoteEnded"
         else -> null
     }
+    private fun audioRoute(endpoint: CallEndpointCompat) = AudioRoute(endpoint.identifier.toString(),
+        when (endpoint.type) {
+            CallEndpointCompat.TYPE_EARPIECE -> AudioRouteKind.earpiece
+            CallEndpointCompat.TYPE_SPEAKER -> AudioRouteKind.speaker
+            CallEndpointCompat.TYPE_BLUETOOTH -> AudioRouteKind.bluetooth
+            CallEndpointCompat.TYPE_WIRED_HEADSET -> AudioRouteKind.wired
+            else -> AudioRouteKind.other
+        }, endpoint.name.toString())
     /** CallControlScope.disconnect accepts only LOCAL, REMOTE, REJECTED and MISSED. */
     private fun causeFor(reason: String) = if (reason == "unanswered") DisconnectCause.MISSED else DisconnectCause.REMOTE
 }

@@ -213,6 +213,7 @@ final class NativeCallxBackend implements CallxBackend {
     if (value.callId != null) 'callId': value.callId,
     if (value.value != null) 'value': value.value,
     if (value.facing != null) 'value': value.facing!.name,
+    if (value.text != null) 'value': value.text,
     if (value.input != null)
       'input': {
         'callId': value.input!.callId,
@@ -233,6 +234,7 @@ final class NativeCallxBackend implements CallxBackend {
         hold: map['hold'] == true,
         mute: map['mute'] == true,
         video: map['video'] == true,
+        dtmf: map['dtmf'] == true,
       );
 
   CommandResult _result(Map<Object?, Object?> map) => CommandResult(
@@ -279,6 +281,20 @@ final class NativeCallxBackend implements CallxBackend {
         ? null
         : _enum(CameraFacing.values, _string(map, 'cameraFacing')),
     remoteVideo: map['remoteVideo'] == true,
+    audioRoutes: ((map['audioRoutes'] as List?) ?? const [])
+        .map((e) => (e as Map).cast<Object?, Object?>())
+        .map(
+          (route) => AudioRoute(
+            id: _string(route, 'id'),
+            kind: AudioRouteKind.values.firstWhere(
+              (kind) => kind.name == route['kind'],
+              orElse: () => AudioRouteKind.other,
+            ),
+            name: _string(route, 'name'),
+          ),
+        )
+        .toList(),
+    audioRoute: map['audioRoute'] as String?,
     endReason: map['endReason'] == null
         ? null
         : _enum(EndReason.values, _string(map, 'endReason')),

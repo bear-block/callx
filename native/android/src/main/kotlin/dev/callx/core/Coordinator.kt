@@ -2,10 +2,14 @@ package dev.callx.core
 
 enum class CallState { incoming, outgoing, connecting, active, held, ended }
 enum class CallDirection { incoming, outgoing }
-enum class CommandType { startCall, answer, end, setMuted, setHeld, setCamera, switchCamera }
+enum class CommandType { startCall, answer, end, setMuted, setHeld, setCamera, switchCamera,
+    setAudioRoute, sendDtmf, setDisplayName }
 /** The local camera as the media adapter reports it (ADR-0010). */
 enum class LocalVideo { off, on, blocked }
 enum class CameraFacing { front, back }
+enum class AudioRouteKind { earpiece, speaker, bluetooth, wired, other }
+/** An output the call's audio can use (ADR-0013). [id] is opaque and stable while the device stays connected. */
+data class AudioRoute(val id: String, val kind: AudioRouteKind, val name: String)
 enum class OperationStatus { pending, applied, rejected, timedOut, unknown }
 data class CallRecord(val callId: String, val state: CallState, val muted: Boolean = false,
     val mediaReady: Boolean = false, val endReason: String? = null,
@@ -20,7 +24,11 @@ data class CallRecord(val callId: String, val state: CallState, val muted: Boole
     /** The camera in use or last chosen; null until the camera is first turned on or switched. */
     val cameraFacing: CameraFacing? = null,
     /** A remote video track is subscribed, so a view can render it. */
-    val remoteVideo: Boolean = false)
+    val remoteVideo: Boolean = false,
+    /** Outputs the platform offers; empty until it reports them. */
+    val audioRoutes: List<AudioRoute> = emptyList(),
+    /** The [AudioRoute.id] in use; always one of [audioRoutes]. */
+    val audioRoute: String? = null)
 /** A call that ended; its ID is never used again while the record is retained. */
 data class TerminalRecord(val callId: String, val reason: String, val endedAtMs: Long)
 /** Why an incoming invitation did or did not create a call. */
@@ -40,7 +48,11 @@ data class NativeCommand(val operationId: String, val type: CommandType, val cal
     /** startCall only. */
     val video: Boolean = false,
     /** switchCamera only. */
-    val facing: CameraFacing? = null)
+    val facing: CameraFacing? = null,
+    /** setAudioRoute only. */
+    val audioRoute: String? = null,
+    /** sendDtmf only. */
+    val digits: String? = null)
 data class NativeOperation(val operationId: String, val status: OperationStatus, val errorCode: String? = null,
     val completedAtMs: Long? = null)
 sealed interface Preparation {
@@ -55,6 +67,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     companion object {
         const val OPERATION_RETENTION_MS = 86_400_000L; const val OPERATION_QUOTA = 10_000
         const val TERMINAL_RETENTION_MS = 86_400_000L; const val TERMINAL_QUOTA = 1_000
+        /** Keypad digits for `sendDtmf` (ADR-0013). */
+        val DTMF = Regex("^[0-9*#]{1,32}$")
     }
     private var call: CallRecord? = null
     private val terminal = linkedMapOf<String, TerminalRecord>()
@@ -193,6 +207,19 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
         call = next
         journal.append("callChanged", nowMs, callId, source = EventSource.media); return true
     }
+    /**
+     * Audio outputs the platform reports. A [current] that is not listed is recorded as unknown.
+     * True when state changed.
+     */
+    @Synchronized fun audioRoutesObserved(callId: String, current: String?, routes: List<AudioRoute>, nowMs: Long): Boolean {
+        val call = this.call ?: return false
+        if (call.callId != callId || call.state == CallState.ended) return false
+        val unique = routes.distinctBy { it.id }
+        val next = call.copy(audioRoutes = unique, audioRoute = current?.takeIf { id -> unique.any { it.id == id } })
+        if (next == call) return false
+        this.call = next
+        journal.append("callChanged", nowMs, callId, source = EventSource.platform); return true
+    }
     /** Ends the live call, or records a tombstone so a later invitation for this ID cannot ring. */
     @Synchronized fun remoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long = 0): Boolean {
         if (end(callId, reason, EventSource.signaling, nowMs)) return true
@@ -202,7 +229,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     private fun end(callId: String, reason: String, source: EventSource, nowMs: Long): Boolean {
         val current = call ?: return false; if (current.callId != callId || current.state == CallState.ended) return false
         call = current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
-            endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false)
+            endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false,
+            audioRoutes = emptyList(), audioRoute = null)
         recordTerminal(callId, reason, nowMs)
         journal.append("callChanged", nowMs, callId, source = source)
         pending.filterValues { it.callId == callId }.toMap().forEach { (id, command) ->
@@ -238,7 +266,9 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
             journal.append("operationCompleted", nowMs, operationId = operationId); return result
         }
         apply(command, nowMs); val result = finishResult(command, OperationStatus.applied, null, nowMs)
-        journal.append("callChanged", nowMs, command.callId); journal.append("operationCompleted", nowMs, operationId = operationId)
+        // Tones leave the call as it was.
+        if (command.type != CommandType.sendDtmf) journal.append("callChanged", nowMs, command.callId)
+        journal.append("operationCompleted", nowMs, operationId = operationId)
         return result
     }
     @Synchronized fun completeRejected(operationId: String, errorCode: String, nowMs: Long): NativeOperation? {
@@ -274,6 +304,15 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
                 else if (current.state in setOf(CallState.connecting, CallState.active, CallState.held)) null else "invalidState"
             CommandType.switchCamera -> if (command.facing == null) "invalidArgument"
                 else if (current.state in setOf(CallState.connecting, CallState.active, CallState.held)) null else "invalidState"
+            CommandType.setAudioRoute -> when {
+                command.audioRoute == null -> "invalidArgument"
+                current.state !in setOf(CallState.outgoing, CallState.connecting, CallState.active, CallState.held) -> "invalidState"
+                current.audioRoutes.none { it.id == command.audioRoute } -> "invalidArgument"
+                else -> null
+            }
+            CommandType.sendDtmf -> if (command.digits?.let(DTMF::matches) != true) "invalidArgument"
+                else if (current.state == CallState.active) null else "invalidState"
+            CommandType.setDisplayName -> if (command.displayName.isNullOrEmpty()) "invalidArgument" else null
             CommandType.startCall -> null
         }
     }
@@ -290,7 +329,8 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
                 val reason = if (current.state == CallState.incoming) "declined" else "localHangup"
                 recordTerminal(current.callId, reason, nowMs)
                 current.copy(state = CallState.ended, mediaReady = false, mediaInterrupted = false, endReason = reason,
-                    endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false)
+                    endedAtMs = nowMs, ringDeadlineAtMs = null, localVideo = LocalVideo.off, remoteVideo = false,
+                    audioRoutes = emptyList(), audioRoute = null)
             }
             CommandType.setMuted -> current.copy(muted = command.value!!)
             CommandType.setHeld -> current.copy(state = if (command.value!!) CallState.held else CallState.active)
@@ -298,6 +338,10 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
                 current.copy(localVideo = LocalVideo.on, cameraFacing = current.cameraFacing ?: CameraFacing.front)
                 else current.copy(localVideo = LocalVideo.off)
             CommandType.switchCamera -> current.copy(cameraFacing = command.facing)
+            CommandType.setAudioRoute -> if (current.audioRoutes.any { it.id == command.audioRoute })
+                current.copy(audioRoute = command.audioRoute) else current
+            CommandType.sendDtmf -> current
+            CommandType.setDisplayName -> current.copy(displayName = command.displayName)
             CommandType.startCall -> current
         }
     }
@@ -375,6 +419,9 @@ class CallCoordinator private constructor(private val store: CoordinatorStore?, 
     }
     @Synchronized fun durableVideoObserved(callId: String, localVideo: LocalVideo?, remoteVideo: Boolean?, nowMs: Long): Boolean {
         val before = checkpoint(); val result = videoObserved(callId, localVideo, remoteVideo, nowMs); persistOrRestore(before); return result
+    }
+    @Synchronized fun durableAudioRoutesObserved(callId: String, current: String?, routes: List<AudioRoute>, nowMs: Long): Boolean {
+        val before = checkpoint(); val result = audioRoutesObserved(callId, current, routes, nowMs); persistOrRestore(before); return result
     }
     @Synchronized fun durableRemoteEnded(callId: String, reason: String = "remoteEnded", nowMs: Long): Boolean {
         val before = checkpoint(); val result = remoteEnded(callId, reason, nowMs); persistOrRestore(before); return result

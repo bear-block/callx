@@ -3,7 +3,7 @@
     {
       "name": "outgoing input carries a platform handle",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-start-1",
         "type": "startCall",
         "input": {
@@ -17,14 +17,14 @@
     {
       "name": "applied answer",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-answer-1",
         "type": "answer",
         "callId": "call-1",
         "deadlineAtMs": 1790000005000
       },
       "result": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-answer-1",
         "status": "applied",
         "completedAtMs": 1790000000100
@@ -33,14 +33,14 @@
     {
       "name": "platform rejection is a result",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-answer-2",
         "type": "answer",
         "callId": "call-2",
         "deadlineAtMs": 1790000005000
       },
       "result": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-answer-2",
         "status": "rejected",
         "completedAtMs": 1790000000200,
@@ -58,7 +58,7 @@
     {
       "name": "lost response remains queryable",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-mute-1",
         "type": "setMuted",
         "callId": "call-3",
@@ -66,7 +66,7 @@
         "deadlineAtMs": 1790000005000
       },
       "result": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-mute-1",
         "status": "unknown",
         "completedAtMs": 1790000005000,
@@ -80,7 +80,7 @@
     {
       "name": "snapshot and event cursor",
       "snapshot": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "watermark": "9007199254740993",
         "calls": [
           {
@@ -96,7 +96,7 @@
         ]
       },
       "event": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "eventId": "event-4",
         "sequence": "9007199254740994",
         "kind": "callChanged",
@@ -108,12 +108,12 @@
     {
       "name": "durable operation lookup",
       "operationLookup": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-answer-1",
         "accountGeneration": "account-generation-7",
         "status": "available",
         "result": {
-          "contractVersion": "0.2.0",
+          "contractVersion": "0.3.0",
           "operationId": "op-answer-1",
           "status": "applied",
           "completedAtMs": 1790000000100
@@ -123,12 +123,12 @@
     {
       "name": "fresh observation session",
       "session": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "sessionId": "session-1",
         "accountGeneration": "account-generation-7",
         "status": "fresh",
         "snapshot": {
-          "contractVersion": "0.2.0",
+          "contractVersion": "0.3.0",
           "watermark": "12",
           "calls": []
         },
@@ -138,7 +138,7 @@
     {
       "name": "video outgoing call",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-start-video-1",
         "type": "startCall",
         "input": {
@@ -153,7 +153,7 @@
     {
       "name": "camera on is a command with a result",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-camera-1",
         "type": "setCamera",
         "callId": "call-video-1",
@@ -161,7 +161,7 @@
         "deadlineAtMs": 1790000005000
       },
       "result": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-camera-1",
         "status": "rejected",
         "completedAtMs": 1790000000100,
@@ -175,7 +175,7 @@
     {
       "name": "switch camera",
       "command": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-switch-1",
         "type": "switchCamera",
         "callId": "call-video-1",
@@ -197,6 +197,86 @@
         "localVideo": "blocked",
         "cameraFacing": "front",
         "remoteVideo": true
+      }
+    },
+    {
+      "name": "switch audio to the speaker",
+      "command": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-route-1",
+        "type": "setAudioRoute",
+        "callId": "call-1",
+        "value": "speaker",
+        "deadlineAtMs": 1790000005000
+      },
+      "result": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-route-1",
+        "status": "applied",
+        "completedAtMs": 1790000000100
+      }
+    },
+    {
+      "name": "active call with audio routes",
+      "call": {
+        "callId": "call-1",
+        "direction": "incoming",
+        "state": "active",
+        "displayName": "hao.dev7",
+        "muted": false,
+        "mediaReady": true,
+        "mediaConnectedAtMs": 1790000001000,
+        "audioRoute": "speaker",
+        "audioRoutes": [
+          {
+            "id": "earpiece",
+            "kind": "earpiece",
+            "name": "Phone"
+          },
+          {
+            "id": "speaker",
+            "kind": "speaker",
+            "name": "Speaker"
+          },
+          {
+            "id": "bt-1",
+            "kind": "bluetooth",
+            "name": "Car kit"
+          }
+        ]
+      }
+    },
+    {
+      "name": "send keypad digits",
+      "command": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-dtmf-1",
+        "type": "sendDtmf",
+        "callId": "call-1",
+        "value": "123#",
+        "deadlineAtMs": 1790000005000
+      },
+      "result": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-dtmf-1",
+        "status": "rejected",
+        "completedAtMs": 1790000000100,
+        "error": {
+          "code": "unsupported",
+          "message": "Native operation failed: unsupported.",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "rename the caller",
+      "command": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-name-1",
+        "type": "setDisplayName",
+        "callId": "call-1",
+        "value": "Front desk",
+        "deadlineAtMs": 1790000005000
       }
     }
   ],
@@ -225,7 +305,7 @@
       "name": "applied result with error",
       "path": "result",
       "value": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-invalid-result",
         "status": "applied",
         "completedAtMs": 1790000000000,
@@ -251,7 +331,7 @@
       "name": "switchCamera needs a facing",
       "path": "command",
       "value": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-switch-2",
         "type": "switchCamera",
         "callId": "call-1",
@@ -262,7 +342,7 @@
       "name": "setCamera needs a boolean",
       "path": "command",
       "value": {
-        "contractVersion": "0.2.0",
+        "contractVersion": "0.3.0",
         "operationId": "op-camera-2",
         "type": "setCamera",
         "callId": "call-1"
@@ -295,6 +375,127 @@
         "mediaReady": false,
         "localVideo": "starting",
         "cameraFacing": "front"
+      }
+    },
+    {
+      "name": "setAudioRoute needs a route id",
+      "path": "command",
+      "value": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-route-2",
+        "type": "setAudioRoute",
+        "callId": "call-1",
+        "value": true
+      }
+    },
+    {
+      "name": "DTMF accepts only keypad digits",
+      "path": "command",
+      "value": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-dtmf-2",
+        "type": "sendDtmf",
+        "callId": "call-1",
+        "value": "12a"
+      }
+    },
+    {
+      "name": "DTMF is at most 32 digits",
+      "path": "command",
+      "value": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-dtmf-3",
+        "type": "sendDtmf",
+        "callId": "call-1",
+        "value": "111111111111111111111111111111111"
+      }
+    },
+    {
+      "name": "setDisplayName needs a name",
+      "path": "command",
+      "value": {
+        "contractVersion": "0.3.0",
+        "operationId": "op-name-2",
+        "type": "setDisplayName",
+        "callId": "call-1",
+        "value": ""
+      }
+    },
+    {
+      "name": "unknown audio route kind",
+      "path": "call",
+      "value": {
+        "callId": "call-1",
+        "direction": "incoming",
+        "state": "active",
+        "displayName": "A",
+        "muted": false,
+        "mediaReady": true,
+        "mediaConnectedAtMs": 1,
+        "audioRoutes": [
+          {
+            "id": "x",
+            "kind": "hdmi",
+            "name": "TV"
+          }
+        ]
+      }
+    },
+    {
+      "name": "current audio route must be listed",
+      "path": "call",
+      "value": {
+        "callId": "call-1",
+        "direction": "incoming",
+        "state": "active",
+        "displayName": "A",
+        "muted": false,
+        "mediaReady": true,
+        "mediaConnectedAtMs": 1,
+        "audioRoute": "bt-2",
+        "audioRoutes": [
+          {
+            "id": "speaker",
+            "kind": "speaker",
+            "name": "Speaker"
+          }
+        ]
+      }
+    },
+    {
+      "name": "audio route ids are unique",
+      "path": "call",
+      "value": {
+        "callId": "call-1",
+        "direction": "incoming",
+        "state": "active",
+        "displayName": "A",
+        "muted": false,
+        "mediaReady": true,
+        "mediaConnectedAtMs": 1,
+        "audioRoutes": [
+          {
+            "id": "a",
+            "kind": "speaker",
+            "name": "Speaker"
+          },
+          {
+            "id": "a",
+            "kind": "earpiece",
+            "name": "Phone"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DTMF cannot end with a newline",
+      "path": "command",
+      "value": {
+        "contractVersion": "0.3.0",
+        "operationId": "bad-tone-newline",
+        "type": "sendDtmf",
+        "callId": "call-1",
+        "value": "12#\n"
       }
     }
   ]

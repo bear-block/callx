@@ -1,3 +1,4 @@
+#import <Intents/Intents.h>
 // CallxVideoView (ADR-0010): a container the video media adapter renders into. The Fabric
 // component reads the props React Native's codegen generates from
 // src/specs/CallxVideoViewNativeComponent.ts; the legacy view manager serves the old architecture.

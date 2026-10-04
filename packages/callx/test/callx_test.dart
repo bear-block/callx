@@ -115,11 +115,11 @@ void main() {
     addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
     final callx = Callx();
     expect((await callx.setup()).execution, ExecutionMode.native);
-    expect(setupArguments, {'contractVersion': '0.2.0'});
+    expect(setupArguments, {'contractVersion': '0.3.0'});
     // The deprecated appName still compiles and is not sent.
     // ignore: deprecated_member_use_from_same_package
     await callx.setup(const CallxConfig(appName: 'Example'));
-    expect(setupArguments, {'contractVersion': '0.2.0'});
+    expect(setupArguments, {'contractVersion': '0.3.0'});
     await callx.startCall(
       const CallInput(
         callId: 'call-1',

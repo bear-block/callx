@@ -44,6 +44,12 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
   bool _ready = false;
   bool _disposed = false;
 
+  /// A phone's built-in outputs, so route UI can be previewed.
+  static const _routes = [
+    AudioRoute(id: 'earpiece', kind: AudioRouteKind.earpiece, name: 'Phone'),
+    AudioRoute(id: 'speaker', kind: AudioRouteKind.speaker, name: 'Speaker'),
+  ];
+
   /// The chosen camera; the call shows it only while the camera is not off, like native.
   CameraFacing? _facing;
 
@@ -72,6 +78,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
       hold: true,
       mute: true,
       video: true,
+      dtmf: true,
     );
   }
 
@@ -135,6 +142,8 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
             ? CallState.incoming
             : CallState.outgoing,
         video: input.video,
+        audioRoutes: _routes,
+        audioRoute: _routes.first.id,
         createdAtMs: DateTime.now().millisecondsSinceEpoch,
       ),
     );
@@ -145,7 +154,8 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
     _guard();
     final fingerprint =
         '${command.type.name}|${command.callId ?? command.input?.callId}|'
-        '${command.input?.displayName}|${command.value}|${command.facing}';
+        '${command.input?.displayName}|${command.value}|${command.facing}|'
+        '${command.text}';
     final previous = _operations[command.operationId];
     if (previous != null) {
       if (previous.fingerprint == fingerprint) return previous.result;
@@ -192,6 +202,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
               mediaReady: false,
               localVideo: LocalVideo.off,
               remoteVideo: false,
+              audioRoutes: const [],
               endedAtMs: DateTime.now().millisecondsSinceEpoch,
               endReason: call.state == CallState.incoming
                   ? EndReason.declined
@@ -232,6 +243,37 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
               ),
             );
           }
+        case CommandType.setAudioRoute:
+          if (call.state == CallState.incoming) {
+            throw const CallxException('invalidState', 'Answer first.');
+          }
+          if (!call.audioRoutes.any((route) => route.id == command.text)) {
+            throw const CallxException(
+              'invalidArgument',
+              'Use a route from audioRoutes.',
+            );
+          }
+          _commit(call.copyWith(audioRoute: command.text));
+        case CommandType.sendDtmf:
+          if ((command.text ?? '').isEmpty ||
+              (command.text ?? '').length > 32 ||
+              RegExp(r'[^0-9*#]').hasMatch(command.text ?? '')) {
+            throw const CallxException(
+              'invalidArgument',
+              'digits must be 1-32 of 0-9, * and #.',
+            );
+          }
+          if (call.state != CallState.active) {
+            throw const CallxException('invalidState', 'Tones need media.');
+          }
+        case CommandType.setDisplayName:
+          if ((command.text ?? '').isEmpty) {
+            throw const CallxException(
+              'invalidArgument',
+              'displayName is required.',
+            );
+          }
+          _commit(call.copyWith(displayName: command.text));
         case CommandType.setMuted:
         case CommandType.setHeld:
           if (command.value == null) {
@@ -465,6 +507,7 @@ final class _PreviewBackend implements CallxBackend, CallxSimulator {
         mediaReady: false,
         localVideo: LocalVideo.off,
         remoteVideo: false,
+        audioRoutes: const [],
         endedAtMs: DateTime.now().millisecondsSinceEpoch,
         endReason: EndReason.remoteEnded,
       ),

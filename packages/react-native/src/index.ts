@@ -1,7 +1,7 @@
 import {NativeCallxBackend} from './native.js';
 
-/** Contract v0 candidate; 0.2 adds video (ADR-0010). */
-export const CONTRACT_VERSION = '0.2.0' as const;
+/** Contract v0; 0.3 adds phone features (ADR-0013). */
+export const CONTRACT_VERSION = '0.3.0' as const;
 export const CALL_STATES = ['incoming', 'outgoing', 'connecting', 'active', 'held', 'ended'] as const;
 export const END_REASONS = ['localHangup', 'declined', 'remoteEnded', 'callerCancelled',
   'unanswered', 'busy', 'failed', 'answeredElsewhere', 'declinedElsewhere'] as const;
@@ -20,6 +20,9 @@ export type ExecutionMode = 'native' | 'preview';
 /** The local camera: `blocked` means it was on and the OS took it, for example in the background. */
 export type LocalVideo = 'off' | 'on' | 'blocked';
 export type CameraFacing = 'front' | 'back';
+export type AudioRouteKind = 'earpiece' | 'speaker' | 'bluetooth' | 'wired' | 'other';
+export interface AudioRoute { readonly id: string; readonly kind: AudioRouteKind; readonly name: string }
+export interface CallRequest { readonly handle: string; readonly displayName?: string; readonly video: boolean }
 export interface Call {
   readonly callId: string;
   readonly displayName: string;
@@ -40,6 +43,9 @@ export interface Call {
   readonly cameraFacing?: CameraFacing;
   /** A remote video track is available to render. Absent means false. */
   readonly remoteVideo?: boolean;
+  /** Available OS audio endpoints; absent until observed. */
+  readonly audioRoutes?: readonly AudioRoute[];
+  readonly audioRoute?: string;
   readonly endReason?: EndReason;
   readonly createdAtMs?: number;
   readonly acceptedAtMs?: number;
@@ -120,6 +126,8 @@ export interface Capabilities {
   readonly mute: boolean;
   /** A video media adapter is installed; `setCamera` and `switchCamera` work. */
   readonly video: boolean;
+  /** The installed media adapter can send keypad tones. */
+  readonly dtmf: boolean;
 }
 export interface CommandOptions { readonly operationId?: string; readonly deadlineAtMs?: number }
 /**
@@ -131,7 +139,8 @@ export type Command =
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'startCall'; input: CallInput }
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'answer' | 'end'; callId: string }
   | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'setMuted' | 'setHeld' | 'setCamera'; callId: string; value: boolean }
-  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'switchCamera'; callId: string; value: CameraFacing };
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'switchCamera'; callId: string; value: CameraFacing }
+  | { contractVersion: typeof CONTRACT_VERSION; operationId: string; deadlineAtMs?: number; type: 'setAudioRoute' | 'sendDtmf' | 'setDisplayName'; callId: string; value: string };
 export class CallxError extends Error {
   constructor(public readonly code: string, message: string) {
     super(message);
@@ -150,6 +159,7 @@ export interface CallxBackend {
   getSnapshot(): Promise<Snapshot>;
   getPushToken(): Promise<PushToken | null>;
   observe(listener: (snapshot: Snapshot) => void): () => void;
+  addCallRequestListener?(listener: (request: CallRequest) => void): () => void;
   dispose(): void;
 }
 export class Callx {
@@ -191,6 +201,21 @@ export class Callx {
   /** Chooses the front or back camera; remembered while the camera is off. */
   async switchCamera(callId: string, facing: CameraFacing, options?: CommandOptions): Promise<CommandResult> {
     return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'switchCamera', callId, value: facing});
+  }
+  /** Select an id from the call's observed audioRoutes. */
+  async setAudioRoute(callId: string, routeId: string, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setAudioRoute', callId, value: routeId});
+  }
+  /** Send 1–32 keypad digits (0–9, * and #) during an active call. */
+  async sendDtmf(callId: string, digits: string, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'sendDtmf', callId, value: digits});
+  }
+  async setDisplayName(callId: string, name: string, options?: CommandOptions): Promise<CommandResult> {
+    return this.backend.execute({contractVersion: CONTRACT_VERSION, ...this.operation(options), type: 'setDisplayName', callId, value: name});
+  }
+  /** A system request is not a call: look up its handle and decide whether to startCall. */
+  addCallRequestListener(listener: (request: CallRequest) => void): () => void {
+    return this.backend.addCallRequestListener?.(listener) ?? (() => {});
   }
   /** The push token to register with your backend after sign-in and on each launch. */
   async getPushToken(): Promise<PushToken | null> { return this.backend.getPushToken(); }

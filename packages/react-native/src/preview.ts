@@ -3,7 +3,7 @@ import type {Call, CallEvent, CallInput, CallxBackend, CallxConfig, Capabilities
 
 /** Video fields reset when a call ends; whether it was a video call stays. */
 function withoutLiveVideo(call: Call): Call {
-  const {localVideo: _local, cameraFacing: _facing, remoteVideo: _remote, ...rest} = call;
+  const {localVideo: _local, cameraFacing: _facing, remoteVideo: _remote, audioRoutes: _routes, audioRoute: _route, ...rest} = call;
   return rest;
 }
 
@@ -35,7 +35,7 @@ class PreviewBackend implements CallxBackend {
     return {contractVersion: CONTRACT_VERSION, coreVersion: 'preview', execution: 'preview',
       accountGeneration: this.accountGeneration,
       nativeCalling: false, durableReplay: false, providerManagedSignaling: false,
-      hold: true, mute: true, video: true};
+      hold: true, mute: true, video: true, dtmf: true};
   }
   private commit(call: Call | null): void {
     this.snapshot = Object.freeze({sequence: String(++this.sequence), call: call ? Object.freeze({...call}) : null});
@@ -76,7 +76,7 @@ class PreviewBackend implements CallxBackend {
     const {video, ...rest} = input;
     this.facing = undefined;
     this.commit({...rest, ...(video ? {video: true} : {}), direction, state: direction, muted: false, mediaReady: false,
-      createdAtMs: Date.now()});
+      audioRoutes: [{id: 'earpiece', kind: 'earpiece', name: 'Phone'}, {id: 'speaker', kind: 'speaker', name: 'Speaker'}], audioRoute: 'earpiece', createdAtMs: Date.now()});
   }
   async execute(command: Command): Promise<CommandResult> {
     this.guard();
@@ -114,6 +114,19 @@ class PreviewBackend implements CallxBackend {
           if (!['connecting', 'active', 'held'].includes(call.state)) throw new CallxError('invalidState', 'Answer before using the camera.');
           this.facing = command.value;
           this.commit(call.localVideo && call.localVideo !== 'off' ? {...call, cameraFacing: command.value} : call);
+          break;
+        case 'setAudioRoute':
+          if (!['outgoing', 'connecting', 'active', 'held'].includes(call.state)) throw new CallxError('invalidState', 'Call audio is not available.');
+          if (!call.audioRoutes?.some(route => route.id === command.value)) throw new CallxError('invalidArgument', 'Choose an available route.');
+          this.commit({...call, audioRoute: command.value});
+          break;
+        case 'sendDtmf':
+          if (call.state !== 'active') throw new CallxError('invalidState', 'DTMF needs an active call.');
+          if (command.value.match(/^[0-9*#]{1,32}$/)?.[0] !== command.value) throw new CallxError('invalidArgument', 'Invalid keypad digits.');
+          break;
+        case 'setDisplayName':
+          if (!command.value.trim() || new TextEncoder().encode(command.value).length > 256) throw new CallxError('invalidArgument', 'Invalid display name.');
+          this.commit({...call, displayName: command.value});
           break;
         case 'setMuted':
         case 'setHeld':
@@ -217,6 +230,11 @@ class PreviewBackend implements CallxBackend {
     if (blocked && call.localVideo === 'on') this.commit({...call, localVideo: 'blocked'});
     if (!blocked && call.localVideo === 'blocked') this.commit({...call, localVideo: 'on'});
   }
+  async audioRoutes(routes: readonly import('./index.js').AudioRoute[], current?: string): Promise<void> {
+    const call = this.requireCall();
+    const {audioRoute: _old, ...rest} = call;
+    this.commit({...rest, audioRoutes: routes, ...(routes.some(route => route.id === current) ? {audioRoute: current} : {})});
+  }
   async reset(): Promise<void> { this.guard(); this.commit(null); }
   dispose(): void { this.disposed = true; this.listeners.clear(); this.eventListeners.clear(); this.pendingSessionEvents = []; }
 }
@@ -231,6 +249,7 @@ export function createCallxPreview() {
       remoteEnded: () => backend.remoteEnded(),
       remoteVideo: (available: boolean) => backend.remoteVideo(available),
       cameraBlocked: (blocked: boolean) => backend.cameraBlocked(blocked),
+      audioRoutes: (routes: readonly import('./index.js').AudioRoute[], current?: string) => backend.audioRoutes(routes, current),
       reset: () => backend.reset(),
     },
   };

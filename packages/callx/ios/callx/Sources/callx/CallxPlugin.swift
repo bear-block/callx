@@ -1,9 +1,10 @@
 @preconcurrency import Flutter
 import UIKit
 
-public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler, FlutterSceneLifeCycleDelegate {
     nonisolated(unsafe) private static var hostRuntime: BridgeRuntime?
     private var receiver: FlutterBridgeEventReceiver?
+    private let callRequests = CallxRequestStreamHandler()
     private let pipEvents = CallxPiPStreamHandler()
 
     public static func configure(_ runtime: BridgeRuntime) {
@@ -23,6 +24,8 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     }
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = CallxPlugin()
+        registrar.addApplicationDelegate(instance)
+        registrar.addSceneDelegate(instance)
         registrar.addMethodCallDelegate(instance, channel: FlutterMethodChannel(
             name: "dev.callx/methods", binaryMessenger: registrar.messenger()))
         FlutterEventChannel(name: "dev.callx/events", binaryMessenger: registrar.messenger())
@@ -44,16 +47,31 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                     }
                 }
             }
+        FlutterEventChannel(name: "dev.callx/call_requests", binaryMessenger: registrar.messenger())
+            .setStreamHandler(instance.callRequests)
         registrar.register(CallxVideoViewFactory(), withId: "dev.callx/video")
     }
 
+    public func application(_ application: UIApplication, continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        CallxCallRequests.handle(userActivity)
+    }
+    public func scene(_ scene: UIScene, continue userActivity: NSUserActivity) -> Bool {
+        CallxCallRequests.handle(userActivity)
+    }
+    public func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions?) -> Bool {
+        for activity in connectionOptions?.userActivities ?? [] { CallxCallRequests.handle(activity) }
+        // Keep Flutter's scene/engine connection and other launch handlers running.
+        return false
+    }
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let runtime = Self.hostRuntime
         switch call.method {
         case "setup" where runtime == nil: result([
-            "contractVersion": "0.2.0", "coreVersion": "0.2.0", "execution": "native",
+            "contractVersion": "0.3.0", "coreVersion": "0.3.0", "execution": "native",
             "accountGeneration": "unconfigured", "nativeCalling": false, "durableReplay": false,
-            "providerManagedSignaling": false, "hold": false, "mute": false, "video": false,
+            "providerManagedSignaling": false, "hold": false, "mute": false, "video": false, "dtmf": false,
         ])
         case "dispose": result(nil)
         default:
@@ -164,3 +182,33 @@ private func bridgeAny(_ value: BridgeValue) -> Any {
     }
 }
 private func bridgeAny(_ value: BridgeObject) -> [String: Any] { value.mapValues(bridgeAny) }
+
+private final class CallxRequestStreamHandler: NSObject, FlutterStreamHandler {
+    private var receiver: FlutterRequestReceiver?
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        let receiver = FlutterRequestReceiver(events)
+        self.receiver = receiver
+        CallxCallRequests.setListener { receiver.receive() }
+        return nil
+    }
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        receiver?.cancel(); receiver = nil
+        CallxCallRequests.setListener(nil)
+        return nil
+    }
+}
+private final class FlutterRequestReceiver: @unchecked Sendable {
+    private let lock = NSLock()
+    private var active = true
+    func cancel() { lock.withLock { active = false } }
+    private let sink: FlutterEventSink
+    init(_ sink: @escaping FlutterEventSink) { self.sink = sink }
+    func receive() {
+        DispatchQueue.main.async { [self] in
+            guard lock.withLock({ active }), let request = CallxCallRequests.take() else { return }
+            var body: [String: Any] = ["handle": request.handle, "video": request.video]
+            if let name = request.displayName { body["displayName"] = name }
+            sink(body)
+        }
+    }
+}

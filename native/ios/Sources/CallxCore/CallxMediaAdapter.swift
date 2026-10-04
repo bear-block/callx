@@ -94,8 +94,16 @@ public extension CallxMediaAdapter {
     var apiVersion: Int { callxMediaAPIVersion }
 }
 
-/// Wraps the host performer so CallKit mute actions reach the media adapter; the action is
-/// fulfilled only when the media followed.
+/// A media adapter that also sends keypad tones (ADR-0013), reported as the `dtmf` capability.
+/// Optional: adapters that do not conform keep working, and `sendDtmf` is rejected as `unsupported`.
+/// The CallKit keypad uses it too.
+public protocol CallxDTMFAdapter: AnyObject {
+    /// Sends `digits` (`0-9`, `*`, `#`) in order. True once all were sent, false if media is not ready.
+    func sendDTMF(callID: String, digits: String) async -> Bool
+}
+
+/// Wraps the host performer so CallKit mute and keypad actions reach the media adapter; the
+/// action is fulfilled only when the media followed.
 public final class MediaRoutingPerformer: CallKitActionPerforming, @unchecked Sendable {
     private let performer: any CallKitActionPerforming
     private let media: any CallxMediaAdapter
@@ -106,6 +114,12 @@ public final class MediaRoutingPerformer: CallKitActionPerforming, @unchecked Se
     public func perform(_ kind: CallKitActionKind, callUUID: UUID) async -> Bool {
         if case .setMuted(let muted) = kind, let callID = uuids.callID(for: callUUID),
            await !media.setMuted(callID: callID, muted: muted) { return false }
+        if case .playDTMF(let digits) = kind {
+            // Keep only keypad digits; CallKit may include pauses and waits.
+            let tones = digits.filter { "0123456789*#".contains($0) }
+            guard let callID = uuids.callID(for: callUUID), let dtmf = media as? any CallxDTMFAdapter else { return false }
+            if !tones.isEmpty, await !dtmf.sendDTMF(callID: callID, digits: tones) { return false }
+        }
         return await performer.perform(kind, callUUID: callUUID)
     }
     public func providerDidReset() async { await performer.providerDidReset() }

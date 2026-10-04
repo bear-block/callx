@@ -168,3 +168,17 @@ test('PiP opts in without losing activity configuration flags', async () => {
   assert.equal(defaults.android.manifest.manifest.application[0].activity[0].$['android:supportsPictureInPicture'], undefined);
   assert.throws(() => plugin({name: 'Test', slug: 'test'}, {pictureInPicture: 'yes'}), /Callx/);
 });
+
+test('system call request hook preserves other activity handlers and is inserted once', () => {
+  const existing = APP_DELEGATE.replace('class AppDelegate: ExpoAppDelegate {', `class AppDelegate: ExpoAppDelegate {
+    public override func application(_ application: UIApplication, continue userActivity: NSUserActivity,
+      restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+      return RCTLinkingManager.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }`);
+  const updated = plugin.bootstrapAppDelegate(existing, false);
+  assert.equal(updated.match(/CallxCallRequests.handle\(userActivity\)/g).length, 1);
+  assert.match(updated, /if CallxCallRequests.handle\(userActivity\) \{ return true \}[\s\S]*return RCTLinkingManager/);
+  assert.equal(plugin.bootstrapAppDelegate(updated, false), updated);
+  const inserted = plugin.bootstrapAppDelegate(APP_DELEGATE, false);
+  assert.match(inserted, /return super.application\(application, continue: userActivity/);
+});

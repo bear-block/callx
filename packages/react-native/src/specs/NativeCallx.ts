@@ -13,6 +13,8 @@ export interface Spec extends TurboModule {
   closeSession(request: Object): Promise<void>;
   getSnapshot(): Promise<Object>;
   getPushToken(): Promise<Object | null>;
+  takeCallRequest(): Promise<Object | null>;
+  releaseCallRequests(): void;
   dispose(): void;
   // Picture-in-picture for video calls (ADR-0010 addendum), Android and iOS.
   configurePictureInPicture(options: Object): void;

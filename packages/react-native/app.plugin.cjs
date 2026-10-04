@@ -176,12 +176,28 @@ function bootstrapMainApplication(source, fcmPackage) {
 /** Inserts the iOS bootstrap at the start of didFinishLaunching; PushKit only with iosVoip. */
 function bootstrapAppDelegate(source, iosVoip) {
   source = insertAfter(source, 'import callx_react_native', /^import React$/m, 'import callx_react_native');
-  return insertAfter(source, 'CallxReactNativeHost.bootstrap', /didFinishLaunchingWithOptions launchOptions:[^{]*\{/, [
+  source = insertAfter(source, 'CallxReactNativeHost.bootstrap', /didFinishLaunchingWithOptions launchOptions:[^{]*\{/, [
     '    // Callx: the native call pipeline, before PushKit can deliver.',
     '    var callxConfig = CallxBootstrapConfig()',
     `    callxConfig.startPushRegistry = ${iosVoip}`,
     '    do { try CallxReactNativeHost.bootstrap(callxConfig) } catch { NSLog("Callx: calling is unavailable: %@", "\\(error)") }',
   ].join('\n'));
+  if (!source.includes('CallxCallRequests.handle(userActivity)')) {
+    const existing = /continue userActivity: NSUserActivity,[^{]*\{/;
+    if (existing.test(source)) {
+      source = insertAfter(source, 'CallxCallRequests.handle(userActivity)', existing,
+        '    if CallxCallRequests.handle(userActivity) { return true }');
+    } else {
+      source = insertAfter(source, 'CallxCallRequests.handle(userActivity)', /class AppDelegate[^\{]*\{/, [
+        '  public override func application(_ application: UIApplication, continue userActivity: NSUserActivity,',
+        '    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {',
+        '    if CallxCallRequests.handle(userActivity) { return true }',
+        '    return super.application(application, continue: userActivity, restorationHandler: restorationHandler)',
+        '  }',
+      ].join('\n'));
+    }
+  }
+  return source;
 }
 
 /** Generates CallxMessagingService, which forwards Callx invitations and reports the FCM token. */

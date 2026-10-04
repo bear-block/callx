@@ -1,12 +1,14 @@
 library;
 
 import 'src/native_backend.dart';
+import 'src/call_requests.dart';
 
+export 'src/call_requests.dart';
 export 'src/picture_in_picture.dart';
 export 'src/video_view.dart';
 
-/// Contract v0 candidate; 0.2 adds video (ADR-0010).
-const contractVersion = '0.2.0';
+/// Contract v0 candidate; 0.2 adds video (ADR-0010), 0.3 audio routes, DTMF and renaming (ADR-0013).
+const contractVersion = '0.3.0';
 
 enum CallState { incoming, outgoing, connecting, active, held, ended }
 
@@ -58,6 +60,30 @@ enum LocalVideo { off, on, blocked }
 
 enum CameraFacing { front, back }
 
+enum AudioRouteKind { earpiece, speaker, bluetooth, wired, other }
+
+/// An output the call's audio can use. Switch to it with [Callx.setAudioRoute].
+final class AudioRoute {
+  const AudioRoute({required this.id, required this.kind, required this.name});
+
+  /// Opaque; stable while the device stays connected.
+  final String id;
+  final AudioRouteKind kind;
+
+  /// The platform's label, such as a headset's name.
+  final String name;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AudioRoute &&
+      other.id == id &&
+      other.kind == kind &&
+      other.name == name;
+
+  @override
+  int get hashCode => Object.hash(id, kind, name);
+}
+
 final class CallInput {
   const CallInput({
     required this.callId,
@@ -106,6 +132,8 @@ final class Call {
     this.localVideo = LocalVideo.off,
     this.cameraFacing,
     this.remoteVideo = false,
+    this.audioRoutes = const [],
+    this.audioRoute,
     this.endReason,
     this.createdAtMs,
     this.acceptedAtMs,
@@ -132,6 +160,12 @@ final class Call {
 
   /// A remote video track is available to render.
   final bool remoteVideo;
+
+  /// Outputs the platform offers; empty until it reports them.
+  final List<AudioRoute> audioRoutes;
+
+  /// The [AudioRoute.id] in use, one of [audioRoutes]; null when unknown.
+  final String? audioRoute;
   final EndReason? endReason;
   final int? createdAtMs;
   final int? acceptedAtMs;
@@ -146,6 +180,9 @@ final class Call {
     LocalVideo? localVideo,
     CameraFacing? cameraFacing,
     bool? remoteVideo,
+    List<AudioRoute>? audioRoutes,
+    String? audioRoute,
+    String? displayName,
     EndReason? endReason,
     int? createdAtMs,
     int? acceptedAtMs,
@@ -153,7 +190,7 @@ final class Call {
     int? endedAtMs,
   }) => Call(
     callId: callId,
-    displayName: displayName,
+    displayName: displayName ?? this.displayName,
     direction: direction,
     state: state ?? this.state,
     muted: muted ?? this.muted,
@@ -166,6 +203,14 @@ final class Call {
         ? null
         : cameraFacing ?? this.cameraFacing,
     remoteVideo: remoteVideo ?? this.remoteVideo,
+    audioRoutes: audioRoutes ?? this.audioRoutes,
+    // The route in use is always one of the routes, as on the wire.
+    audioRoute:
+        (audioRoutes ?? this.audioRoutes).any(
+          (route) => route.id == (audioRoute ?? this.audioRoute),
+        )
+        ? audioRoute ?? this.audioRoute
+        : null,
     endReason: endReason ?? this.endReason,
     createdAtMs: createdAtMs ?? this.createdAtMs,
     acceptedAtMs: acceptedAtMs ?? this.acceptedAtMs,
@@ -264,6 +309,7 @@ final class CallxCapabilities {
     required this.hold,
     required this.mute,
     this.video = false,
+    this.dtmf = false,
   });
   String get contract => contractVersion;
   final String coreVersion;
@@ -277,6 +323,9 @@ final class CallxCapabilities {
 
   /// A video media adapter is installed; [Callx.setCamera] and [Callx.switchCamera] work.
   final bool video;
+
+  /// The media adapter sends keypad tones; [Callx.sendDtmf] works.
+  final bool dtmf;
 }
 
 final class PlatformError {
@@ -320,6 +369,9 @@ enum CommandType {
   setHeld,
   setCamera,
   switchCamera,
+  setAudioRoute,
+  sendDtmf,
+  setDisplayName,
 }
 
 final class CallCommand {
@@ -331,6 +383,7 @@ final class CallCommand {
     this.input,
     this.value,
     this.facing,
+    this.text,
   });
   String get contract => contractVersion;
   final CommandType type;
@@ -342,6 +395,10 @@ final class CallCommand {
 
   /// [CommandType.switchCamera] only.
   final CameraFacing? facing;
+
+  /// The route id, the digits or the display name for [CommandType.setAudioRoute],
+  /// [CommandType.sendDtmf] and [CommandType.setDisplayName].
+  final String? text;
 }
 
 /// The default backend delegates to the configured native runtime.
@@ -363,6 +420,8 @@ abstract interface class CallxBackend {
 }
 
 final class Callx {
+  /// Requests from Recents, contacts, Siri or an Android missed-call callback.
+  static Stream<CallRequest> get callRequests => CallxCallRequests.requests;
   Callx({CallxBackend? backend}) : _transport = backend ?? NativeCallxBackend();
   final CallxBackend _transport;
   int _operationCounter = 0;
@@ -453,11 +512,51 @@ final class Callx {
     options: options,
   );
 
+  /// Moves call audio to [routeId], one of [Call.audioRoutes]: the speaker, the earpiece or a
+  /// headset. Rejected with `invalidArgument` for a route that is not listed.
+  Future<CommandResult> setAudioRoute(
+    String callId,
+    String routeId, {
+    CommandOptions? options,
+  }) async => _executeForCall(
+    CommandType.setAudioRoute,
+    callId,
+    text: routeId,
+    options: options,
+  );
+
+  /// Sends keypad tones (`0-9`, `*`, `#`, up to 32) during an active call, for example to an
+  /// IVR. Needs [CallxCapabilities.dtmf]; rejected as `unsupported` otherwise.
+  Future<CommandResult> sendDtmf(
+    String callId,
+    String digits, {
+    CommandOptions? options,
+  }) async => _executeForCall(
+    CommandType.sendDtmf,
+    callId,
+    text: digits,
+    options: options,
+  );
+
+  /// Changes the name the system call UI shows, for example once the backend resolves the caller.
+  /// On Android, cars and watches keep the first name.
+  Future<CommandResult> setDisplayName(
+    String callId,
+    String displayName, {
+    CommandOptions? options,
+  }) async => _executeForCall(
+    CommandType.setDisplayName,
+    callId,
+    text: displayName,
+    options: options,
+  );
+
   Future<CommandResult> _executeForCall(
     CommandType type,
     String callId, {
     bool? value,
     CameraFacing? facing,
+    String? text,
     CommandOptions? options,
   }) async {
     final operation = _operation(options);
@@ -469,6 +568,7 @@ final class Callx {
         callId: callId,
         value: value,
         facing: facing,
+        text: text,
       ),
     );
   }

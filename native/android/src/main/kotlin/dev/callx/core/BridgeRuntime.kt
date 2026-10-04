@@ -12,6 +12,8 @@ data class BridgeCapabilities(
     val mute: Boolean,
     /** The media adapter supports video (ADR-0010). */
     val video: Boolean = false,
+    /** The media adapter sends keypad tones (ADR-0013). */
+    val dtmf: Boolean = false,
 )
 
 /** Framework-neutral wire adapter. Flutter and React Native only translate their map types. */
@@ -39,6 +41,7 @@ class BridgeRuntime(
         "durableReplay" to capabilities.durableReplay,
         "providerManagedSignaling" to capabilities.providerManagedSignaling,
         "hold" to capabilities.hold, "mute" to capabilities.mute, "video" to capabilities.video,
+        "dtmf" to capabilities.dtmf,
         )
     }
 
@@ -152,6 +155,15 @@ class BridgeRuntime(
         requiredId(mapOf("callId" to callId), "callId")
         return coordinator.durableVideoObserved(callId, localVideo, remoteVideo, observedAtMs).also { publishNewEvents() }
     }
+    /**
+     * Audio outputs the platform reports for the call, and the one in use ([current], one of the
+     * route ids). Returns true when state changed.
+     */
+    fun audioRoutesObserved(callId: String, current: String?, routes: List<AudioRoute>, observedAtMs: Long = nowMs()): Boolean {
+        requiredId(mapOf("callId" to callId), "callId")
+        return coordinator.durableAudioRoutesObserved(callId, current, routes.map(::boundedRoute), observedAtMs)
+            .also { publishNewEvents() }
+    }
     /** Returns true when a live call ended; otherwise the ID is recorded so it cannot ring later. */
     fun remoteEnded(callId: String, reason: String = "remoteEnded", observedAtMs: Long = nowMs()): Boolean {
         requiredId(mapOf("callId" to callId), "callId")
@@ -183,12 +195,14 @@ class BridgeRuntime(
     fun expireRinging(observedAtMs: Long = nowMs(), callId: String? = null): String? =
         coordinator.durableExpireRinging(observedAtMs, callId).also { publishNewEvents() }
     /** Runs a call-control command that started in native UI, such as a notification button. */
-    fun executeNative(type: CommandType, callId: String, value: Boolean? = null): CompletionStage<NativeOperation> {
+    fun executeNative(type: CommandType, callId: String, value: Boolean? = null,
+        audioRoute: String? = null): CompletionStage<NativeOperation> {
         if (type == CommandType.startCall) invalid("startCall needs input.")
         requiredId(mapOf("callId" to callId), "callId")
         val receivedAt = nowMs()
         val operationId = synchronized(this) { "native-$receivedAt-${++nativeOperationCounter}" }
-        val command = NativeCommand(operationId, type, callId, value = value, deadlineAtMs = receivedAt + 4_000)
+        val command = NativeCommand(operationId, type, callId, value = value, deadlineAtMs = receivedAt + 4_000,
+            audioRoute = audioRoute)
         return dispatcher.execute(command, receivedAt).thenApply { it.also { publishNewEvents() } }
     }
 
@@ -244,6 +258,18 @@ class BridgeRuntime(
                 ?: invalid("value must be front or back.")
             return NativeCommand(operationId, type, callId, facing = facing, deadlineAtMs = deadline)
         }
+        when (type) {
+            CommandType.setAudioRoute -> return NativeCommand(operationId, type, callId,
+                audioRoute = requiredText(value, "value", 128), deadlineAtMs = deadline)
+            CommandType.sendDtmf -> {
+                val digits = value["value"] as? String
+                if (digits == null || !CallCoordinator.DTMF.matches(digits)) invalid("value must be 1-32 keypad digits.")
+                return NativeCommand(operationId, type, callId, digits = digits, deadlineAtMs = deadline)
+            }
+            CommandType.setDisplayName -> return NativeCommand(operationId, type, callId,
+                displayName = requiredText(value, "value", 256), deadlineAtMs = deadline)
+            else -> Unit
+        }
         val takesValue = type in setOf(CommandType.setMuted, CommandType.setHeld, CommandType.setCamera)
         val commandValue = if (takesValue) value["value"] as? Boolean ?: invalid("value is required.") else null
         if (!takesValue && value.containsKey("value")) invalid("value is forbidden for this command.")
@@ -286,7 +312,23 @@ class BridgeRuntime(
                 put("localVideo", value.localVideo.name); put("cameraFacing", (value.cameraFacing ?: CameraFacing.front).name)
             }
             if (value.remoteVideo) put("remoteVideo", true)
+            // Absent until the platform reports routes, so 0.2 snapshots stay unchanged.
+            if (value.audioRoutes.isNotEmpty()) put("audioRoutes", value.audioRoutes.map {
+                mapOf("id" to it.id, "kind" to it.kind.name, "name" to it.name)
+            })
+            value.audioRoute?.let { put("audioRoute", it) }
         }
+    }
+    /** Platform labels can be long or empty; the contract allows 1–128 bytes for both. */
+    private fun boundedRoute(route: AudioRoute) = route.copy(
+        id = truncateUtf8(route.id, 128).ifEmpty { route.kind.name },
+        name = truncateUtf8(route.name, 128).ifEmpty { route.kind.name })
+    private fun truncateUtf8(text: String, maxBytes: Int): String {
+        if (text.toByteArray().size <= maxBytes) return text
+        var end = text.length
+        while (end > 0 && text.substring(0, end).toByteArray().size > maxBytes) end--
+        if (end > 0 && Character.isHighSurrogate(text[end - 1])) end--
+        return text.substring(0, end)
     }
     private fun eventMap(value: JournalEvent): Map<String, Any?> = mutableMapOf<String, Any?>(
         "contractVersion" to VERSION, "eventId" to value.eventId, "sequence" to value.sequence.toString(),
@@ -316,9 +358,9 @@ class BridgeRuntime(
     }
     private fun invalid(message: String): Nothing = throw BridgeViolation("invalidArgument", message)
     private companion object {
-        const val VERSION = "0.2.0"
-        /** 0.2 only adds optional fields and commands, so 0.1 wrappers keep working. */
-        val SUPPORTED_VERSIONS = setOf("0.1.0", "0.2.0")
+        const val VERSION = "0.3.0"
+        /** 0.2 and 0.3 only add optional fields and commands, so older wrappers keep working. */
+        val SUPPORTED_VERSIONS = setOf("0.1.0", "0.2.0", "0.3.0")
         const val MAX_TIMESTAMP = 9_007_199_254_740_991L
         const val MAX_DEADLINE_LEAD_MS = 30_000L
         val ID = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")

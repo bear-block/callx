@@ -1,6 +1,6 @@
 import {CallxError, CONTRACT_VERSION} from './index.js';
 import type {CallEvent, CallxBackend, CallxConfig, Capabilities, Command, CommandResult,
-  ObservationSession, OperationLookup, PushToken, Snapshot} from './index.js';
+  CallRequest, ObservationSession, OperationLookup, PushToken, Snapshot} from './index.js';
 
 export interface NativeModule {
   setup(value: object): Promise<Capabilities>;
@@ -11,6 +11,8 @@ export interface NativeModule {
   closeSession(value: object): Promise<void>;
   getSnapshot(): Promise<Snapshot>;
   getPushToken(): Promise<PushToken | null>;
+  takeCallRequest(): Promise<CallRequest | null>;
+  releaseCallRequests(): void;
   dispose(): void;
 }
 
@@ -115,6 +117,22 @@ export class NativeCallxBackend implements CallxBackend {
       active = false; off();
       if (--this.snapshotObservers === 0) void this.releaseObserverSession();
     };
+  }
+  addCallRequestListener(listener: (request: CallRequest) => void): () => void {
+    let active = true;
+    let subscription: {remove(): void} | undefined;
+    let release: (() => void) | undefined;
+    void this.binding().then(async ({module, rn}) => {
+      if (!active) return;
+      subscription = new rn.NativeEventEmitter(module).addListener('callxCallRequest', raw => {
+        if (active) listener(raw as CallRequest);
+      });
+      const pendingRequest = module.takeCallRequest();
+      release = () => module.releaseCallRequests();
+      const pending = await pendingRequest;
+      if (active && pending) listener(pending);
+    }).catch(() => {});
+    return () => { active = false; subscription?.remove(); release?.(); release = undefined; };
   }
   dispose() { void this.binding().then(({module}) => module.dispose()); }
 }

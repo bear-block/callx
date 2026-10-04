@@ -31,11 +31,11 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
             catch (error: Throwable) { reject(promise, error) }; return
         }
         promise.resolve(WritableNativeMap().apply {
-            putString("contractVersion", "0.2.0"); putString("coreVersion", "0.2.0")
+            putString("contractVersion", "0.3.0"); putString("coreVersion", "0.3.0")
             putString("execution", "native"); putString("accountGeneration", "unconfigured")
             putBoolean("nativeCalling", false); putBoolean("durableReplay", false)
             putBoolean("providerManagedSignaling", false); putBoolean("hold", false); putBoolean("mute", false)
-            putBoolean("video", false)
+            putBoolean("video", false); putBoolean("dtmf", false)
         })
     }
 
@@ -56,6 +56,30 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
     override fun getPushToken(promise: Promise) {
         val token = dev.callx.telecom.CallxPushTokens.current
         promise.resolve(token?.let { Arguments.makeNativeMap(mapOf("type" to it.type, "token" to it.token)) })
+    }
+    private fun requestBody(request: dev.callx.telecom.CallxCallRequest): Map<String, Any> = buildMap {
+        put("handle", request.handle); put("video", request.video)
+        request.displayName?.let { put("displayName", it) }
+    }
+    private var callRequestListeners = 0
+    override fun releaseCallRequests() {
+        callRequestListeners = maxOf(0, callRequestListeners - 1)
+        if (callRequestListeners == 0) dev.callx.telecom.CallxCallRequests.setListener(null)
+    }
+    override fun takeCallRequest(promise: Promise) {
+        callRequestListeners++
+        attachCallRequests()
+        promise.resolve(dev.callx.telecom.CallxCallRequests.take()?.let { Arguments.makeNativeMap(requestBody(it)) })
+    }
+    private fun attachCallRequests() {
+        dev.callx.telecom.CallxCallRequests.setListener({
+            reactApplicationContext.runOnUiQueueThread {
+                if (!invalidated && callRequestListeners > 0) dev.callx.telecom.CallxCallRequests.take()?.let {
+                    reactApplicationContext.getJSModule(com.facebook.react.modules.core.DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("callxCallRequest", Arguments.makeNativeMap(requestBody(it)))
+                }
+            }
+        }, notifyPending = false)
     }
     override fun dispose() = Unit
 
@@ -132,7 +156,7 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
     }
     override fun removeListeners(count: Double) {
         listenerCount = maxOf(0, listenerCount - count.toInt())
-        if (listenerCount == 0) hostRuntime?.setEventListener(null)
+        if (listenerCount == 0) { hostRuntime?.setEventListener(null); dev.callx.telecom.CallxCallRequests.setListener(null) }
     }
 
     override fun initialize() {
@@ -142,6 +166,7 @@ class CallxModule(context: ReactApplicationContext) : NativeCallxSpec(context) {
     }
     override fun invalidate() {
         invalidated = true
+        dev.callx.telecom.CallxCallRequests.setListener(null)
         hostRuntime?.setEventListener(null)
         reactApplicationContext.removeLifecycleEventListener(lifecycle)
         reactApplicationContext.runOnUiQueueThread {

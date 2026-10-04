@@ -2,10 +2,23 @@ import Foundation
 
 public enum CallState: String, Codable, Sendable { case incoming, outgoing, connecting, active, held, ended }
 public enum CallDirection: String, Codable, Sendable { case incoming, outgoing }
-public enum CommandType: String, Codable, Sendable { case startCall, answer, end, setMuted, setHeld, setCamera, switchCamera }
+public enum CommandType: String, Codable, Sendable {
+    case startCall, answer, end, setMuted, setHeld, setCamera, switchCamera, setAudioRoute, sendDtmf, setDisplayName
+}
 /// The local camera as the media adapter reports it (ADR-0010).
 public enum LocalVideo: String, Codable, Sendable { case off, on, blocked }
 public enum CameraFacing: String, Codable, Sendable { case front, back }
+public enum AudioRouteKind: String, Codable, Sendable { case earpiece, speaker, bluetooth, wired, other }
+/// An output the call's audio can use (ADR-0013). `id` is opaque and stable while the device stays connected.
+public struct AudioRoute: Codable, Equatable, Sendable {
+    public let id: String
+    public let kind: AudioRouteKind
+    public let name: String
+    public init(id: String, kind: AudioRouteKind, name: String) { self.id = id; self.kind = kind; self.name = name }
+}
+/// Keypad digits for `sendDtmf` (ADR-0013).
+public let callxDTMFPattern = "^[0-9*#]{1,32}$"
+func isDTMF(_ digits: String) -> Bool { digits.range(of: callxDTMFPattern, options: .regularExpression) == digits.startIndex..<digits.endIndex && !digits.isEmpty }
 public enum OperationStatus: String, Codable, Sendable { case pending, applied, rejected, timedOut, unknown }
 
 public struct CallRecord: Codable, Equatable, Sendable {
@@ -45,6 +58,14 @@ public struct CallRecord: Codable, Equatable, Sendable {
         get { remoteVideoFlag ?? false }
         set { remoteVideoFlag = newValue ? true : nil }
     }
+    /// Outputs the platform offers; empty until it reports them.
+    public var audioRoutes: [AudioRoute] {
+        get { audioRouteList ?? [] }
+        set { audioRouteList = newValue.isEmpty ? nil : newValue }
+    }
+    /// The `AudioRoute.id` in use; always one of `audioRoutes`.
+    public var audioRoute: String?
+    private var audioRouteList: [AudioRoute]?
     // Optional, like mediaInterruptedFlag, so 0.1 checkpoints still decode.
     private var videoFlag: Bool?
     private var localVideoState: LocalVideo?
@@ -99,13 +120,17 @@ public struct NativeCommand: Codable, Equatable, Sendable {
     public var video: Bool { videoFlag ?? false }
     /// switchCamera only.
     public let facing: CameraFacing?
+    /// setAudioRoute only.
+    public let audioRoute: String?
+    /// sendDtmf only.
+    public let digits: String?
     private let videoFlag: Bool?
     public init(operationID: String, type: CommandType, callID: String, value: Bool? = nil,
         displayName: String? = nil, handle: String? = nil, deadlineAtMs: Int64, video: Bool = false,
-        facing: CameraFacing? = nil) {
+        facing: CameraFacing? = nil, audioRoute: String? = nil, digits: String? = nil) {
         self.operationID = operationID; self.type = type; self.callID = callID
         self.value = value; self.displayName = displayName; self.handle = handle; self.deadlineAtMs = deadlineAtMs
-        self.videoFlag = video ? true : nil; self.facing = facing
+        self.videoFlag = video ? true : nil; self.facing = facing; self.audioRoute = audioRoute; self.digits = digits
     }
 }
 
@@ -307,6 +332,22 @@ public actor CallCoordinator {
         return true
     }
 
+    /// Audio outputs the platform reports. A `current` that is not listed is recorded as unknown.
+    /// True when state changed.
+    @discardableResult
+    public func audioRoutesObserved(callID: String, current: String?, routes: [AudioRoute], nowMs: Int64) -> Bool {
+        guard var record = call, record.callID == callID, record.state != .ended else { return false }
+        var seen = Set<String>()
+        let unique = routes.filter { seen.insert($0.id).inserted }
+        let before = record
+        record.audioRoutes = unique
+        record.audioRoute = current.flatMap { id in unique.contains { $0.id == id } ? id : nil }
+        guard record != before else { return false }
+        call = record
+        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: .platform)
+        return true
+    }
+
     /// Ends the live call, or records a tombstone so a later invitation for this ID cannot ring.
     @discardableResult
     public func remoteEnded(callID: String, reason: String = "remoteEnded", nowMs: Int64 = 0) -> Bool {
@@ -322,6 +363,7 @@ public actor CallCoordinator {
         guard var current = call, current.callID == callID, current.state != .ended else { return false }
         current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false; current.endReason = reason
         current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; current.localVideo = .off; current.remoteVideo = false
+        current.audioRoutes = []; current.audioRoute = nil
         call = current
         recordTerminal(callID: callID, reason: reason, nowMs: nowMs)
         journal.append(kind: "callChanged", observedAtMs: nowMs, callID: callID, source: source)
@@ -396,7 +438,10 @@ public actor CallCoordinator {
         let result = NativeOperation(operationID: operationID, status: .applied, errorCode: nil, completedAtMs: nowMs)
         completed[operationID] = (item.command, result)
         pruneCompleted(nowMs: nowMs)
-        journal.append(kind: "callChanged", observedAtMs: nowMs, callID: item.command.callID)
+        // Tones leave the call as it was.
+        if item.command.type != .sendDtmf {
+            journal.append(kind: "callChanged", observedAtMs: nowMs, callID: item.command.callID)
+        }
         journal.append(kind: "operationCompleted", observedAtMs: nowMs, operationID: operationID)
         return result
     }
@@ -450,6 +495,14 @@ public actor CallCoordinator {
         case .setCamera, .switchCamera:
             if command.type == .setCamera ? command.value == nil : command.facing == nil { return "invalidArgument" }
             return [.connecting, .active, .held].contains(current.state) ? nil : "invalidState"
+        case .setAudioRoute:
+            guard let route = command.audioRoute else { return "invalidArgument" }
+            guard [.outgoing, .connecting, .active, .held].contains(current.state) else { return "invalidState" }
+            return current.audioRoutes.contains { $0.id == route } ? nil : "invalidArgument"
+        case .sendDtmf:
+            guard let digits = command.digits, isDTMF(digits) else { return "invalidArgument" }
+            return current.state == .active ? nil : "invalidState"
+        case .setDisplayName: return command.displayName?.isEmpty == false ? nil : "invalidArgument"
         case .startCall: return nil
         }
     }
@@ -469,12 +522,18 @@ public actor CallCoordinator {
             current.state = .ended; current.mediaReady = false; current.mediaInterrupted = false
             current.endReason = reason
             current.endedAtMs = nowMs; current.ringDeadlineAtMs = nil; current.localVideo = .off; current.remoteVideo = false
+            current.audioRoutes = []; current.audioRoute = nil
         case .setMuted: current.muted = command.value!
         case .setHeld: current.state = command.value! ? .held : .active
         case .setCamera:
             if command.value! { current.localVideo = .on; current.cameraFacing = current.cameraFacing ?? .front }
             else { current.localVideo = .off }
         case .switchCamera: current.cameraFacing = command.facing
+        case .setAudioRoute:
+            // A headset can disappear while the platform command is completing.
+            if current.audioRoutes.contains(where: { $0.id == command.audioRoute }) { current.audioRoute = command.audioRoute }
+        case .sendDtmf: break
+        case .setDisplayName: current.displayName = command.displayName
         case .startCall: break
         }
         call = current
@@ -563,6 +622,12 @@ public actor CallCoordinator {
     public func durableVideoObserved(callID: String, localVideo: LocalVideo?, remoteVideo: Bool?, nowMs: Int64) throws -> Bool {
         let before = checkpoint()
         let result = videoObserved(callID: callID, localVideo: localVideo, remoteVideo: remoteVideo, nowMs: nowMs)
+        try persist(orRestore: before); return result
+    }
+    @discardableResult
+    public func durableAudioRoutesObserved(callID: String, current: String?, routes: [AudioRoute], nowMs: Int64) throws -> Bool {
+        let before = checkpoint()
+        let result = audioRoutesObserved(callID: callID, current: current, routes: routes, nowMs: nowMs)
         try persist(orRestore: before); return result
     }
     @discardableResult

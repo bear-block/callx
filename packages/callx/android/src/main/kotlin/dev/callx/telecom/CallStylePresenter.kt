@@ -33,6 +33,11 @@ data class CallNotificationLabels(
     val hold: CharSequence = "Hold",
     val resume: CharSequence = "Resume",
     val audio: CharSequence = "Audio",
+    /** Missed-call notification title; the caller's name is the text. */
+    val missedCall: CharSequence = "Missed call",
+    val missedVideoCall: CharSequence = "Missed video call",
+    val callBack: CharSequence = "Call back",
+    val missedChannel: CharSequence = "Missed calls",
 )
 
 /**
@@ -51,6 +56,10 @@ data class CallNotificationLabels(
  * If the system still rejects CallStyle, a plain notification with the same buttons is posted
  * instead. While the call is registered with Telecom, Android shows it even when the user blocked
  * the app's notifications.
+ *
+ * An incoming call that stops ringing unanswered leaves a missed-call notification whose Call
+ * back button delivers a [CallxCallRequest] (ADR-0013); [missedCalls] false turns it off. It needs
+ * the notification permission, since the call is no longer registered with Telecom.
  */
 class CallStylePresenter(
     private val context: Context,
@@ -60,14 +69,18 @@ class CallStylePresenter(
     private val contentIntent: ((callId: String) -> PendingIntent?)? = null,
     private val labels: CallNotificationLabels = CallNotificationLabels(),
     private val lockedAnswer: LockedAnswer = LockedAnswer.RequireUnlock,
+    private val missedCalls: Boolean = true,
 ) : IncomingCallPresenter {
     private val manager = NotificationManagerCompat.from(context)
     private val names = ConcurrentHashMap<String, String>()
     private val invitations = ConcurrentHashMap<String, Invitation>()
     private val silenced = ConcurrentHashMap.newKeySet<String>()
+    // When each ongoing call was answered; 0 while an outgoing call still rings.
+    private val answeredAt = ConcurrentHashMap<String, Long>()
     // Sound is immutable once Android creates a channel. Suffixes migrate existing installs.
     private val incomingChannelId = "${channelId}_ringtone_v1"
     private val ongoingChannelId = "${channelId}_ongoing_v1"
+    private val missedChannelId = "${channelId}_missed_v1"
 
     init {
         val ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -80,6 +93,8 @@ class CallStylePresenter(
             .setName(labels.incomingChannel).setSound(ringtone, attributes).build())
         manager.createNotificationChannel(NotificationChannelCompat.Builder(ongoingChannelId, NotificationManagerCompat.IMPORTANCE_DEFAULT)
             .setName(labels.ongoingChannel).setSound(null, null).build())
+        if (missedCalls) manager.createNotificationChannel(NotificationChannelCompat.Builder(missedChannelId,
+            NotificationManagerCompat.IMPORTANCE_DEFAULT).setName(labels.missedChannel).build())
         // Earlier versions posted every call on the unsuffixed channel with the default sound.
         manager.deleteNotificationChannel(channelId)
     }
@@ -116,7 +131,7 @@ class CallStylePresenter(
     }
 
     override fun showOngoing(callId: String, answeredAtMs: Long?) {
-        invitations.remove(callId); silenced.remove(callId)
+        invitations.remove(callId); silenced.remove(callId); answeredAt[callId] = answeredAtMs ?: 0
         CallxIncomingCallActivity.callAnswered(callId)
         val caller = Person.Builder().setName(names[callId] ?: callId).build()
         val hangUp = action(callId, TelecomIngress.ACTION_HANG_UP)
@@ -129,8 +144,37 @@ class CallStylePresenter(
             plain = { timed(base(callId, screen, ringing = false)).addAction(0, labels.hangUp, hangUp) })
     }
 
+    override fun rename(callId: String, displayName: String) {
+        names[callId] = displayName
+        val ringing = invitations[callId]
+        when {
+            ringing != null -> ringing.copy(displayName = displayName).also { invitations[callId] = it }.let(::postIncoming)
+            answeredAt.containsKey(callId) -> showOngoing(callId, answeredAt[callId]?.takeIf { it > 0 })
+        }
+    }
+
+    override fun showMissed(call: MissedCall) {
+        if (!missedCalls) return
+        val callBack = PendingIntent.getActivity(context, (call.callId + "callBack").hashCode(),
+            CallxCallBackActivity.intent(context, call), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val notification = NotificationCompat.Builder(context, missedChannelId)
+            .setSmallIcon(smallIcon)
+            .setContentTitle(if (call.video) labels.missedVideoCall else labels.missedCall)
+            .setContentText(call.displayName)
+            .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
+            .setWhen(call.endedAtMs).setShowWhen(true)
+            .setAutoCancel(true)
+            .apply { (contentIntent?.invoke(call.callId) ?: launcherIntent(call.callId, ongoing = false))?.let(::setContentIntent) }
+            .addAction(0, labels.callBack, callBack)
+            .build()
+        try { manager.notify(CallxCallBackActivity.MISSED_TAG, call.callId.hashCode(), notification) }
+        catch (_: SecurityException) {
+            // No notification permission; Telecom's exemption ended with the call.
+        }
+    }
+
     override fun dismiss(callId: String) {
-        invitations.remove(callId); silenced.remove(callId)
+        invitations.remove(callId); silenced.remove(callId); answeredAt.remove(callId)
         CallxIncomingCallActivity.callEnded(callId)
         names.remove(callId); manager.cancel(TAG, callId.hashCode())
     }
@@ -164,11 +208,12 @@ class CallStylePresenter(
         }
     }
 
-    private fun launcherIntent(callId: String): PendingIntent? {
+    /** The app's launcher Activity; [ongoing] adds [TelecomIngress.EXTRA_CALL_ID] for the live call. */
+    private fun launcherIntent(callId: String, ongoing: Boolean = true): PendingIntent? {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            .putExtra(TelecomIngress.EXTRA_CALL_ID, callId)
-        return PendingIntent.getActivity(context, callId.hashCode(), intent,
+        if (ongoing) intent.putExtra(TelecomIngress.EXTRA_CALL_ID, callId)
+        return PendingIntent.getActivity(context, if (ongoing) callId.hashCode() else (callId + "missed").hashCode(), intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
 

@@ -1,3 +1,4 @@
+#import <Intents/Intents.h>
 // The Callx TurboModule. It conforms to NativeCallxSpec, which React Native's codegen generates
 // from src/specs/NativeCallx.ts, and forwards every call to CallxModuleImpl (Swift).
 #import <AVFAudio/AVFAudio.h>
@@ -28,12 +29,13 @@ RCT_EXPORT_MODULE(Callx)
     _impl = [CallxModuleImpl new];
     __weak CallxModule *weakSelf = self;
     _impl.emit = ^(id body) { [weakSelf sendEventWithName:@"callxEvent" body:body]; };
+    _impl.emitCallRequest = ^(id body) { [weakSelf sendEventWithName:@"callxCallRequest" body:body]; };
     _impl.emitPictureInPicture = ^(BOOL active) { [weakSelf sendEventWithName:@"callxPictureInPicture" body:@(active)]; };
   }
   return self;
 }
 
-- (NSArray<NSString *> *)supportedEvents { return @[@"callxEvent", @"callxPictureInPicture"]; }
+- (NSArray<NSString *> *)supportedEvents { return @[@"callxEvent", @"callxPictureInPicture", @"callxCallRequest"]; }
 - (void)startObserving { [_impl startObserving]; }
 - (void)stopObserving { [_impl stopObserving]; }
 
@@ -61,6 +63,10 @@ RCT_EXPORT_MODULE(Callx)
 - (void)getPushToken:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   [_impl getPushToken:resolve reject:reject];
 }
+- (void)takeCallRequest:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  [_impl takeCallRequest:resolve reject:reject];
+}
+- (void)releaseCallRequests { [_impl releaseCallRequests]; }
 - (void)dispose { [_impl dispose]; }
 - (void)configurePictureInPicture:(NSDictionary *)options { [_impl configurePictureInPicture:options]; }
 - (void)enterPictureInPicture:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {

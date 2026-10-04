@@ -136,7 +136,7 @@ private struct AppliedVideoExecutor: PlatformCommandExecutor {
         BridgeCapabilities(accountGeneration: "generation-1", durableReplay: true, providerManagedSignaling: false,
             hold: true, mute: true, video: true), nowMs: { 1_000 })
     #expect(try await bridge.setup(["contractVersion": .string("0.2.0")])["video"] == .bool(true))
-    #expect(try await bridge.setup(["contractVersion": .string("0.1.0")])["contractVersion"] == .string("0.2.0"))
+    #expect(try await bridge.setup(["contractVersion": .string("0.1.0")])["contractVersion"] == .string("0.3.0"))
     _ = try await bridge.execute(["contractVersion": .string("0.2.0"), "operationId": .string("start"),
         "type": .string("startCall"), "input": .object(["callId": .string("call-1"), "displayName": .string("hao.dev7"),
             "handle": .string("sip:a@example.invalid"), "video": .bool(true)])])
