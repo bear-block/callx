@@ -48,7 +48,7 @@ unverified. See the [status page](/project/status).
 
 ## Ring as a video call
 
-Add `"video": true` to the invitation your backend sends ([backend guide](/guides/backend)):
+Add `"video": true` to the invitation your backend sends ([backend guide](/backend/reference)):
 
 ```json
 {"schemaVersion": 1, "type": "call.invited", "callId": "85a4fd88-…", "displayName": "Alex",

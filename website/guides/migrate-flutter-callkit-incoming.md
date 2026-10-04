@@ -70,7 +70,7 @@ callx.snapshots.listen((snapshot) => render(snapshot.call));
    handlers.
 2. **Install** `callx` and follow the [Flutter quick start](/guide/flutter), including the
    native bootstrap and the FCM service.
-3. **Change the push payload** to the [Callx invitation](/guides/backend). Route old payloads to old installations and Callx payloads to migrated installations.
+3. **Change the push payload** to the [Callx invitation](/backend/reference). Route old payloads to old installations and Callx payloads to migrated installations.
    Do not enable both presenters for one invitation.
 4. **Move media start** to the [LiveKit adapter](/guide/livekit) or the
    [native listener](/guides/own-media).

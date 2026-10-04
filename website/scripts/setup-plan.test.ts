@@ -20,7 +20,9 @@ test('every selection produces a supported path or an explicit blocker', () => {
       assert(plan.steps.length >= 6);
       for (const step of plan.steps) {
         assert(step.check.length > 0);
-        assert(existsSync(fileURLToPath(new URL('..'+step.link+'.md', import.meta.url))), step.link);
+        // A link ending in a slash is a section's index page, as in VitePress.
+        const page = step.link.endsWith('/') ? `${step.link}index` : step.link;
+        assert(existsSync(fileURLToPath(new URL('..'+page+'.md', import.meta.url))), step.link);
       }
       const expected = selection.framework === 'flutter' ? 'flutter pub add callx' : selection.framework === 'expo' ? 'npx expo install @bear-block/callx' : 'npm install @bear-block/callx';
       assert.equal(plan.commands[0], expected);

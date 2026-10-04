@@ -226,7 +226,7 @@ npx -p @bear-block/callx-testkit callx-push ios \
   --bundle-id com.example.calls --token <VoIP token>
 ```
 
-The [backend guide](/guides/backend) has the exact APNs and FCM payloads. Kill the app, send
+The [backend guide](/backend/reference) has the exact APNs and FCM payloads. Kill the app, send
 the push, and the phone rings with the system call UI.
 
 ## Next steps

@@ -50,7 +50,7 @@ push configuration or registration has not completed; check the native host diag
 
 ## 3. Make it ring before adding call navigation
 
-Have your backend create a unique call ID and send the [invitation payload](/guides/backend).
+Have your backend create a unique call ID and send the [invitation payload](/backend/reference).
 For a local trial, use the [test console](/guides/testing), with your own push credentials.
 Begin with an incoming call so native ingress can be verified independently of outbound signaling.
 

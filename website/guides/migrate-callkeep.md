@@ -75,7 +75,7 @@ callx.observe(({call}) => render(call));
    task for calls. Remove the native code that reported VoIP pushes to CallKit.
 2. **Install** `@bear-block/callx`, follow the [React Native](/guide/react-native) or
    [Expo](/guide/expo) quick start.
-3. **Change the push payload** your backend sends to the [Callx invitation](/guides/backend).
+3. **Change the push payload** your backend sends to the [Callx invitation](/backend/reference).
    Route the old format to old installations and Callx invitations to migrated installations.
    Do not send both incoming reporting paths to the same installation.
 4. **Move media start** to the adapter or the native listener

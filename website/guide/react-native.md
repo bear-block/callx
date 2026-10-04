@@ -200,7 +200,7 @@ npx -p @bear-block/callx-testkit callx-push android \
   --service-account firebase-adminsdk.json --token <FCM token>
 ```
 
-Kill the app, send the push, and the phone rings. The [backend guide](/guides/backend) has the
+Kill the app, send the push, and the phone rings. The [backend guide](/backend/reference) has the
 payloads your server sends in production.
 
 ## Next steps

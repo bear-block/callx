@@ -1,3 +1,15 @@
+<script lang="ts">
+// Shared by every diagram on the page: Mermaid styles each SVG by its id, so ids must be
+// unique, and mermaid.render is not safe to run concurrently, so renders take turns.
+let nextId = 0;
+let queue: Promise<unknown> = Promise.resolve();
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task, task);
+  queue = run.catch(() => undefined);
+  return run;
+}
+</script>
+
 <script setup lang="ts">
 // Renders a ```mermaid fence. Mermaid is loaded on demand, only on pages that have a diagram,
 // so it stays out of the bundle every page downloads. It re-renders when the theme changes.
@@ -9,9 +21,10 @@ const {isDark} = useData();
 const svg = ref('');
 const failed = ref(false);
 const minWidth = ref('');
-let counter = 0;
 
-async function render() {
+function render() { return serialized(renderNow); }
+
+async function renderNow() {
   const {default: mermaid} = await import('mermaid');
   // Mermaid measures labels when it renders; with a fallback font the boxes come out too small.
   await document.fonts.ready;
@@ -41,7 +54,7 @@ async function render() {
     },
   });
   try {
-    const {svg: output} = await mermaid.render(`callx-mermaid-${Date.now()}-${counter++}`, decodeURIComponent(props.code));
+    const {svg: output} = await mermaid.render(`callx-mermaid-${nextId++}`, decodeURIComponent(props.code));
     // Fit the column, but never shrink below a readable width: narrow screens scroll instead.
     const width = Number(/viewBox="[\d.-]+ [\d.-]+ ([\d.]+)/.exec(output)?.[1] ?? 0);
     minWidth.value = width ? `${Math.min(width, 560)}px` : '';

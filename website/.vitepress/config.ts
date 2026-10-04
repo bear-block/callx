@@ -43,7 +43,8 @@ export default defineConfig({
     nav: [
       {text: 'Get started', link: '/guide/'},
       {text: 'Features', link: '/guide/features'},
-      {text: 'Guides', link: '/guides/backend'},
+      {text: 'Backend', link: '/backend/'},
+      {text: 'Guides', link: '/guides/native-host'},
       {text: 'Reference', link: '/reference/javascript'},
       {
         text: 'Project',
@@ -106,6 +107,16 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Backend',
+        items: [
+          {text: 'Overview and rules', link: '/backend/'},
+          {text: 'Call flows', link: '/backend/call-flows'},
+          {text: 'API and push payloads', link: '/backend/reference'},
+          {text: 'Media credentials', link: '/backend/media'},
+          {text: 'Production checklist', link: '/backend/production'},
+        ],
+      },
+      {
         text: 'Concepts',
         items: [
           {text: 'Architecture', link: '/concepts/architecture'},
@@ -120,7 +131,6 @@ export default defineConfig({
       {
         text: 'Guides',
         items: [
-          {text: 'Backend and push payloads', link: '/guides/backend'},
           {text: 'Native host integration', link: '/guides/native-host'},
           {text: 'Bring your own media', link: '/guides/own-media'},
           {text: 'Write a media adapter', link: '/guides/write-an-adapter'},

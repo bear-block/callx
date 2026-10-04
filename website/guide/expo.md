@@ -93,7 +93,7 @@ export async function startCalling() {
 ```
 
 That is the whole integration. Send an invitation from your backend
-([payloads](/guides/backend)) and the phone rings, even with the app killed.
+([payloads](/backend/reference)) and the phone rings, even with the app killed.
 
 ## Add audio
 

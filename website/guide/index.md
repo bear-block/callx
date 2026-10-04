@@ -84,7 +84,7 @@ Then add audio: install the [LiveKit adapter](/guide/livekit), or
 2. **Register the push token**: `callx.getPushToken()` (TypeScript) or `Callx.pushToken()`
    (Dart) returns `{type: 'voip' | 'fcm', token}`. Send it to your backend.
 3. **Send an invitation** from your backend: an APNs VoIP push or an FCM data message with a
-   `callx` payload. [Payload reference →](/guides/backend#ios-apns-voip-invitation)
+   `callx` payload. [Payload reference →](/backend/reference#ios-apns-voip-invitation)
 4. **The phone rings natively**, even if the app was killed.
 5. **Answer**. Callx tells your host to start media (the adapter does it for you), and your UI
    sees the call move from `incoming` to `connecting`.

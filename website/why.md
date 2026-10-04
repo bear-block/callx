@@ -111,7 +111,7 @@ Callx is deliberately not a calling service:
 - **No media server.** The core coordinates media through an adapter; the optional
   [LiveKit adapter](/guide/livekit) handles native audio/video. Your provider runs the media infrastructure.
 - **No signaling server.** It does not create calls, choose who answered first or deliver
-  events between users. Your backend does; [the backend guide](/guides/backend) gives a
+  events between users. Your backend does; [the backend section](/backend/) gives a
   complete reference design.
 - **No push sending.** Your backend holds the APNs and Firebase credentials and sends the
   invitations.
