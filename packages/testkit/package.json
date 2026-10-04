@@ -1,6 +1,6 @@
 {
   "name": "@bear-block/callx-testkit",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Device-trial tools for callx: a local call console, test push sender and media adapter conformance",
   "keywords": [
     "callx",

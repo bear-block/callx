@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 — 2026-10-04
+
+- Version alignment with the core 0.2.3 release; no adapter/tool runtime changes.
+- Breaking changes: none. Update core and adapter dependencies together.
+
 ## 0.2.2 — 2026-10-02
 
 - Video: `callx-push --video` and the console's video option send video invitations, the caller

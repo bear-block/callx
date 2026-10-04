@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.2.3 — 2026-10-04
+
+- Transparent camera-switch icon with a 48dp touch target; example Homes identify Steven and hao.dev7 separately.
+
+- Compact video action row with idle auto-hide, accessibility/reduced-motion support and customization; Equal 58dp controls including the end action, direct top-left Hold and top-anchored local preview. Foreground return resets the five-second timeout. Examples use automatic Android PiP when leaving the app and mini-call when leaving the call overlay, with no PiP button in the action row.
+
+- Respect device safe areas in examples and Android native call screens; fix journal pruning crashing on Android API 33.
+
+- Add reusable call controls and configurable voice/video layouts, preview placement, header and end-call slots; refresh example Home and Diagnostics.
+
+- Android native locked-call screen: keep timer and call controls visible after Answer;
+  Open app explicitly requests unlock. Add circular mute/hold/audio controls driven by
+  the native coordinator and Telecom, with configurable native labels.
+
+### Breaking changes and migration
+
+No removed public API or contract change. The supplied video screen now hides controls
+after five idle seconds and uses a revised layout. Set autoHideControls to false for persistent
+controls, and review safe areas and custom control sizes. Upgrade core and adapters together.
+Full release notes and migration: https://bear-block.github.io/callx/project/changelog
+
 ## 0.2.2 — 2026-10-02
 
 - Optional call UI: root overlay, call screen, app-branded mini-call and a presentation
