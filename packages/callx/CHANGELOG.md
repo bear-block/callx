@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 — publication pending
+## 3.0.0 — 2026-10-04
 
 - Adds observed audio routes and `setAudioRoute`, active-call `sendDtmf`, and `setDisplayName`.
 - Adds system call request handoff from iOS activities and Android missed-call callback actions.

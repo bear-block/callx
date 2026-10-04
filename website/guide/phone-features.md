@@ -5,10 +5,9 @@ description: "Audio routes, keypad tones, caller name updates and system call re
 
 # Phone features
 
-::: warning Publication pending
-These APIs belong to the prepared **3.0.0** packages, using contract **0.3.0**. The published 0.2.4 packages do
-not expose them. Install 3.0.0 after publication; rebuild the native app, including Expo development
-builds. Updating JavaScript or Dart alone does not install the new native APIs.
+::: info Available in 3.0.0
+These APIs use contract **0.3.0**. Install 3.0.0 and rebuild the native app, including Expo development
+builds. Updating JavaScript or Dart alone does not install the native APIs.
 :::
 
 Callx keeps call state in native code. Route selection, tones and caller name updates use the same

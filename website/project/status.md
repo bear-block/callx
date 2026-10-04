@@ -11,7 +11,7 @@ The single source of truth for what has been verified. The rest of the site desc
 Callx is designed to behave; this page says where that has been proven, and where it has not.
 </p>
 
-**Last updated:** 2026-10-04 · **Packages:** `0.2.4` · **Contract:** `0.2.0`
+**Last updated:** 2026-10-04 · **Packages:** `3.0.0` · **Contract:** `0.3.0`
 
 ::: warning Not verified yet
 No physical phone has run a Callx call yet: no iPhone, no Android vendor ROM, no Bluetooth or
@@ -20,11 +20,11 @@ a CallKit call. Everything below marked on emulators is real OS integration, not
 acceptance. [Help verify](#help-verify).
 :::
 
-## Prepared next release
+## Latest release
 
-Package version **3.0.0** is being prepared with contract **0.3.0**. It adds
+Package version **3.0.0** uses contract **0.3.0**. It adds
 [audio routes, DTMF, caller name updates and system call requests](/guide/phone-features).
-It is not published yet. Native automated tests cover mappings and command behavior; physical
+Native automated tests cover mappings and command behavior; physical
 Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 
 ## At a glance

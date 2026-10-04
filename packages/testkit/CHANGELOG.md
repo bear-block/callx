@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 — publication pending
+## 3.0.0 — 2026-10-04
 
 - Version alignment with the core 3.0.0 release; no testkit behavior changes.
 
