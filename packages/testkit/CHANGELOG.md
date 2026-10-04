@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.3.0 — publication pending
+## 0.4.0 — publication pending
 
-- Version alignment with the core 0.3.0 release; no testkit behavior changes.
+- Version alignment with the core 0.4.0 release; no testkit behavior changes.
 
 ## 0.2.4 — 2026-10-04
 
