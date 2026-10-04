@@ -40,12 +40,16 @@ public enum VideoSource: String, Sendable { case local, remote }
 /// `container` on `attach` and removes it on `detach`. The core never sees frames.
 public final class CallxVideoSurface: @unchecked Sendable {
     public enum Fit: String, Sendable { case cover, contain }
+    /// PiP needs a background-safe renderer, such as AVSampleBufferDisplayLayer.
+    public enum Purpose: Sendable { case inline, pictureInPicture }
     public let container: UIView
     public let fit: Fit
     /// Mirror horizontally, usually for the front camera's local preview.
     public let mirror: Bool
-    public init(container: UIView, fit: Fit = .cover, mirror: Bool = false) {
+    public let purpose: Purpose
+    public init(container: UIView, fit: Fit = .cover, mirror: Bool = false, purpose: Purpose = .inline) {
         self.container = container; self.fit = fit; self.mirror = mirror
+        self.purpose = purpose
     }
 }
 

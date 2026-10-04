@@ -142,7 +142,8 @@ final preview = CallxPreview();
 | `enter(): Future<bool>` | Requests entry; false when unsupported |
 | `changes: Stream<bool>` | Reports PiP mode changes on Android |
 
-Other platforms have no configuration effect, entry returns false and `changes` emits nothing.
+From 0.2.4 the same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
+On other platforms configuration has no effect, entry returns false and `changes` emits nothing.
 The app supplies its compact layout and branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
 ## `callx_livekit`

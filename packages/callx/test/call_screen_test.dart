@@ -16,6 +16,36 @@ const connected = Call(
 
 void main() {
   testWidgets(
+    'iOS keeps an inline PiP source under branding when cameras are off',
+    (tester) async {
+      final sources = <VideoSource>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.iOS),
+          home: CallxCallScreen(
+            call: connected.copyWith(
+              video: true,
+              remoteVideo: false,
+              localVideo: LocalVideo.off,
+            ),
+            controls: const [],
+            onBack: () {},
+            nativeVideo: true,
+            brand: const CallxCallBrand(logo: Text('Host logo')),
+            videoBuilder: (_, _, source, _, _) {
+              sources.add(source);
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      );
+      expect(sources, [VideoSource.remote]);
+      expect(find.text('Host logo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'remote fills screen; local preview uses cover and front mirror; paused video restores brand',
     (tester) async {
       final sources = <(VideoSource, VideoFit, bool)>[];

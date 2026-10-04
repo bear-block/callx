@@ -15,7 +15,7 @@ private final class CallxVideoPlatformView: NSObject, FlutterPlatformView {
     private let surface: CallxVideoSurface
 
     init(frame: CGRect, params: [String: Any]) {
-        container = UIView(frame: frame)
+        container = CallxInlineVideoContainer(frame: frame)
         container.clipsToBounds = true
         surface = CallxVideoSurface(container: container, fit: params["fit"] as? String == "contain" ? .contain : .cover,
             mirror: params["mirror"] as? Bool ?? false)
@@ -33,5 +33,16 @@ private final class CallxVideoPlatformView: NSObject, FlutterPlatformView {
     deinit {
         let surface = surface
         Task { @MainActor in CallxVideoSurfaces.detach(surface) }
+    }
+}
+
+private final class CallxInlineVideoContainer: UIView {
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        CallxVideoSurfaces.sourceViewDidChange()
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        CallxVideoSurfaces.sourceViewDidChange()
     }
 }

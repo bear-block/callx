@@ -108,7 +108,10 @@ public final class CallxBootstrap: @unchecked Sendable {
         let ingress = CallKitIngress(runtime: runtime, reporter: provider, uuids: uuids, lifecycle: lifecycle,
             listener: recorder, media: adapter, nowMs: nowMs)
         executor.setCurrentCall { await runtime.currentCall() }
-        Task { @MainActor in CallxVideoSurfaces.install(video) }
+        Task { @MainActor in
+            CallxVideoSurfaces.install(video)
+            await CallxPictureInPicture.shared.bind(to: runtime)
+        }
         executor.onCameraApplied { [weak ingress] callID, on in ingress?.cameraChanged(callID: callID, on: on) }
         let probe = config.reconciliationProbe ?? UnavailableProbe(nowMs: nowMs)
         let startPush = config.startPushRegistry

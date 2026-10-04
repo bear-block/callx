@@ -9,8 +9,15 @@ public final class CallxModuleImpl: NSObject {
     private var eventReceiver: ReactBridgeEventReceiver?
     /// Set by CallxModule.mm: sends a "callxEvent" to JavaScript.
     @objc public var emit: ((Any) -> Void)?
-    static func configure(_ runtime: BridgeRuntime) { hostRuntime = runtime }
-    static func reset() { hostRuntime = nil }
+    @objc public var emitPictureInPicture: ((Bool) -> Void)?
+    static func configure(_ runtime: BridgeRuntime) {
+        hostRuntime = runtime
+        Task { @MainActor in await CallxPictureInPicture.shared.bind(to: runtime) }
+    }
+    static func reset() {
+        hostRuntime = nil
+        Task { @MainActor in await CallxPictureInPicture.shared.bind(to: nil) }
+    }
 
     @objc public func setup(_ config: NSDictionary, resolve: @escaping RCTPromiseResolveBlock,
         reject: @escaping RCTPromiseRejectBlock) {
@@ -55,18 +62,26 @@ public final class CallxModuleImpl: NSObject {
     }
     // Event delivery belongs to start/stopObserving; one Callx instance must not stop it for others.
     @objc public func dispose() {}
-    /// Picture-in-picture is Android only for now (ADR-0010 addendum).
-    @objc public func configurePictureInPicture(_ options: NSDictionary) {}
+    @objc public func configurePictureInPicture(_ options: NSDictionary) {
+        let automatic = options["automatic"] as? Bool ?? false
+        Task { @MainActor in CallxPictureInPicture.shared.configure(automatic: automatic) }
+    }
     @objc public func enterPictureInPicture(_ resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
-        resolve(false)
+        let callback = ReactPromiseBox(resolve, reject)
+        Task { @MainActor in callback.resolve(CallxPictureInPicture.shared.enter()) }
     }
 
     @objc public func startObserving() {
+        let pipReceiver = ReactPiPEventReceiver(self)
+        Task { @MainActor in
+            CallxPictureInPicture.shared.listener = { pipReceiver.receive($0) }
+        }
         guard let runtime = Self.hostRuntime else { return }
         let receiver = ReactBridgeEventReceiver(self); eventReceiver = receiver
         Task { await runtime.setEventReceiver(receiver) }
     }
     @objc public func stopObserving() {
+        Task { @MainActor in CallxPictureInPicture.shared.listener = nil }
         eventReceiver = nil
         if let runtime = Self.hostRuntime { Task { await runtime.setEventReceiver(nil) } }
     }
@@ -81,6 +96,12 @@ public final class CallxModuleImpl: NSObject {
         Task { do { callback.resolve(bridgeAny(try await action(runtime, object))) }
             catch { callback.reject(error) } }
     }
+}
+
+private final class ReactPiPEventReceiver: @unchecked Sendable {
+    private weak var module: CallxModuleImpl?
+    init(_ module: CallxModuleImpl) { self.module = module }
+    @MainActor func receive(_ active: Bool) { module?.emitPictureInPicture?(active) }
 }
 
 public enum CallxReactNativeHost {

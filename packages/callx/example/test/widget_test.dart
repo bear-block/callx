@@ -51,7 +51,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const CallxDemoApp());
     await tester.pumpAndSettle();
-    expect(find.text('Simulated calls'), findsOneWidget);
+    expect(find.text('Your calls, in one place'), findsOneWidget);
+    expect(find.text('Event log'), findsNothing);
     Future<void> tap(String label) async {
       final text = find.text(label);
       final target = text.evaluate().isEmpty ? find.byTooltip(label) : text;
@@ -60,19 +61,19 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    await tap('Diagnostics');
     await tap('Incoming call');
     expect(find.text('Incoming call'), findsOneWidget);
     expect(find.byType(CallScreen), findsNothing);
     expect(find.text('Simulated calls'), findsOneWidget);
-    expect(find.text('Event log'), findsNothing);
+    expect(find.text('Event log'), findsOneWidget);
     await tap('Answer');
     expect(find.text('Connecting…'), findsOneWidget);
     expect(find.byType(CallScreen), findsOneWidget);
     await tap('Minimize call');
     expect(find.text('Simulated calls'), findsOneWidget);
-    await tap('Diagnostics');
     await tap('Connect media');
-    await tap('hao.dev7');
+    await tap('Steven');
     expect(find.text('Connected'), findsOneWidget);
     await tap('Mute');
     expect(find.text('Unmute'), findsOneWidget);
@@ -153,7 +154,7 @@ void main() {
 
     await tester.pumpWidget(const CallxDemoApp());
     await tester.pumpAndSettle();
-    expect(find.text('Calls on this device'), findsOneWidget);
+    expect(find.text('Your calls, in one place'), findsOneWidget);
     await tester.tap(find.text('Diagnostics'));
     await tester.pumpAndSettle();
     expect(find.text('fcm-token-123'), findsOneWidget);
@@ -162,7 +163,7 @@ void main() {
     await tester.tap(incoming);
     await tester.pumpAndSettle();
     final invite = hostCalls.singleWhere((call) => call.method == 'incoming');
-    expect((invite.arguments as Map)['displayName'], 'hao.dev7');
+    expect((invite.arguments as Map)['displayName'], 'Steven');
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
   });

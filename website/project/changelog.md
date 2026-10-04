@@ -26,9 +26,31 @@ use the current version; UI options and upgrade guidance are synchronized with s
 Historical release/test dates remain intact. No additional npm/pub release accompanies this
 website update.
 
-## Unreleased
+## 0.2.4 — 2026-10-04 {#release-0-2-4}
 
-No additional SDK changes queued.
+### Features
+
+- iOS 15+ native video-call PiP (experimental), shared by Flutter and React Native: automatic/manual
+  entry, remote/local/branding selection, restore handling and cleanup without a framework session.
+- Native fallback customization with app color/logo/text; LiveKit PiP uses a sample-buffer surface.
+- Conditional background camera publication while PiP is starting/active and multitasking capture
+  is supported; ordinary backgrounding still pauses the camera.
+
+### Breaking changes
+
+No contract or existing method signature changes. The Swift video surface gains an optional
+`purpose` property; custom video adapters should use a background-safe renderer for PiP surfaces.
+
+### Migration
+
+Update all packages to 0.2.4. iOS PiP uses the existing PiP APIs: keep an inline native video
+view mounted, enable the audio background mode and check the host's camera capabilities.
+See [iOS PiP setup](/guide/video#picture-in-picture-on-ios).
+
+### Verification
+
+Native lifecycle and bridge tests, Simulator builds and renderer integration checks are local
+verification only. Physical iPhone media, camera continuity and restore acceptance remain pending.
 
 ## 0.2.3 — 2026-10-04 {#release-0-2-3}
 

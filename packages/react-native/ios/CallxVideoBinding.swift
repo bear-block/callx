@@ -7,6 +7,7 @@ import UIKit
 public final class CallxVideoBinding: NSObject {
     private var surface: CallxVideoSurface?
     private var shown: [AnyHashable]?
+    @objc public func sourceViewDidChange() { CallxVideoSurfaces.sourceViewDidChange() }
 
     /// Attaches a surface for these props, replacing the previous one when they changed.
     @objc public func update(container: UIView, callId: String, source: String, fit: String, mirror: Bool) {

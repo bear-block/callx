@@ -229,7 +229,8 @@ Import these functions from `@bear-block/callx/video`:
 | `enterPictureInPicture(): Promise<boolean>` | Requests entry; false when the activity or device cannot enter PiP |
 | `addPictureInPictureListener(listener: (inPiP: boolean) => void): () => void` | Reports mode changes; returns an unsubscribe function |
 
-iOS configuration has no effect and entry returns false. PiP uses the entire Android activity;
+From 0.2.4 the same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
+Android PiP uses the entire activity;
 your app renders the video or its own branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
 ## `@bear-block/callx-livekit`

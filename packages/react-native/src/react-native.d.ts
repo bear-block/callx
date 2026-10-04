@@ -5,6 +5,7 @@ declare module 'react-native' {
     getEnforcing<T extends TurboModule>(name: string): T;
   };
   export const NativeModules: Record<string, unknown>;
+  export const Platform: {OS: 'ios' | 'android' | 'web' | 'macos' | 'windows'};
   export class NativeEventEmitter {
     constructor(module?: unknown);
     addListener(name: string, listener: (value: unknown) => void): {remove(): void};

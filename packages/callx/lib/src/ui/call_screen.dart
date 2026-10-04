@@ -276,6 +276,14 @@ class CallxCallScreen extends StatelessWidget {
           body: Stack(
             fit: StackFit.expand,
             children: [
+              // AVKit still needs a mounted source when both cameras are unavailable.
+              // The app branding above it remains visible; PiP uses its own native fallback.
+              if (Theme.of(context).platform == TargetPlatform.iOS &&
+                  nativeVideo &&
+                  !ended &&
+                  !video &&
+                  (call.video || call.localVideo == LocalVideo.blocked))
+                Positioned.fill(child: videoSurface(VideoSource.remote, false)),
               Positioned.fill(child: CallxCallBackdrop(brand: brand)),
               if (video)
                 Positioned.fill(

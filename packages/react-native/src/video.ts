@@ -18,9 +18,11 @@ type PictureInPictureModule = {
 const pip = () => (TurboModuleRegistry.get('Callx') ?? NativeModules.Callx) as PictureInPictureModule | undefined;
 
 /**
- * Picture-in-picture for video calls (ADR-0010 addendum), Android only for now. With `automatic`,
- * the app enters picture-in-picture when the user leaves it during a video call (Android 12+).
+ * Picture-in-picture for video calls (ADR-0010 addendum). With `automatic`, the app enters
+ * picture-in-picture when the user leaves it during a video call (Android 12+ or iOS 15+).
  * The app's activity declares android:supportsPictureInPicture (Expo: pictureInPicture: true).
+ * iOS uses a separate native video surface; keep an inline CallxVideoView mounted and enable
+ * the audio background mode. Camera continuity depends on multitasking camera support.
  */
 export function configurePictureInPicture(options: {automatic: boolean}): void {
   pip()?.configurePictureInPicture(options);

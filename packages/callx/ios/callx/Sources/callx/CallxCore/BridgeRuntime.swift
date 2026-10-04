@@ -48,6 +48,7 @@ public actor BridgeRuntime {
     private var activeSession: String?
     private var emittedThrough: UInt64 = 0
     private weak var eventReceiver: (any BridgeEventReceiving)?
+    private var callObservers: [UUID: @Sendable (CallRecord?, UInt64) -> Void] = [:]
 
     public init(coordinator: CallCoordinator, executor: any PlatformCommandExecutor,
         capabilities: BridgeCapabilities, nowMs: @escaping @Sendable () -> Int64) {
@@ -236,7 +237,23 @@ public actor BridgeRuntime {
     }
     public func setEventReceiver(_ receiver: (any BridgeEventReceiving)?) { eventReceiver = receiver }
 
+    /// Native presentation observes independently of the framework's replay session.
+    /// Closing a Dart/JS session must not leave a PiP controller attached to an ended call.
+    /// The watermark lets asynchronous UI delivery discard older snapshots.
+    public func addCallObserver(_ observer: @escaping @Sendable (CallRecord?, UInt64) -> Void) async -> UUID {
+        let id = UUID()
+        callObservers[id] = observer
+        let capture = await coordinator.observationCapture()
+        observer(capture.call, capture.watermark)
+        return id
+    }
+    public func removeCallObserver(_ id: UUID) { callObservers.removeValue(forKey: id) }
+
     public func publishNewEvents() async {
+        if !callObservers.isEmpty {
+            let capture = await coordinator.observationCapture()
+            for observer in callObservers.values { observer(capture.call, capture.watermark) }
+        }
         guard let session = activeSession, let receiver = eventReceiver else { return }
         guard case .replay(let events) = await coordinator.replayEvents(after: emittedThrough) else { return }
         for event in events {

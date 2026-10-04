@@ -12,7 +12,7 @@ describes how Callx is designed to behave; this page says where that behaviour h
 and where it has not been yet.
 </p>
 
-**Last updated:** 2026-10-04 · **Packages:** `0.2.3` · **Contract:** `0.2.0`
+**Last updated:** 2026-10-04 · **Packages:** `0.2.4` · **Contract:** `0.2.0`
 
 Version 0.2.3 includes native video, Android PiP and optional framework UI. The results below
 describe the tested platforms and builds; publication does not establish physical-device
@@ -43,7 +43,21 @@ and displayed their Home screens on iPhone 17 / iOS 26.5 Simulator, including sa
 and the distinct demo identities. React Native required refreshing its generated CocoaPods
 after adding the Safe Area dependency. This confirms example startup and native test behavior;
 VoIP push, locked answering and real audio/video still need physical iPhone acceptance.
-System PiP is currently Android-only; iOS uses CallKit's system incoming presentation.
+iOS uses CallKit's system incoming presentation. iOS system PiP is experimental from 0.2.4 (below).
+
+## iOS PiP (0.2.4, experimental)
+
+Version 0.2.4 adds AVKit video-call PiP on iOS 15+, using the same Dart/TypeScript
+configuration and listener APIs. It has native lifecycle, source selection, branded fallback,
+restore and call-end cleanup tests, and both framework examples compile with the native bridge.
+LiveKit uses a sample-buffer renderer for PiP and pauses background publication unless the
+call's PiP is presenting and the capture session supports multitasking camera access.
+
+It is **experimental**: physical iPhone camera continuity, stashing,
+restoration and two-party media acceptance remain pending. The native fixture on iPhone 18 Pro / iOS 27 Simulator reported
+`isPictureInPictureSupported() == false`, and manual entry returned false as designed.
+This is not evidence of a successful system PiP window or a supported physical device trial.
+See the [iOS PiP setup requirements](/guide/video#picture-in-picture-on-ios).
 
 ## Release 0.2.3 verification
 

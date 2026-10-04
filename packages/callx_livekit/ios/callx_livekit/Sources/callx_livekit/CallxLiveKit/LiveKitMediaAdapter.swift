@@ -38,24 +38,59 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
     AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
     do { try AudioManager.shared.setEngineAvailability(.none) }
     catch { log("media: could not hold the audio engine for CallKit: \(error)") }
-    // iOS interrupts the camera in the background and LiveKit resumes it in front; report both.
+    // This adapter gates background capture on active PiP and actual multitasking support.
+    // LiveKit's blanket background suspension would also mute a supported PiP camera.
     let center = NotificationCenter.default
     observers = [
       center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
-        self?.cameraAvailability(.blocked)
+        Task { @MainActor in self?.updateCameraAvailability() }
       },
-      center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in
-        self?.cameraAvailability(.on)
+      center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { [weak self] _ in
+        Task { @MainActor in self?.updateCameraAvailability() }
+      },
+      center.addObserver(forName: CallxPictureInPicture.cameraAvailabilityDidChange, object: nil, queue: nil) { [weak self] _ in
+        Task { @MainActor in self?.updateCameraAvailability() }
+      },
+      center.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: nil, queue: nil) { [weak self] _ in
+        Task { @MainActor in self?.updateCameraAvailability() }
+      },
+      center.addObserver(forName: AVCaptureSession.interruptionEndedNotification, object: nil, queue: nil) { [weak self] _ in
+        Task { @MainActor in self?.updateCameraAvailability() }
       },
     ]
   }
 
   deinit { observers.forEach(NotificationCenter.default.removeObserver) }
 
-  private func cameraAvailability(_ state: LocalVideo) {
-    for session in lock.withLock({ Array(sessions.values) }) where session.localVideo != nil {
-      log("media: camera \(state == .blocked ? "paused in the background" : "resumed") for \(session.callID)")
-      session.sink.videoChanged(localVideo: state, remoteVideo: nil)
+  @MainActor private func updateCameraAvailability() {
+    for session in lock.withLock({ Array(sessions.values) }) {
+      let previous = session.cameraAvailabilityTask
+      session.cameraAvailabilityTask = Task { @MainActor [weak self] in
+        await previous?.value
+        guard let self, self.isCurrent(session), let track = session.localVideo,
+          !Task.isCancelled else { return }
+        let capturer = track.capturer as? CameraCapturer
+        let inForeground = UIApplication.shared.applicationState != .background
+        let pip = CallxPictureInPicture.shared
+        let allowed = inForeground || (pip.callID == session.callID && pip.allowsBackgroundCamera &&
+          capturer?.isMultitaskingAccessEnabled == true)
+        do {
+          if !allowed && !session.backgroundMuted {
+            try await track.mute()
+            session.backgroundMuted = true
+          } else if allowed && session.backgroundMuted {
+            try await track.unmute()
+            session.backgroundMuted = false
+          }
+          guard self.isCurrent(session), session.localVideo === track else { return }
+          let state: LocalVideo = allowed && capturer?.captureSession.isInterrupted != true ? .on : .blocked
+          if state != session.reportedCameraState {
+            session.reportedCameraState = state
+            self.log("media: camera \(state.rawValue) for \(session.callID)")
+            session.sink.videoChanged(localVideo: state, remoteVideo: nil)
+          }
+        } catch { self.log("media: camera availability failed for \(session.callID): \(error)") }
+      }
     }
   }
 
@@ -86,6 +121,7 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
     lock.lock(); let session = sessions.removeValue(forKey: callID); lock.unlock()
     guard let session else { return }
     session.task?.cancel()
+    Task { @MainActor in session.cameraAvailabilityTask?.cancel() }
     session.localVideo = nil; session.remoteVideo = nil
     Task { @MainActor in self.refresh(callID) }
     Task { await session.room.disconnect() }
@@ -108,12 +144,19 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
           captureOptions: CameraCaptureOptions(position: position))
         guard let track = publication?.track as? LocalVideoTrack else { return .platformRejected }
         session.localVideo = track
+        if let capturer = track.capturer as? CameraCapturer, capturer.isMultitaskingAccessSupported {
+          capturer.isMultitaskingAccessEnabled = true
+        }
       } else {
         try await session.room.localParticipant.setCamera(enabled: false)
         session.localVideo = nil
       }
       log("media: camera \(on ? "on (\(facing.rawValue))" : "off") for \(callID)")
       await refresh(callID)
+      await MainActor.run {
+        session.backgroundMuted = false
+        session.reportedCameraState = on ? .on : nil
+      }
       return nil
     } catch {
       log("media: camera failed for \(callID): \(error)"); return .platformRejected
@@ -137,19 +180,26 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
     let session = lock.withLock { sessions[callID] }
     for binding in bindings.values where binding.callID == callID {
       let track: VideoTrack? = binding.source == .local ? session?.localVideo : session?.visibleRemoteVideo
-      guard let track else { binding.view?.track = nil; continue }
+      guard let track else { binding.view?.track = nil; binding.view?.isHidden = true; continue }
       let view = binding.view ?? {
-        let view = VideoView(frame: binding.surface.container.bounds)
-        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.layoutMode = binding.surface.fit == .contain ? .fit : .fill
-        view.mirrorMode = binding.surface.mirror ? .mirror : .off
+        let view = Self.makeRenderer(for: binding.surface)
         binding.surface.container.addSubview(view)
         binding.view = view
         return view
       }()
       // VideoView holds its track weakly; the session keeps it.
       if view.track !== track { view.track = track }
+      view.isHidden = false
     }
+  }
+
+  @MainActor static func makeRenderer(for surface: CallxVideoSurface) -> VideoView {
+    let view = VideoView(frame: surface.container.bounds)
+    view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    view.layoutMode = surface.fit == .contain ? .fit : .fill
+    view.mirrorMode = surface.mirror ? .mirror : .off
+    if surface.purpose == .pictureInPicture { view.renderMode = .sampleBuffer }
+    return view
   }
 
   /// A surface and the LiveKit view added to it.
@@ -223,7 +273,10 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
   fileprivate final class Session: NSObject, RoomDelegate, @unchecked Sendable {
     let callID: String
     let sink: any CallxMediaSink
-    lazy var room = Room(delegate: self)
+    lazy var room = Room(delegate: self, roomOptions: RoomOptions(suspendLocalVideoTracksInBackground: false))
+    @MainActor var cameraAvailabilityTask: Task<Void, Never>?
+    @MainActor var backgroundMuted = false
+    @MainActor var reportedCameraState: LocalVideo?
     var task: Task<Void, Never>?
     var muted = false
     private weak var owner: LiveKitMediaAdapter?

@@ -61,7 +61,7 @@ Push integration and reporting deadlines still require platform-specific setup i
 | Native audio/video adapter | LiveKit installable; own-media interface available | Evaluate the chosen library together with its media engine |
 | Native video surfaces and camera commands | Available for Flutter and RN; Android video trials, iPhone acceptance pending | Not assessed; system video reporting alone is insufficient evidence |
 | Android system PiP | Available; video/local/branding fallback and emulator trials | Not assessed |
-| iOS system PiP | Not implemented | Not assessed |
+| iOS system PiP | Experimental from 0.2.4 ([setup](/guide/video#picture-in-picture-on-ios)); physical acceptance pending | Not assessed |
 | Root overlay and in-app mini-call | Optional exported Dart/TypeScript components; retains native call state | Not assessed |
 | Supplied customizable call screen | Colors/logo, header/status/end slots, control sizes, preview placement and host video rendering | Incoming customization exists in some options; accepted-call UI not assessed |
 | Foreground-aware video controls | Five-second idle hide, fresh timeout on return, screen-reader/reduced-motion handling | Not assessed |

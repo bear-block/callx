@@ -63,6 +63,18 @@ using namespace facebook::react;
   [super prepareForRecycle];
 }
 
+- (void)layoutSubviews
+{
+  [super layoutSubviews];
+  [_binding sourceViewDidChange];
+}
+
+- (void)didMoveToWindow
+{
+  [super didMoveToWindow];
+  [_binding sourceViewDidChange];
+}
+
 @end
 
 Class<RCTComponentViewProtocol> CallxVideoViewCls(void)
@@ -105,6 +117,18 @@ Class<RCTComponentViewProtocol> CallxVideoViewCls(void)
 {
   [_binding detach];
   [super removeFromSuperview];
+}
+
+- (void)layoutSubviews
+{
+  [super layoutSubviews];
+  [_binding sourceViewDidChange];
+}
+
+- (void)didMoveToWindow
+{
+  [super didMoveToWindow];
+  [_binding sourceViewDidChange];
 }
 
 @end

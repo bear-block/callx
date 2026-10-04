@@ -4,8 +4,12 @@ import UIKit
 public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     nonisolated(unsafe) private static var hostRuntime: BridgeRuntime?
     private var receiver: FlutterBridgeEventReceiver?
+    private let pipEvents = CallxPiPStreamHandler()
 
-    public static func configure(_ runtime: BridgeRuntime) { hostRuntime = runtime }
+    public static func configure(_ runtime: BridgeRuntime) {
+        hostRuntime = runtime
+        Task { @MainActor in await CallxPictureInPicture.shared.bind(to: runtime) }
+    }
     /// Starts the whole native pipeline and installs it for Flutter (ADR-0009). Call from
     /// `application(_:didFinishLaunchingWithOptions:)`; see `CallxBootstrap.start` for failures.
     @available(iOS 15.0, *)
@@ -13,13 +17,33 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     public static func bootstrap(_ config: CallxBootstrapConfig = CallxBootstrapConfig()) throws -> CallxBootstrap {
         try CallxBootstrap.start(config) { configure($0) }
     }
-    public static func reset() { hostRuntime = nil }
+    public static func reset() {
+        hostRuntime = nil
+        Task { @MainActor in await CallxPictureInPicture.shared.bind(to: nil) }
+    }
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = CallxPlugin()
         registrar.addMethodCallDelegate(instance, channel: FlutterMethodChannel(
             name: "dev.callx/methods", binaryMessenger: registrar.messenger()))
         FlutterEventChannel(name: "dev.callx/events", binaryMessenger: registrar.messenger())
             .setStreamHandler(instance)
+        FlutterEventChannel(name: "dev.callx/pip/events", binaryMessenger: registrar.messenger())
+            .setStreamHandler(instance.pipEvents)
+        FlutterMethodChannel(name: "dev.callx/pip", binaryMessenger: registrar.messenger())
+            .setMethodCallHandler { call, result in
+                let callback = FlutterResultBox(result)
+                let method = call.method
+                let automatic = (call.arguments as? [String: Any])?["automatic"] as? Bool ?? false
+                MainActor.assumeIsolated {
+                    switch method {
+                    case "configure":
+                        CallxPictureInPicture.shared.configure(automatic: automatic)
+                        callback.complete(nil)
+                    case "enter": callback.complete(CallxPictureInPicture.shared.enter())
+                    default: callback.complete(FlutterMethodNotImplemented)
+                    }
+                }
+            }
         registrar.register(CallxVideoViewFactory(), withId: "dev.callx/video")
     }
 
@@ -74,6 +98,24 @@ public final class CallxPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         receiver = nil; if let runtime = Self.hostRuntime { Task { await runtime.setEventReceiver(nil) } }; return nil
     }
+}
+
+private final class CallxPiPStreamHandler: NSObject, FlutterStreamHandler {
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        let receiver = FlutterPiPEventReceiver(events)
+        MainActor.assumeIsolated { CallxPictureInPicture.shared.listener = { receiver.receive($0) } }
+        return nil
+    }
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        MainActor.assumeIsolated { CallxPictureInPicture.shared.listener = nil }
+        return nil
+    }
+}
+
+private final class FlutterPiPEventReceiver: @unchecked Sendable {
+    private let sink: FlutterEventSink
+    init(_ sink: @escaping FlutterEventSink) { self.sink = sink }
+    @MainActor func receive(_ active: Bool) { sink(active) }
 }
 
 private final class FlutterBridgeEventReceiver: BridgeEventReceiving, @unchecked Sendable {

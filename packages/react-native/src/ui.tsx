@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, BackHandler, AppState, AccessibilityInfo, Animated, useWindowDimensions, type StyleProp, type ViewStyle} from 'react-native';
+import {Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, BackHandler, AppState, Platform, AccessibilityInfo, Animated, useWindowDimensions, type StyleProp, type ViewStyle} from 'react-native';
 import type {Snapshot} from './index.js';
 export {CallxPresentationController} from './presentation.ts';
 export type {CallPresentation} from './presentation.ts';
@@ -107,6 +107,8 @@ export function CallxCallScreen({call, brand = callBrand, elapsed, controls, end
     : call.state === 'held' ? 'On hold' : call.mediaInterrupted ? 'Reconnecting…' : call.mediaReady ? 'Connected' : 'Connecting…');
   const surface = brand.surfaceColor ?? '#00000045';
   return <View onTouchStart={() => {if (chromeVisible) arm();}} style={[s.screen, {backgroundColor: brand.backgroundColor}, style]}>
+    {Platform.OS === 'ios' && nativeVideo && !ended && !video && (call.video || call.localVideo === 'blocked') &&
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>{renderVideo('remote', false)}</View>}
     <CallxCallBackdrop brand={brand}/>
     {video && <View style={StyleSheet.absoluteFill}>{renderVideo(remote ? 'remote' : 'local', !remote && call.cameraFacing !== 'back')}</View>}
     {video && <View pointerEvents="none" style={[StyleSheet.absoluteFill, {backgroundColor: '#00000016'}]}/>}

@@ -466,11 +466,16 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final compact = Stack(
       children: [
         const Positioned.fill(child: CallBackdrop()),
-        if (showVideo && (call.remoteVideo || cameraOn))
+        if (showVideo &&
+            (call.remoteVideo ||
+                cameraOn ||
+                Theme.of(context).platform == TargetPlatform.iOS))
           Positioned.fill(
             child: CallxVideoView(
               callId: call.callId,
-              source: call.remoteVideo ? VideoSource.remote : VideoSource.local,
+              source: call.remoteVideo || !cameraOn
+                  ? VideoSource.remote
+                  : VideoSource.local,
               mirror:
                   !call.remoteVideo && call.cameraFacing == CameraFacing.front,
             ),
@@ -890,10 +895,16 @@ class _PreviewScreenState extends State<PreviewScreen> {
             brand: const CallBrand(),
             onExpand: () => setState(presentation.expand),
             onEnd: () => run(() => callx.end(call.callId)),
-            preview: mode == Mode.device && (call.remoteVideo || cameraOn)
+            preview:
+                mode == Mode.device &&
+                    (call.remoteVideo ||
+                        cameraOn ||
+                        (Theme.of(context).platform == TargetPlatform.iOS &&
+                            (call.video ||
+                                call.localVideo == LocalVideo.blocked)))
                 ? CallxVideoView(
                     callId: call.callId,
-                    source: call.remoteVideo
+                    source: call.remoteVideo || !cameraOn
                         ? VideoSource.remote
                         : VideoSource.local,
                     mirror:

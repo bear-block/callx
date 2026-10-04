@@ -122,7 +122,8 @@ Automatic entry still requires native live video-call evidence and Android 12+.
 Do not automatically enter system PiP when navigating between pages of the same Activity.
 
 The in-app mini-call is available to Flutter and React Native UI on either mobile platform.
-iOS system PiP remains unsupported; physical iOS media/navigation acceptance is still pending.
+iOS system PiP ships in 0.2.4 as an [experimental feature](/guide/video#picture-in-picture-on-ios);
+physical iOS media/navigation acceptance remains pending.
 
 See the complete integrations in
 [Flutter main.dart](https://github.com/bear-block/callx/blob/main/packages/callx/example/lib/main.dart)
@@ -203,4 +204,5 @@ The 0.2.3 examples enable automatic system PiP by default on supported Android v
 Back from the call overlay produces the in-app mini-call; Home or leaving the Activity produces
 system PiP for a live video call on Android 12+. Navigating inside the app never invokes system
 PiP. Hosts can configure that behavior with the existing PiP APIs; manual entry remains an SDK
-capability for apps that explicitly choose it. iOS system PiP remains unsupported.
+capability for apps that explicitly choose it. iOS system PiP is
+[experimental from 0.2.4](/guide/video#picture-in-picture-on-ios).

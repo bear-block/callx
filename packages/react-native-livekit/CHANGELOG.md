@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 — 2026-10-04
+
+- Render native iOS PiP surfaces with LiveKit sample buffers.
+- Keep background camera publication only for a presenting PiP call with supported multitasking access; pause outside it.
+- Physical iPhone camera/PiP acceptance remains pending.
+
 ## 0.2.3 — 2026-10-04
 
 - Version alignment with the core 0.2.3 release; no adapter/tool runtime changes.

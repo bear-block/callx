@@ -28,6 +28,7 @@ RCT_EXPORT_MODULE(Callx)
     _impl = [CallxModuleImpl new];
     __weak CallxModule *weakSelf = self;
     _impl.emit = ^(id body) { [weakSelf sendEventWithName:@"callxEvent" body:body]; };
+    _impl.emitPictureInPicture = ^(BOOL active) { [weakSelf sendEventWithName:@"callxPictureInPicture" body:@(active)]; };
   }
   return self;
 }

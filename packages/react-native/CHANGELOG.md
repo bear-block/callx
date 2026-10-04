@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 — 2026-10-04
+
+- Add experimental iOS 15+ native video-call PiP using existing configuration, entry and listener APIs.
+- Add native fallback branding, remote/local selection and restore/call-end surface cleanup.
+- No call-contract changes. iOS host background/camera capabilities and physical-device acceptance still apply.
+
 ## 0.2.3 — 2026-10-04
 
 - Transparent camera-switch icon with a 48dp touch target; example Homes identify Steven and hao.dev7 separately.

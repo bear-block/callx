@@ -52,7 +52,7 @@ mute, hold and Telecom audio routes. Open app explicitly requests unlocking. See
 | Supplied overlay, call screen and mini-call | Released in 0.2.2 | Branding, custom controls and presentation slots |
 | Unified native/custom/supplied UI configuration | Planned | Configure incoming presentation separately from the accepted-call screen; prevent duplicate foreground incoming UI |
 | Native call UI configuration from Dart/TypeScript | Planned | Define supported appearance options and platform limits; Android presenter hooks currently require Kotlin |
-| iOS system PiP | Not implemented; scope to be defined | Separate from the framework mini-call |
+| iOS system PiP | Experimental in 0.2.4; physical acceptance pending | AVKit native surfaces, shared framework APIs; [integration requirements](/guide/video#picture-in-picture-on-ios) |
 
 Custom presentation retains native call ownership and the required system integration.
 

@@ -43,11 +43,11 @@ function ExampleApp() {
   const [pictureInPicture, setPictureInPicture] = useState(false);
   const [automaticPiP, setAutomaticPiP] = useState(true);
   useEffect(() => {
-    if (mode !== 'device' || Platform.OS !== 'android') return;
+    if (mode !== 'device' || !['android', 'ios'].includes(Platform.OS)) return;
     return addPictureInPictureListener(setPictureInPicture);
   }, [mode]);
   useEffect(() => {
-    if (mode === 'device' && Platform.OS === 'android') {
+    if (mode === 'device' && ['android', 'ios'].includes(Platform.OS)) {
       configurePictureInPicture({automatic: automaticPiP});
       return () => configurePictureInPicture({automatic: false});
     }
@@ -160,8 +160,8 @@ function ExampleApp() {
   const endControl = live ? callControl(call?.state === 'incoming' ? 'Decline' : 'End call', 'end', p => p.callx.end(call!.callId), true, false, true) : null;
   const compact = <View style={{flex: 1, backgroundColor: callBrand.backgroundColor}}>
     <CallBackdrop />
-    {showVideo && call && (call.remoteVideo || call.localVideo === 'on') && <VideoView callId={call.callId}
-      source={call.remoteVideo ? 'remote' : 'local'} mirror={!call.remoteVideo && call.cameraFacing !== 'back'} style={{flex: 1}} />}
+    {showVideo && call && (call.remoteVideo || cameraOn || Platform.OS === 'ios') && <VideoView callId={call.callId}
+      source={call.remoteVideo || !cameraOn ? 'remote' : 'local'} mirror={!call.remoteVideo && cameraOn && call.cameraFacing !== 'back'} style={StyleSheet.absoluteFill} />}
   </View>;
   const expanded = presentationMode === 'expanded' && call ? <CallScreen controlsPinned={busy || audioPicker} contentInsets={insets} call={call} controls={callControls} endControl={endControl} nativeVideo={mode === 'device'}
     elapsed={call.acceptedAtMs !== undefined ? <CallTimer startedAtMs={call.acceptedAtMs} /> : null}
@@ -221,7 +221,7 @@ function ExampleApp() {
           {button('Remote ends', p => p.simulator.remoteEnded(), live)}
           {mode === 'simulator' && button('Reset preview', p => p.simulator.reset())}
           {mode === 'device' && button('Permissions', () => requestPermissions())}
-          {mode === 'device' && Platform.OS === 'android' && button(automaticPiP ? 'Auto PiP on' : 'Auto PiP off', async () => setAutomaticPiP(value => !value))}
+          {mode === 'device' && ['android', 'ios'].includes(Platform.OS) && button(automaticPiP ? 'Auto PiP on' : 'Auto PiP off', async () => setAutomaticPiP(value => !value))}
         </View>
         <Text style={styles.sectionTitle}>State</Text>
         <Text selectable style={styles.log}>{call?.state.toUpperCase() ?? 'READY'} · sequence {snapshot.sequence}{'\n'}{call?.callId ?? 'No call'}{call?.endReason ? '\nReason: ' + call.endReason : ''}</Text>
@@ -238,8 +238,8 @@ function ExampleApp() {
   </ScrollView></SafeAreaView>;
   const minimized = presentationMode === 'minimized' && call ? <CallxMiniCall displayName={call.displayName}
     brand={callBrand} onExpand={expandCall} onEnd={() => void run(p => p.callx.end(call.callId))}
-    preview={mode === 'device' && (call.remoteVideo || cameraOn) ? <VideoView callId={call.callId}
-      source={call.remoteVideo ? 'remote' : 'local'} mirror={!call.remoteVideo && call.cameraFacing !== 'back'} style={StyleSheet.absoluteFill} /> : undefined} /> : null;
+    preview={mode === 'device' && (call.remoteVideo || cameraOn || (Platform.OS === 'ios' && (call.video || call.localVideo === 'blocked'))) ? <VideoView callId={call.callId}
+      source={call.remoteVideo || !cameraOn ? 'remote' : 'local'} mirror={!call.remoteVideo && cameraOn && call.cameraFacing !== 'back'} style={StyleSheet.absoluteFill} /> : undefined} /> : null;
   return <><StatusBar barStyle={presentationMode === 'expanded' ? 'light-content' : 'dark-content'}/><CallxCallOverlay contentInsets={insets} expanded={expanded} minimized={minimized} onMinimize={minimizeCall}
     systemPictureInPicture={pictureInPicture ? compact : undefined}>{home}</CallxCallOverlay>
     <Modal visible={audioPicker && live && !pictureInPicture} transparent animationType="fade" onRequestClose={() => setAudioPicker(false)}>

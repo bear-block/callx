@@ -155,7 +155,7 @@ camera pause/resume when locking an active call. Other Android versions, iOS and
 devices still need verification. See the [status page](/project/status).
 :::
 
-When your app goes to the background with the camera on, the OS stops the camera and the call
+Outside a supported PiP session, when your app goes to the background with the camera on, the OS stops the camera and the call
 shows `localVideo: 'blocked'`. The call itself continues with audio. When the app comes back,
 the adapter resumes the camera and `localVideo` returns to `on`. Turning the camera off from
 `blocked` is a normal `setCamera(false)`.
@@ -233,8 +233,59 @@ ColoredBox(
 
 :::
 
-On iOS, configuration does nothing, entry returns `false`, and the listener emits no events.
-iOS PiP is not implemented yet. Device verification follows the [Android PiP guide](https://developer.android.com/develop/ui/views/picture-in-picture).
+## Picture in picture on iOS
+
+::: warning Experimental on iOS
+Since **0.2.4**, iOS 15+ supports video-call PiP with AVKit. It passes native lifecycle tests
+and Simulator builds, but has not been accepted on a physical iPhone yet: camera continuity,
+restoring the app and two-party media are unverified. See [status](/project/status).
+:::
+
+Use the same `configurePictureInPicture`, `enterPictureInPicture` and listener APIs in
+React Native, or `CallxPictureInPicture` in Flutter. Keep an inline `CallxVideoView` mounted,
+with nonzero bounds in the visible window. Enable `audio` in `UIBackgroundModes`; the Expo
+plugin already configures it. Automatic entry is opt-in and is prepared only for an answered
+live video call. Unsupported devices or a missing inline source return `false` on manual entry.
+A `true` result means the start request was submitted; the listener confirms actual entry.
+
+Unlike Android, iOS presents a **separate native video-call window**, rather than shrinking
+the entire Flutter/RN screen. The core attaches a PiP surface to the existing video adapter:
+remote video first, then an available local camera, then app branding. LiveKit uses its
+sample-buffer renderer for that surface; the inline renderer keeps its existing mode.
+`CallxBootstrap` and the framework native host configuration bind PiP to the runtime automatically.
+Manual Swift hosts can use `await CallxPictureInPicture.shared.bind(to: runtime)` and bind `nil`
+on teardown; runtime replacement discards pending callbacks from the old binding.
+Ending the call clears the content source and detaches the PiP renderer even without a
+Dart/TypeScript observation session. Restoring the app reports `false` to the framework
+listener and waits for a mounted inline view before acknowledging the OS restore request.
+
+Native hosts can customize fallback branding after bootstrap:
+
+```swift
+CallxPictureInPicture.shared.setFallback(
+    backgroundColor: UIColor(red: 0.1, green: 0.2, blue: 0.4, alpha: 1),
+    image: UIImage(named: "CallLogo"),
+    text: "My app"
+)
+```
+
+The image takes precedence over text. This native fallback is independent of Flutter/RN
+compact-layout branding. AVKit's video-call PiP window does not accept custom button taps.
+Native hosts with their own navigation can provide `restoreUserInterface` and acknowledge
+its completion once their call view is visible.
+
+**Camera continuity is conditional.** LiveKit enables multitasking capture only when
+`CameraCapturer.isMultitaskingAccessSupported` permits it. It keeps the camera unmuted in
+the background only while this call's PiP is starting/active and multitasking access is enabled.
+Otherwise it pauses publication and reports `localVideo: 'blocked'`; foregrounding resumes it.
+OS capture interruptions, including another app taking the camera or stashing PiP, also
+report the blocked state. Starting a new camera publication still requires the foreground.
+
+Apple requires the multitasking-camera entitlement for apps whose deployment target is
+below iOS 16. Callx retains its iOS 15 minimum and does not silently add this entitlement;
+configure the host's signing capabilities as appropriate and check actual device support.
+See Apple's [video-call PiP guidance](https://developer.apple.com/documentation/avkit/adopting-picture-in-picture-for-video-calls)
+and the [Android PiP guide](https://developer.android.com/develop/ui/views/picture-in-picture).
 
 ## Platform notes
 

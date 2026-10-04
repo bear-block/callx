@@ -74,7 +74,7 @@ Pass your own `CXProviderConfiguration` through `config.providerConfiguration` t
 - `supportsVideo`, `maximumCallGroups`, `supportedHandleTypes`.
 
 Callx uses one call and generic handles by default. In version 0.2.2, bootstrap
-enables `supportsVideo` when the installed adapter supports video. Version 0.1.3 packages were voice-only. iOS video still needs an iPhone trial; iOS PiP is not implemented.
+enables `supportsVideo` when the installed adapter supports video. Version 0.1.3 packages were voice-only. iOS video still needs an iPhone trial. System PiP is experimental from 0.2.4; see the [iOS PiP guide](/guide/video#picture-in-picture-on-ios).
 
 ## The Simulator
 

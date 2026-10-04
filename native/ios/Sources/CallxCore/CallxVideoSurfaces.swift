@@ -15,6 +15,7 @@ public enum CallxVideoSurfaces {
         for item in mounted.values { self.adapter?.detach(callID: item.callID, surface: item.surface) }
         self.adapter = adapter
         for item in mounted.values { adapter?.attach(callID: item.callID, source: item.source, surface: item.surface) }
+        sourceViewDidChange()
     }
 
     /// Shows `source` of `callID` in `surface`, replacing what it showed before.
@@ -24,11 +25,28 @@ public enum CallxVideoSurfaces {
         detach(surface)
         mounted[key] = (surface, callID, source)
         adapter?.attach(callID: callID, source: source, surface: surface)
+        if surface.purpose == .inline { sourceViewDidChange() }
     }
 
     public static func detach(_ surface: CallxVideoSurface) {
         guard let item = mounted.removeValue(forKey: ObjectIdentifier(surface)) else { return }
         adapter?.detach(callID: item.callID, surface: surface)
+        if surface.purpose == .inline { sourceViewDidChange() }
+    }
+
+    /// Call after a framework view mounts, lays out or moves between windows.
+    public static func sourceViewDidChange() {
+        // Layout/window attachment may finish after the props arrive.
+        Task { @MainActor in CallxPictureInPicture.shared.refreshSource() }
+    }
+
+    static func pictureInPictureSource(callID: String) -> UIView? {
+        let candidates = mounted.values.filter {
+            $0.callID == callID && $0.surface.purpose == .inline &&
+            $0.surface.container.window != nil && !$0.surface.container.isHidden &&
+            $0.surface.container.bounds.width > 0 && $0.surface.container.bounds.height > 0
+        }
+        return (candidates.first { $0.source == .remote } ?? candidates.first)?.surface.container
     }
 }
 #endif

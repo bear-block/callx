@@ -45,10 +45,10 @@ features:
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
 ::: info Release and development
-Version **0.2.3** is published on npm and pub.dev, with contract 0.2.0, native video, Android PiP
-and optional call overlays. This release adds customizable controls, foreground-aware auto-hide
-and native Android locked-call controls. Read the [release notes](/project/changelog#release-0-2-3)
-and [upgrade guide](/guide/upgrade-0-2-3). See [status](/project/status) for what has been verified.
+Version **0.2.4** is published on npm and pub.dev, with contract 0.2.0, native video, Android PiP, experimental iOS PiP
+and optional call overlays. This release adds experimental iOS video-call PiP on the same APIs.
+Read the [release notes](/project/changelog#release-0-2-4); coming from 0.2.2, see the
+[0.2.3 upgrade guide](/guide/upgrade-0-2-3). See [status](/project/status) for what has been verified.
 :::
 
 <CallFeatureGallery />
