@@ -129,7 +129,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
   final presentation = CallxPresentationController();
   bool diagnostics = false;
   bool pictureInPicture = false;
-  bool autoPictureInPicture = false;
+  bool autoPictureInPicture = true;
   StreamSubscription<bool>? pipSubscription;
 
   Callx get callx => mode == Mode.device ? device : preview.callx;
@@ -144,10 +144,20 @@ class _PreviewScreenState extends State<PreviewScreen> {
     });
   }
 
+  BuildContext? callSheetContext;
+
   void observe() {
     unawaited(subscription?.cancel());
     subscription = callx.snapshots.listen((value) {
       if (!mounted) return;
+      if ((value.call == null || value.call?.state == CallState.ended) &&
+          callSheetContext != null) {
+        if (callSheetContext!.mounted &&
+            ModalRoute.of(callSheetContext!)?.isCurrent == true) {
+          Navigator.of(callSheetContext!).pop();
+        }
+        callSheetContext = null;
+      }
       setState(() {
         presentation.update(value.call);
         snapshot = value;
@@ -240,6 +250,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
           ),
         );
         if (journal.length > 8) journal.removeLast();
+        if (result.status != CommandStatus.applied) {
+          setState(() => error = result.error?.message ?? result.status.name);
+        }
       }
     } catch (e) {
       if (mounted) setState(() => error = e.toString());
@@ -251,8 +264,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
   CallInput nextInput({bool video = false}) => CallInput(
     callId: 'demo-${++counter}',
     video: video,
-    displayName: 'hao.dev7',
-    handle: 'sip:hao.dev7@example.invalid',
+    displayName: 'Steven',
+    handle: 'sip:Steven@example.invalid',
   );
 
   @override
@@ -274,6 +287,65 @@ class _PreviewScreenState extends State<PreviewScreen> {
     onPressed: ready && !busy && enabled ? () => run(action) : null,
     child: Text(label),
   );
+
+  Widget callControl(
+    String label,
+    IconData icon,
+    Future<Object?> Function() action, {
+    bool enabled = true,
+    bool selected = false,
+    bool destructive = false,
+  }) => CallxCallControl(
+    compact:
+        label != 'Voice call' &&
+        label != 'Video call' &&
+        snapshot.call != null &&
+        (snapshot.call!.video ||
+            snapshot.call!.remoteVideo ||
+            snapshot.call!.localVideo == LocalVideo.on),
+    label: label,
+    icon: Icon(icon),
+    selected: selected,
+    destructive: destructive,
+    brand: const CallBrand(),
+    onPressed: ready && !busy && enabled ? () => run(action) : null,
+  );
+
+  Future<void> chooseAudio() async {
+    final routes = hostStatus?.endpoints ?? [];
+    if (routes.isEmpty) return;
+    final index = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        callSheetContext = context;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Audio output', style: TextStyle(fontSize: 20)),
+              ),
+              for (var i = 0; i < routes.length; i++)
+                ListTile(
+                  title: Text(routes[i].name),
+                  trailing: routes[i].current ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.pop(context, i),
+                ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+    callSheetContext = null;
+    if (index != null && mounted && snapshot.call?.state != CallState.ended) {
+      if (!await host.selectAudioEndpoint(index)) {
+        throw StateError('Audio route unavailable');
+      }
+    }
+  }
 
   List<Widget> deviceControls(Call? call, bool live) {
     final status = hostStatus;
@@ -305,7 +377,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             button('Answer', () => device.answer(call!.callId)),
           button(
             'Incoming (local signaling)',
-            () => host.incoming(newCallId(), 'hao.dev7'),
+            () => host.incoming(newCallId(), 'Steven'),
             enabled: !live,
           ),
           button(
@@ -313,8 +385,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
             () => device.startCall(
               CallInput(
                 callId: newCallId(),
-                displayName: 'hao.dev7',
-                handle: 'callx:hao.dev7',
+                displayName: 'Steven',
+                handle: 'callx:Steven',
               ),
             ),
             enabled: !live,
@@ -411,14 +483,36 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ? CallScreen(
             call: call,
             nativeVideo: mode == Mode.device,
+            controlsPinned: busy,
             onBack: back,
             error: error,
             elapsed: call.acceptedAtMs != null
                 ? CallTimer(startedAtMs: call.acceptedAtMs!)
                 : null,
-            localControls: IconButton.filledTonal(
+            leadingControls: answered && showVideo
+                ? callControl(
+                    call.state == CallState.held ? 'Resume' : 'Hold',
+                    Icons.pause,
+                    () => callx.setHeld(
+                      call.callId,
+                      call.state != CallState.held,
+                    ),
+                    enabled: media,
+                    selected: call.state == CallState.held,
+                  )
+                : null,
+            localControls: IconButton(
               tooltip: 'Switch camera',
-              icon: const Icon(Icons.cameraswitch),
+              style: IconButton.styleFrom(
+                fixedSize: const Size.square(48),
+                iconSize: 20,
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.transparent,
+              ),
+              icon: const Icon(
+                Icons.cameraswitch,
+                shadows: [Shadow(color: Colors.black, blurRadius: 3)],
+              ),
               onPressed: busy
                   ? null
                   : () => run(
@@ -430,37 +524,49 @@ class _PreviewScreenState extends State<PreviewScreen> {
                       ),
                     ),
             ),
+            endControl: live
+                ? callControl(
+                    call.state == CallState.incoming ? 'Decline' : 'End call',
+                    Icons.call_end,
+                    () => callx.end(call.callId),
+                    destructive: true,
+                  )
+                : null,
             controls: [
-              if (call.state == CallState.incoming)
-                FilledButton(
-                  onPressed: busy
-                      ? null
-                      : () => run(() => callx.answer(call.callId)),
-                  child: const Text('Answer'),
-                ),
               if (answered) ...[
-                button(
+                callControl(
                   call.muted ? 'Unmute' : 'Mute',
+                  Icons.mic,
                   () => callx.setMuted(call.callId, !call.muted),
                   enabled: media,
+                  selected: call.muted,
                 ),
-                button(
-                  call.state == CallState.held ? 'Resume' : 'Hold',
-                  () =>
-                      callx.setHeld(call.callId, call.state != CallState.held),
-                  enabled: media,
+                if (!showVideo)
+                  callControl(
+                    call.state == CallState.held ? 'Resume' : 'Hold',
+                    Icons.pause,
+                    () => callx.setHeld(
+                      call.callId,
+                      call.state != CallState.held,
+                    ),
+                    enabled: media,
+                    selected: call.state == CallState.held,
+                  ),
+                callControl(
+                  cameraOn ? 'Camera off' : 'Camera on',
+                  Icons.videocam,
+                  () async {
+                    if (!cameraOn && mode == Mode.device) {
+                      await host.requestCameraPermission();
+                    }
+                    return callx.setCamera(call.callId, !cameraOn);
+                  },
+                  selected: cameraOn,
                 ),
-                button(cameraOn ? 'Camera off' : 'Camera on', () async {
-                  if (!cameraOn &&
-                      mode == Mode.device &&
-                      defaultTargetPlatform == TargetPlatform.iOS) {
-                    await host.requestCameraPermission();
-                  }
-                  return callx.setCamera(call.callId, !cameraOn);
-                }),
-                if (cameraOn && !call.remoteVideo)
-                  button(
+                if (cameraOn && !showVideo && !call.remoteVideo)
+                  callControl(
                     'Switch camera',
+                    Icons.cameraswitch,
                     () => callx.switchCamera(
                       call.callId,
                       call.cameraFacing == CameraFacing.back
@@ -468,32 +574,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           : CameraFacing.back,
                     ),
                   ),
-                if ((hostStatus?.endpoints.length ?? 0) > 1)
-                  button('Audio output', () {
-                    final endpoints = hostStatus!.endpoints;
-                    return host.selectAudioEndpoint(
-                      (endpoints.indexWhere((e) => e.current) + 1) %
-                          endpoints.length,
-                    );
-                  }),
+                if ((hostStatus?.endpoints.length ?? 0) > 0)
+                  callControl('Audio output', Icons.volume_up, chooseAudio),
               ],
-              if (mode == Mode.device &&
-                  defaultTargetPlatform == TargetPlatform.android &&
-                  showVideo)
-                button('Picture in picture', CallxPictureInPicture.enter),
-              if (live)
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xffb53936),
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: busy
-                      ? null
-                      : () => run(() => callx.end(call.callId)),
-                  child: Text(
-                    call.state == CallState.incoming ? 'Decline' : 'End call',
-                  ),
-                ),
             ],
           )
         : null;
@@ -517,7 +600,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    diagnostics ? 'Test controls' : 'Flutter example',
+                    diagnostics ? 'Test controls' : 'Your calls, in one place',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 24),
@@ -532,83 +615,173 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     ),
                   if (!live && call?.state == CallState.ended)
                     const Text('Call ended'),
-                  if (deviceAvailable)
-                    SegmentedButton<Mode>(
-                      segments: const [
-                        ButtonSegment(
-                          value: Mode.device,
-                          label: Text('Device'),
-                        ),
-                        ButtonSegment(
-                          value: Mode.simulator,
-                          label: Text('Simulator'),
-                        ),
-                      ],
-                      selected: {mode},
-                      onSelectionChanged: live || busy
-                          ? null
-                          : (value) => switchMode(value.single),
-                    ),
-                  const SizedBox(height: 20),
-                  Text(
-                    mode == Mode.device
-                        ? 'Calls on this device'
-                        : 'Simulated calls',
-                  ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      button(
-                        'Incoming call',
-                        () => mode == Mode.device
-                            ? host.incoming(newCallId(), 'hao.dev7')
-                            : preview.simulator.incoming(nextInput()),
-                        enabled: !live,
+                  if (!diagnostics) const Text('You: hao.dev7'),
+                  const SizedBox(height: 12),
+                  if (!diagnostics)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xff172c2a),
+                        borderRadius: BorderRadius.circular(32),
                       ),
-                      button(
-                        'Incoming video',
-                        () => mode == Mode.device
-                            ? host.incoming(
-                                newCallId(),
-                                'hao.dev7',
-                                video: true,
-                              )
-                            : preview.simulator.incoming(
-                                nextInput(video: true),
+                      child: Column(
+                        children: [
+                          const CircleAvatar(
+                            radius: 40,
+                            backgroundColor: Color(0xffd7e9de),
+                            child: Text(
+                              'S',
+                              style: TextStyle(
+                                fontSize: 32,
+                                color: Color(0xff172c2a),
                               ),
-                        enabled: !live,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'Steven',
+                            style: TextStyle(
+                              fontSize: 30,
+                              fontWeight: FontWeight.w300,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Demo contact',
+                            style: TextStyle(color: Color(0xffa7f3d0)),
+                          ),
+                          const SizedBox(height: 26),
+                          Text(
+                            live
+                                ? 'Call in progress'
+                                : ready
+                                ? 'Ready to call'
+                                : 'Connecting…',
+                            style: const TextStyle(
+                              color: Color(0xffd7e9de),
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              callControl(
+                                'Voice call',
+                                Icons.call,
+                                () => callx.startCall(
+                                  mode == Mode.device
+                                      ? CallInput(
+                                          callId: newCallId(),
+                                          displayName: 'Steven',
+                                          handle: 'callx:Steven',
+                                        )
+                                      : nextInput(),
+                                ),
+                                enabled: !live,
+                              ),
+                              const SizedBox(width: 36),
+                              callControl(
+                                'Video call',
+                                Icons.videocam,
+                                () => callx.startCall(
+                                  mode == Mode.device
+                                      ? CallInput(
+                                          callId: newCallId(),
+                                          displayName: 'Steven',
+                                          handle: 'callx:Steven',
+                                          video: true,
+                                        )
+                                      : nextInput(video: true),
+                                ),
+                                enabled: !live,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      button(
-                        'Start outgoing',
-                        () => callx.startCall(
-                          mode == Mode.device
-                              ? CallInput(
-                                  callId: newCallId(),
-                                  displayName: 'hao.dev7',
-                                  handle: 'callx:hao.dev7',
-                                )
-                              : nextInput(),
+                    ),
+                  if (diagnostics) ...[
+                    if (deviceAvailable)
+                      SegmentedButton<Mode>(
+                        segments: const [
+                          ButtonSegment(
+                            value: Mode.device,
+                            label: Text('Device'),
+                          ),
+                          ButtonSegment(
+                            value: Mode.simulator,
+                            label: Text('Simulator'),
+                          ),
+                        ],
+                        selected: {mode},
+                        onSelectionChanged: live || busy
+                            ? null
+                            : (value) => switchMode(value.single),
+                      ),
+                    const SizedBox(height: 20),
+                    Text(
+                      mode == Mode.device
+                          ? 'Calls on this device'
+                          : 'Simulated calls',
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        button(
+                          'Incoming call',
+                          () => mode == Mode.device
+                              ? host.incoming(newCallId(), 'Steven')
+                              : preview.simulator.incoming(nextInput()),
+                          enabled: !live,
                         ),
-                        enabled: !live,
-                      ),
-                      button(
-                        'Start outgoing video',
-                        () => callx.startCall(
-                          mode == Mode.device
-                              ? CallInput(
-                                  callId: newCallId(),
-                                  displayName: 'hao.dev7',
-                                  handle: 'callx:hao.dev7',
+                        button(
+                          'Incoming video',
+                          () => mode == Mode.device
+                              ? host.incoming(
+                                  newCallId(),
+                                  'Steven',
                                   video: true,
                                 )
-                              : nextInput(video: true),
+                              : preview.simulator.incoming(
+                                  nextInput(video: true),
+                                ),
+                          enabled: !live,
                         ),
-                        enabled: !live,
-                      ),
-                    ],
-                  ),
+                        button(
+                          'Start outgoing',
+                          () => callx.startCall(
+                            mode == Mode.device
+                                ? CallInput(
+                                    callId: newCallId(),
+                                    displayName: 'Steven',
+                                    handle: 'callx:Steven',
+                                  )
+                                : nextInput(),
+                          ),
+                          enabled: !live,
+                        ),
+                        button(
+                          'Start outgoing video',
+                          () => callx.startCall(
+                            mode == Mode.device
+                                ? CallInput(
+                                    callId: newCallId(),
+                                    displayName: 'Steven',
+                                    handle: 'callx:Steven',
+                                    video: true,
+                                  )
+                                : nextInput(video: true),
+                          ),
+                          enabled: !live,
+                        ),
+                      ],
+                    ),
+                  ],
                   if (error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
@@ -779,7 +952,8 @@ class _CallTimerState extends State<CallTimer> {
       '$minutes:$seconds',
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 20,
+        fontSize: 24,
+        fontWeight: FontWeight.w300,
         fontFeatures: [FontFeature.tabularFigures()],
       ),
     );

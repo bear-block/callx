@@ -6,6 +6,7 @@ class CallBrand extends CallxCallBrand {
   const CallBrand({
     super.backgroundColor = const Color(0xff102b24),
     super.accentColor = const Color(0xffa7f3d0),
+    super.surfaceColor = const Color(0x99102b24),
     super.logo = const CallxLogo(),
   });
 }
@@ -23,7 +24,10 @@ class CallScreen extends CallxCallScreen {
     required super.nativeVideo,
     super.elapsed,
     super.localControls,
+    super.leadingControls,
     super.error,
+    super.endControl,
+    super.controlsPinned,
     super.brand = const CallBrand(),
   });
 }

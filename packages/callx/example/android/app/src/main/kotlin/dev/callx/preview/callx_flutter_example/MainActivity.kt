@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : FlutterActivity() {
     private val main = Handler(Looper.getMainLooper())
+    private var cameraPermissionResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); CallxLockScreen.onIntent(this, intent)
@@ -26,8 +27,23 @@ class MainActivity : FlutterActivity() {
         if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing.toTypedArray(), 1)
     }
 
-    private fun runtimePermissions() = listOfNotNull(Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA,
+    private fun runtimePermissions() = listOfNotNull(Manifest.permission.RECORD_AUDIO,
         Manifest.permission.POST_NOTIFICATIONS.takeIf { Build.VERSION.SDK_INT >= 33 })
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != 2) return
+        val pending = cameraPermissionResult ?: return
+        cameraPermissionResult = null
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) pending.success(null)
+        else pending.error("cameraPermission", "Camera permission was denied", null)
+    }
+
+    override fun onDestroy() {
+        cameraPermissionResult?.error("nativeUnavailable", "Activity closed during camera permission request", null)
+        cameraPermissionResult = null
+        super.onDestroy()
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent); CallxLockScreen.onIntent(this, intent)
@@ -57,6 +73,14 @@ class MainActivity : FlutterActivity() {
                 "requestPermissions" -> {
                     ActivityCompat.requestPermissions(this, runtimePermissions().toTypedArray(), 1)
                     result.success(null)
+                }
+                "requestCameraPermission" -> {
+                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) result.success(null)
+                    else if (cameraPermissionResult != null) result.error("permissionPending", "Camera permission request in progress", null)
+                    else {
+                        cameraPermissionResult = result
+                        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 2)
+                    }
                 }
                 "incoming" -> reply {
                     // Same path as a push, without FCM: an invitation arriving over signaling.

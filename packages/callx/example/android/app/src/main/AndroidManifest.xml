@@ -7,7 +7,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="callx_flutter_example"
+        android:label="Callx"
         android:name=".ExampleApplication"
         android:icon="@mipmap/ic_launcher">
         <activity
