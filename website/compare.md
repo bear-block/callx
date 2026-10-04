@@ -1,153 +1,107 @@
 ---
 title: "Compare"
-description: "How Callx compares with react-native-callkeep, expo-callkit-telecom, flutter_callkit_incoming, vendor SDKs and writing native code yourself, and when to choose each."
+description: "Compare Callx 0.2.3 native coordination, media and optional UI with callkeep, Expo and Flutter alternatives, including verification limits."
 ---
 
 # Compare
 
-<p class="lead">
-There are good libraries for calls in Flutter and React Native, and Callx learned from all of
-them. This page compares them as fairly as we can, including where the others are the better
-choice.
-</p>
+Choose separately for native call coordination, media and app presentation. Reporting a video
+call to CallKit/Telecom does not itself provide a video renderer, an in-app mini-call or system PiP.
+Callx combines these layers while keeping one native call-state owner and optional UI/media.
 
-::: info Checked on 2026-10-01
-Versions and features below come from each project's README, source and registry entry on that
-date. Projects change; if something here is out of date or unfair,
-[open an issue](https://github.com/bear-block/callx/issues/new) or edit this page and we will
-fix it.
+::: info Reviewed on 2026-10-04
+Callx describes published **0.2.3**, contract **0.2.0**. Other package versions were checked
+against npm/pub.dev, and capabilities against the official project documentation linked below.
+This is a documentation review, not a device benchmark or conformance test of other libraries.
+“Not assessed” means we have not established support or absence; it does not mean unsupported.
 :::
 
-## The options
+## Packages and scope
 
-| | Frameworks | Latest version (date) | License |
+| Option | Framework | Registry version at review | Role |
 |---|---|---|---|
-| **Callx** | Flutter, React Native, Expo | 0.2.2 | MIT |
-| [react-native-callkeep](https://github.com/react-native-webrtc/react-native-callkeep) | React Native | 4.3.16 (2024-11) | ISC / MIT |
-| [expo-callkit-telecom](https://github.com/mfairley/expo-callkit-telecom) | Expo modules | 0.5.0 (2026-09) | MIT |
-| [flutter_callkit_incoming](https://github.com/hiennguyen92/flutter_callkit_incoming) | Flutter | 3.1.6 (2026-09) | MIT |
-| [connectycube_flutter_call_kit](https://github.com/ConnectyCube/connectycube-flutter-call-kit) | Flutter | 2.8.2 (2025-10) | See repository |
-| Vendor SDKs: [Twilio Voice](https://github.com/twilio/twilio-voice-react-native), [Stream Video](https://github.com/GetStream/stream-video-js) | Per vendor | Active | Vendor terms |
-| Writing CallKit and Telecom code yourself | Any | | Yours |
+| **Callx** | Flutter, React Native, Expo development builds | [0.2.3 npm](https://www.npmjs.com/package/@bear-block/callx) · [0.2.3 pub.dev](https://pub.dev/packages/callx) | Native coordination, optional media adapter and app UI |
+| [react-native-callkeep](https://github.com/react-native-webrtc/react-native-callkeep#readme) | React Native | [4.3.16](https://www.npmjs.com/package/react-native-callkeep) | CallKit/ConnectionService bridge |
+| [expo-callkit-telecom](https://github.com/mfairley/expo-callkit-telecom#readme) | React Native with Expo modules | [0.5.0](https://www.npmjs.com/package/expo-callkit-telecom) | Native calling, push and audio-session integration |
+| [flutter_callkit_incoming](https://github.com/hiennguyen92/flutter_callkit_incoming#readme) | Flutter | [3.1.6](https://pub.dev/packages/flutter_callkit_incoming) | Incoming presentation and call actions |
+| [connectycube_flutter_call_kit](https://github.com/ConnectyCube/connectycube-flutter-call-kit) | Flutter | [2.8.2](https://pub.dev/packages/connectycube_flutter_call_kit) | Another incoming-call integration option; not feature-audited here |
+| Vendor SDKs | Per vendor | Check vendor | Media and/or hosted calling services; compare each SDK's system integration |
+| Custom CallKit/Telecom integration | Any native host | Your implementation | You maintain lifecycle, push, media and presentation |
 
-## Callx 0.2.2 features
+Callx is MIT licensed. Check the linked projects' licenses and provider terms before adoption.
 
-The comparison table below describes Callx 0.2.2. This release includes:
+## Native coordination
 
-| Feature | Callx status |
-|---|---|
-| Video reporting to CallKit/Telecom and native video surfaces | Released in 0.2.2; platform verification varies |
-| Android system PiP | Released in 0.2.2; emulator evidence for Flutter and React Native |
-| In-app mini-call and root call overlay | Released in 0.2.2; optional Dart/TypeScript UI with branding and controls |
-| iOS system PiP | Not implemented |
-| Unified native/custom/supplied UI configuration | Planned |
+**Documented** means the capability is described in the linked official documentation.
+**Host integration** means the app needs additional wiring. **Not assessed** avoids inferring
+missing behavior from a README. Callx implementation and verification are separate; see [status](/project/status).
 
-System video-call reporting is separate from rendering video or supporting PiP.
-See [verification status](/project/status) and [call UI](/guide/call-ui) for limits.
-Other libraries' PiP and supplied-UI capabilities have not been evaluated in this table.
+| Capability | Callx 0.2.3 | callkeep | expo-callkit-telecom | flutter_callkit_incoming |
+|---|---|---|---|---|
+| Flutter and React Native share one core | Available | React Native | React Native / Expo modules | Flutter |
+| Native iOS VoIP ingress | Available | Host integration with separate push module | Documented | AppDelegate integration |
+| Android incoming push path | Native FCM host | Host integration | Native FCM integration documented | Host messaging integration |
+| Android system integration | Self-managed Core-Telecom | ConnectionService, including self-managed mode | Core-Telecom documented | Android incoming presentation; Telecom details not assessed here |
+| Durable coordinator snapshots, command results and replay | Available | Initial events documented; equivalent durable protocol not assessed | Session API documented; equivalent durable protocol not assessed | activeCalls documented; equivalent durable protocol not assessed |
+| Persistent cancellation tombstones | Available within contract retention/account scope | Not assessed | Not assessed | Not assessed |
+| Video reporting to system call UI | Available | Documented | Documented | Audio/video type documented |
+| DTMF | Not shipped; roadmap | Documented | Documented | Not assessed |
+| Multiple live calls | One live call; roadmap | Documented | Not assessed | Not assessed |
+| iOS Siri/Recents start-call integration | Not shipped | Start-call event documented | Documented | Not assessed |
+
+Sources: [callkeep README](https://github.com/react-native-webrtc/react-native-callkeep#readme),
+[Expo module README](https://github.com/mfairley/expo-callkit-telecom#readme),
+[Flutter incoming README](https://github.com/hiennguyen92/flutter_callkit_incoming#readme).
+Push integration and reporting deadlines still require platform-specific setup in every app.
+
+## Media and presentation
+
+| Capability | Callx 0.2.3 | Other options in this page |
+|---|---|---|
+| Native audio/video adapter | LiveKit installable; own-media interface available | Evaluate the chosen library together with its media engine |
+| Native video surfaces and camera commands | Available for Flutter and RN; Android video trials, iPhone acceptance pending | Not assessed; system video reporting alone is insufficient evidence |
+| Android system PiP | Available; video/local/branding fallback and emulator trials | Not assessed |
+| iOS system PiP | Not implemented | Not assessed |
+| Root overlay and in-app mini-call | Optional exported Dart/TypeScript components; retains native call state | Not assessed |
+| Supplied customizable call screen | Colors/logo, header/status/end slots, control sizes, preview placement and host video rendering | Incoming customization exists in some options; accepted-call UI not assessed |
+| Foreground-aware video controls | Five-second idle hide, fresh timeout on return, screen-reader/reduced-motion handling | Not assessed |
+| Android ongoing controls while securely locked | Native timer, mute, hold and Telecom audio controls; API36 warm-process trial | Not assessed |
+| Unified native/custom/supplied UI switch | Planned; use existing independent customization surfaces | Not assessed |
+| Guided setup/code generation | Dart/TypeScript starter files, native checklist and migration paths | Not assessed |
+
+The camera does not auto-start when a video invitation is answered while locked. Callx's
+Android locked screen and Apple's CallKit UI are different platform surfaces. Watch the
+[two-device demo](/guide/demos) and [secure-lock demo](/guide/lockscreen-demo), or explore
+[features](/guide/features) and [call UI customization](/guide/call-ui).
 
 ## Provider ecosystem
 
-| Callx adapter | Status | Integration scope |
+| Callx adapter | Status | Scope |
 |---|---|---|
-| [LiveKit](/guide/livekit) | Audio/video released in 0.2.2 | Media |
-| Twilio Video | Planned next | Media |
-| Twilio Programmable Voice | Planned next; signaling interface required | Provider-managed signaling |
-| Zoom Video SDK | Planned | Media |
-| Agora | Planned | Media |
+| [LiveKit](/guide/livekit) | Published 0.2.3; audio/video introduced in 0.2.2 | Native media |
+| Twilio Video | Planned next; no package | Media |
+| Twilio Programmable Voice | Planned; signaling interface required | Provider-managed signaling |
+| Zoom Video SDK | Planned; no package | Media |
+| Agora | Planned; no package | Media |
 
-Planned adapters are not available packages. Callx's provider roadmap is separate from using
-those vendors' own SDKs today. See [provider priorities](/project/roadmap#providers-in-order).
+Planned adapters are not installable integrations. Vendor SDKs may be used independently of
+Callx; each has its own media, signaling, licensing and system-call behavior. A hosted Callx
+backend is unavailable. See [provider priorities](/project/roadmap#providers-in-order).
 
-## Feature comparison
+## Choose for your app
 
-<span class="ok">●</span> built in · <span class="part">◐</span> partly, or with your own native
-code · <span class="no">○</span> not provided · – not documented (tell us if it exists)
+- **Callx:** shared Flutter/RN integration, native snapshots/results/recovery, optional video,
+  customizable UI and Android PiP, with your own signaling backend. Match your device needs
+  to the documented verification levels before rollout.
+- **callkeep:** React Native apps needing its documented DTMF, multi-call or ConnectionService
+  modes, with app-owned push/media wiring.
+- **expo-callkit-telecom:** Expo-module apps needing documented native push, Core-Telecom,
+  audio-session integration, DTMF or Siri intents.
+- **flutter_callkit_incoming:** Flutter apps needing its documented incoming-screen customization
+  and call actions while owning the messaging/media setup.
+- **Vendor SDK or custom native integration:** evaluate the required hosted features or the
+  cost of maintaining your own native stack; neither is interchangeable with a UI component.
 
-| | Callx | callkeep | expo-callkit-telecom | flutter_callkit_incoming |
-|---|---|---|---|---|
-| Flutter **and** React Native from one core | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> | <span class="no">○</span> |
-| Receives VoIP push natively (iOS) | <span class="ok">●</span> | <span class="part">◐</span> separate library + AppDelegate code | <span class="ok">●</span> | <span class="part">◐</span> AppDelegate code |
-| Receives FCM natively, no headless JS or Dart isolate (Android) | <span class="ok">●</span> | <span class="no">○</span> | <span class="ok">●</span> | <span class="part">◐</span> |
-| Android Jetpack Core-Telecom | <span class="ok">●</span> | <span class="no">○</span> ConnectionService | <span class="ok">●</span> | <span class="part">◐</span> self-managed Telecom service |
-| Call state owned natively, durable across process death | <span class="ok">●</span> | <span class="no">○</span> | <span class="part">◐</span> event queue | <span class="part">◐</span> replay cache |
-| Replay of missed events with a snapshot | <span class="ok">●</span> | <span class="part">◐</span> initial events | <span class="part">◐</span> event queue | <span class="part">◐</span> `activeCalls()` |
-| Idempotent commands with explicit results | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> | <span class="no">○</span> |
-| Cancelled calls can never ring again (tombstones) | <span class="ok">●</span> | <span class="no">○</span> | – | – |
-| Media adapters (install = integration) | <span class="ok">●</span> LiveKit | <span class="no">○</span> | <span class="no">○</span> | <span class="no">○</span> |
-| Expo config plugin | <span class="ok">●</span> | – | <span class="ok">●</span> | n/a |
-| Bare React Native | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> Expo modules | n/a |
-| Native Android incoming screen | <span class="ok">●</span> | <span class="part">◐</span> system UI in phone-account mode | <span class="ok">●</span> | <span class="ok">●</span> highly customizable |
-| Video calls in the system UI | <span class="ok">●</span> since 0.2.2 | <span class="ok">●</span> | <span class="ok">●</span> | <span class="ok">●</span> |
-| DTMF | <span class="no">○</span> roadmap | <span class="ok">●</span> | <span class="ok">●</span> | <span class="part">◐</span> event only |
-| Multiple simultaneous calls | <span class="no">○</span> roadmap | <span class="ok">●</span> | – | – |
-| Siri and Recents call intents (iOS) | <span class="no">○</span> | <span class="part">◐</span> start-call action | <span class="ok">●</span> | – |
-| Shared contract and conformance fixtures | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> | <span class="no">○</span> |
-
-## How they differ in approach
-
-### react-native-callkeep
-
-The long-standing standard for React Native. It exposes CallKit and ConnectionService to
-JavaScript: your JavaScript displays calls and receives actions. VoIP pushes need
-`react-native-voip-push-notification` and native code to report them in time. It has the largest
-community and the most real-world mileage, plus multi-call and DTMF.
-
-Its issue tracker shows what the JavaScript-owned approach costs: answer and end state getting
-out of sync, actions lost while the app was killed, and watchdog terminations when the report
-waits on JavaScript. Our review of its 570 issues shaped Callx's design.
-
-**Choose it** if you need multi-call or DTMF today, already run it successfully, or need its
-ConnectionService phone-account mode.
-
-### expo-callkit-telecom
-
-A modern Expo module with the same core insight as Callx: parse pushes natively and report calls
-before JavaScript loads, on CallKit and Core-Telecom. It is actively maintained, and it already
-supports video, DTMF and Siri intents.
-
-**Choose it** if you build only with Expo, need video in the system UI or DTMF now, and do not
-need Flutter or durable command results.
-
-### flutter_callkit_incoming
-
-The most popular Flutter option, with a rich, highly customizable Android incoming screen and a
-broad feature set (video, hold, mute, missed-call notifications). On iOS, your AppDelegate
-receives the VoIP push and hands it over; on Android, push handling goes through your Dart
-messaging setup.
-
-**Choose it** if you need deep visual customization of the Android incoming screen, or features
-Callx does not have yet, and are comfortable owning the push path.
-
-### Vendor SDKs (Twilio Voice, Stream Video and others)
-
-Turnkey services: hosted signaling, push, media, phone numbers and dashboards, with their own
-CallKit and Telecom integration. You pay per minute or per user and follow the vendor's model.
-
-**Choose one** if you want a hosted service and its features (PSTN, recording, moderation) more
-than control. Callx can still own the phone side for media-only vendors, and for signaling
-vendors through [provider-managed mode](/guides/provider-managed).
-
-### Writing it yourself
-
-CallKit, PushKit and Core-Telecom are documented and free. Teams with strong native engineers
-can build exactly what they need. Expect to handle the reporting rule, cold starts, duplicate and
-late pushes, audio session ownership, lock-screen behaviour, vendor ROMs, and the same work again
-for the other platform and framework.
-
-**Choose it** if calling is your core product and you have the native team to maintain it.
-
-## When Callx is the right choice
-
-- You ship **Flutter or React Native, or both**, and want identical call behaviour.
-- **Correctness matters more than features**: no lost answers, no ghost calls, no ringing after
-  cancel, state you can trust after a crash.
-- You want **your own backend and media**, with no vendor in the call path and no telemetry.
-- You want to **avoid native code**: Expo needs none; bare apps need a few lines.
-
-## When it is not (yet)
-
-- You need **DTMF or multiple calls** today. See the [roadmap](/project/roadmap).
-- You need a **hosted service** rather than a library.
-- You need **verified behaviour on a specific device family** that the
-  [status page](/project/status) does not list yet. Test it, or help us test it.
+Callx does not currently ship DTMF, multi-call, iOS system PiP or a hosted backend. Physical-device
+call acceptance remains pending. Follow the [setup guide](/guide/setup), [migration rollout](/guides/migration-rollout)
+and [0.2.3 upgrade notes](/guide/upgrade-0-2-3) rather than switching call ownership mid-call.
