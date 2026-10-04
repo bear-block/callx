@@ -36,7 +36,9 @@ clients are separate steps.
 | `holdCall(id, isOnHold: …)` | `callx.setHeld(callId, held)` |
 | `activeCalls()` | `callx.getSnapshot()` |
 | `getDevicePushTokenVoIP()` | `callx.pushToken()` (VoIP on iOS, FCM on Android) |
-| `showMissCallNotification` | Your own notification on `endReason == unanswered` |
+| `showMissCallNotification` | Automatic on Android (unanswered or caller-cancelled), with a Call back action; `CallStylePresenter(missedCalls = false)` to send your own. iOS lists missed calls in Recents |
+| `actionCallToggleDmtf` / keypad | `callx.sendDtmf(callId, digits)` with a DTMF-capable adapter |
+| `actionCallToggleAudioSession`, speaker toggles | `call.audioRoutes` and `callx.setAudioRoute(callId, route.id)` |
 
 ## Event mapping
 
@@ -50,6 +52,7 @@ clients are separate steps.
 | `actionCallToggleMute` | `call.muted` |
 | `actionCallToggleHold` | `CallState.held` |
 | `actionDidUpdateDevicePushTokenVoip` | Native listener `pushTokenUpdated`, or `callx.pushToken()` |
+| `actionCallCallback` (missed-call Call back) | `Callx.callRequests`, then `startCall` if you agree |
 
 ```dart
 // Before

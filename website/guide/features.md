@@ -19,6 +19,7 @@ backend and visual identity.
 | Media | Optional native LiveKit audio/video adapter, native video views, mute and camera commands; bring your own media through the adapter interface | [LiveKit](/guide/livekit) · [Own media](/guides/own-media) |
 | App presentation | Your Dart/TypeScript UI, or supplied call screen, root overlay and in-app mini-call with colors, logo and custom controls | [Call UI](/guide/call-ui) |
 | Android continuation | System PiP with video or branded fallback, separate from the mini-call inside your app | [Video and PiP](/guide/video) |
+| Phone features | Speaker, earpiece and headset switching, keypad tones (DTMF), caller-name updates, call back from iOS Recents/Siri and from Android missed-call notifications | [Phone features](/guide/phone-features) |
 | Integration tools | Setup/code generator, example apps, local call console, test pushes and adapter conformance | [Setup](/guide/setup) · [First call](/guide/first-call) |
 
 The native coordinator remains the single call-state owner. Presentation observes snapshots;
@@ -33,6 +34,8 @@ an adapter joins media. Adding a UI component does not create another calling en
 | Framework overlay and in-app mini-call | Available | Available; platform acceptance still needed |
 | System picture-in-picture | Available; automatic entry needs Android 12+ | Experimental, iOS 15+; not yet tried on an iPhone |
 | Persistent native locked-call timer, mute, hold and audio controls | Available; RN API 36 secure-PIN demo | CallKit owns system presentation; this Android screen is not an iOS feature |
+| Audio routes, DTMF, caller-name updates | Available; automated checks, Bluetooth needs a device | Available; automated and Simulator checks, Bluetooth and keypad need an iPhone |
+| Call back from outside the app | Missed-call notification with Call back | Recents, contact cards and Siri; not yet tried on an iPhone |
 
 These are implementation and verification levels, not physical-device guarantees.
 [Status](/project/status) lists the tested builds and remaining device checks.
@@ -53,6 +56,6 @@ UI configuration is also planned; use the supported customization surfaces today
 - [Personalize your setup](/guide/setup): choose framework, platform, UI, media and backend;
   copy Dart or TypeScript starter code and follow the integration checklist.
 
-Callx currently manages one live call. Conference merging, DTMF and a hosted signaling service
-remain outside the shipped scope. Your backend creates calls, sends pushes and arbitrates
+Callx currently manages one live call. Conference merging, the Android system call log and a
+hosted signaling service remain outside the shipped scope. Your backend creates calls, sends pushes and arbitrates
 answers across devices.

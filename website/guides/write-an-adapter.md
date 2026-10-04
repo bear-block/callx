@@ -137,6 +137,27 @@ container is a `UIView`. Report video through the sink:
 The core checks that the app is in front before asking for the camera, maps your error to
 `permissionDenied`, `mediaNotReady` or `platformRejected`, and keeps CallKit's `hasVideo` in step.
 
+## Keypad tones (optional)
+
+Implement the DTMF interface next to the media adapter to report the `dtmf` capability; no
+adapter API version change is needed, and adapters without it keep working (`sendDtmf` is then
+rejected as `unsupported`). The core calls it for `sendDtmf` and, on iOS, for the CallKit keypad.
+
+```kotlin
+class ExampleMediaAdapter(/* … */) : CallxMediaAdapter, CallxDtmfAdapter {
+    // Digits are 0-9, * and #. Return false when media is not ready (mediaNotReady).
+    override suspend fun sendDtmf(callId: String, digits: String): Boolean = provider.sendTones(digits)
+}
+```
+
+```swift
+final class ExampleMediaAdapter: CallxMediaAdapter, CallxDTMFAdapter {
+    func sendDTMF(callID: String, digits: String) async -> Bool { await provider.sendTones(digits) }
+}
+```
+
+Return true only once every digit was handed to the provider. Tones never change call state.
+
 ## Rules
 
 1. **Never report to the OS.** Turn off any CallKit, ConnectionService or Telecom integration in

@@ -111,7 +111,12 @@ Run these on each platform you ship, on release builds, with the screen on, lock
 - [ ] Decline, and caller cancel before answer. The caller's side updates; nothing rings later.
 - [ ] A duplicate push and a late push for an ended call. Neither rings.
 - [ ] Mute and hold from your UI and from the system UI. Audio follows.
-- [ ] Speaker, earpiece and Bluetooth routing.
+- [ ] Speaker, earpiece and Bluetooth routing from your UI (`setAudioRoute`), and `audioRoutes`
+      updating when a headset connects or disconnects.
+- [ ] Keypad tones (`sendDtmf` and, on iOS, the CallKit keypad) reach the remote side or IVR.
+- [ ] `setDisplayName` updates the system call UI.
+- [ ] Android: an unanswered or cancelled call leaves a missed-call notification; Call back opens
+      the app with a call request. iOS: tapping the call in Recents delivers a call request.
 - [ ] Network loss during a call: `mediaInterrupted`, then recovery.
 - [ ] Engine reload and process death during a call. State reconciles; nothing repeats.
 - [ ] Sign out and in as another user. Old calls and operations stay with the old account.

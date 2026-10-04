@@ -15,7 +15,8 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 The shared Swift and Kotlin core, Flutter and React Native packages with the Expo plugin,
 push ingress with CallKit and Core-Telecom, durable recovery, the LiveKit adapter with audio and
 video, native video views, picture-in-picture (experimental on iOS), the optional call overlay
-and mini-call, native Android lock-screen controls, and the testkit. Release-by-release detail
+and mini-call, native Android lock-screen controls, phone features (audio routes, DTMF,
+caller-name updates, call back from Recents, Siri and missed-call notifications) and the testkit. Release-by-release detail
 is in the [changelog](/project/changelog); what has been proven is on the [status page](/project/status).
 
 ## Presentation roadmap
@@ -53,8 +54,8 @@ with your own backend and media without a Callx account or hosted-service depend
 | Emulator matrix and community device results published for every release | Trust comes from evidence, not claims |
 | iOS conformance on a real iPhone, automated where possible | Parity with Android's conformance run |
 | Android Direct Boot | Ring before the first unlock after a reboot |
-| `updateDisplay` (change caller name during a call) | Common request when migrating |
-| Per-call ringtone | Common request |
+| Android system call log | Self-managed calls in the Phone app's history; needs an API Core-Telecom does not expose yet |
+| Per-call ringtone | Common request; Android channels and CallKit fix the sound per app today |
 
 ## Providers, in order
 
@@ -79,9 +80,8 @@ SIP stacks. Tell us what you need in [GitHub Discussions](https://github.com/bea
 
 | Item | Depends on |
 |---|---|
-| **Multiple calls**: call waiting, hold-and-swap | A future contract extension; contract 0.2 still allows one live call |
+| **Multiple calls**: call waiting, hold-and-swap | A future contract extension; contract 0.3 still allows one live call |
 | **`@bear-block/callx-server`**: payload builders and push helpers for Node.js backends | Stable invitation schema |
-| **DTMF** | Provider support |
 
 <SponsorCallout reason="roadmap" />
 

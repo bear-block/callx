@@ -49,9 +49,9 @@ features:
 
 <CallFeatureGallery />
 
-::: info Latest release: 0.2.4
-Experimental iOS picture-in-picture on the same APIs as Android.
-[Release notes](/project/changelog#release-0-2-4) · [What has been verified](/project/status)
+::: info Latest release: 3.0.0
+Audio routes, DTMF, caller-name updates and system call requests, plus the existing video, PiP and call UI APIs.
+[Release notes](/project/changelog#release-3-0-0) · [What has been verified](/project/status)
 :::
 
 ## Start with your app

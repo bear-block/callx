@@ -93,7 +93,7 @@ instead of hiding them.
 integration, signaling and media credentials; configured media adapters contact your token
 endpoint and provider. This is separate from usage tracking.
 
-**Small, stable surfaces.** One contract (`0.2.0`), checked by executable fixtures on Swift,
+**Small, stable surfaces.** One contract (`0.3.0`), checked by executable fixtures on Swift,
 Kotlin, Dart and TypeScript. Package versions move in lockstep.
 
 ## Build on the native foundation
@@ -115,8 +115,8 @@ Callx is deliberately not a calling service:
   complete reference design.
 - **No push sending.** Your backend holds the APNs and Firebase credentials and sends the
   invitations.
-- **One live call at a time** in this version. Multi-call, conference merging and DTMF are on
-  the [roadmap](/project/roadmap).
+- **One live call at a time** in this version. Multi-call and conference merging are on the
+  [roadmap](/project/roadmap).
 
 That boundary is what lets Callx work with any backend and any media provider, and it means
 there is no Callx server between your users.

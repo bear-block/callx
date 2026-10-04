@@ -47,7 +47,7 @@ Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 | **iOS** | | | |
 | VoIP push reported to CallKit, `mustReport` handling | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
 | CallKit actions and audio activation | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| Lock-screen answer | n/a | n/a | <span class="no">○</span> |
+| Lock-screen answer path through CallKit | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
 | **Media and video** | | | |
 | LiveKit audio: two-way, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | LiveKit audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
@@ -58,13 +58,20 @@ Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 | Android PiP: manual and automatic entry, compact layout, camera continuity, end cleanup | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | iOS PiP (experimental) | <span class="ok">●</span> | <span class="no">○</span> Simulator unsupported | <span class="no">○</span> |
 | Call overlay and mini-call: Back minimizes, expand returns to the same call | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| **Phone features (3.0.0)** | | | |
+| Audio routes: listing and `setAudioRoute` (Android endpoints, iOS audio session) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| DTMF through the adapter, CallKit keypad (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| `setDisplayName` (CallKit, Android notification) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| Android missed-call notification and Call back | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
+| iOS call requests from Recents and Siri | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | **Frameworks** | | | |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | React Native New Architecture (TurboModule, Fabric view) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | iPhone ↔ Android call through one backend | n/a | n/a | <span class="no">○</span> |
 
-iOS Simulator rows are partial: the Simulator proves builds, discovery and API wiring, not a
-ringing call.
+iOS Simulator rows are partial: `CXAnswerCallAction` is covered by automated and simulator
+tests, but the Simulator cannot prove a real VoIP push, a locked device or the system’s ringing
+screen. Lock-screen acceptance still requires a physical iPhone.
 
 ### How we verify
 
@@ -91,6 +98,15 @@ counts as a device pass.
 ## Evidence
 
 Newest first. Each record names the build, the platform and the date.
+
+### Automated checks for 3.0.0 — 2026-10-04 {#release-3-0-0-checks}
+
+On the published 3.0.0 sources: contract fixtures (15 valid, 18 invalid), the Android core and
+Telecom unit tests, 70 Swift core tests, 117 CallxCore tests on an iPhone Simulator, 38 Flutter tests and 39 React Native tests
+passed. They cover route mapping, command preconditions, DTMF through a fake adapter, renaming,
+missed-call detection, call-request handoff and `NSUserActivity` parsing. No emulator,
+simulator call or physical device has exercised these features end to end yet; the Android
+emulator also offers only the speaker route.
 
 ### iOS Simulator and 0.2.4 release checks — 2026-10-04 {#ios-simulator-2026-10-04}
 

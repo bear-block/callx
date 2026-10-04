@@ -52,6 +52,7 @@ let started = try CallxPlugin.bootstrap(config) // RN: CallxReactNativeHost.boot
 | `muteController` (Android) / `audio` (iOS) | None | For hosts that run media from listener callbacks |
 | `reconciliationProbe` | Reports unavailable | Evidence for operations pending from a previous process |
 | `startPushRegistry` (iOS) | `true` | Turn off if calls arrive only over signaling |
+| `donateCalls` (iOS) | `true` | Donate answered calls so Siri and contact cards can suggest calling back |
 | `log` | None | Diagnostic log lines (no tokens or payloads) |
 
 ### Bootstrap failures
@@ -169,7 +170,9 @@ override fun onAudioEndpointsChanged(callId: String, current: CallEndpointCompat
 ingress.requestAudioEndpoint(callId, speaker)
 ```
 
-Route only through Telecom. See [media and audio ownership](/concepts/media).
+Route only through Telecom. Callx also reports these endpoints as the call's `audioRoutes`, so
+Dart and TypeScript can switch with `setAudioRoute` without native code; see
+[phone features](/guide/phone-features#audio-routes) and [media and audio ownership](/concepts/media).
 
 ## iOS: CallKit actions and audio
 

@@ -37,7 +37,9 @@ clients are separate steps.
 | `reportConnectedOutgoingCallWithUUID(uuid)` | Native: `ingress.remoteAnswered(callId)`, then `mediaConnected` |
 | `setMutedCall(uuid, muted)` | `callx.setMuted(callId, muted)` |
 | `setOnHold(uuid, held)` | `callx.setHeld(callId, held)` |
-| `updateDisplay(uuid, name, handle)` | Not supported in this version |
+| `updateDisplay(uuid, name, handle)` | `callx.setDisplayName(callId, name)`. The handle cannot change; Android cars and watches keep the first name |
+| `sendDTMF(uuid, key)` | `callx.sendDtmf(callId, digits)` with a DTMF-capable adapter (`capabilities.dtmf`) |
+| `getAudioRoutes()` / `setAudioRoute(uuid, route)` | `call.audioRoutes` / `callx.setAudioRoute(callId, route.id)` |
 | `backToForeground()` | Automatic: answering opens your app (Android: see `LockedAnswer`) |
 | `checkPhoneAccountPermission` / `hasPhoneAccount` | Not needed with Core-Telecom; check `capabilities.nativeCalling` |
 
@@ -53,6 +55,9 @@ Instead of subscribing to many events, observe one snapshot:
 | `didPerformSetMutedCallAction` | `call.muted` |
 | `didToggleHoldCallAction` | `call.state === 'held'` |
 | `didActivateAudioSession` | Handled natively by the media adapter, or your `didActivate` |
+| `didPerformDTMFAction` | The CallKit keypad goes to the media adapter's DTMF method natively |
+| `didChangeAudioRoute` | `call.audioRoute` and `call.audioRoutes` |
+| `didReceiveStartCallAction` (Recents, Siri) | `callx.addCallRequestListener(request => …)`, then `startCall` if you agree |
 | `didLoadWithEvents` (events before JS loaded) | Not needed: `openSession()` returns a snapshot and replay |
 
 ```ts
@@ -81,8 +86,9 @@ callx.observe(({call}) => render(call));
 
 ## What you may miss
 
-Callx supports one live call. If your app relies on multiple simultaneous calls, call merging or
-`updateDisplay`, check the [roadmap](/project/roadmap) before migrating.
+Callx supports one live call. If your app relies on multiple simultaneous calls or call merging,
+check the [roadmap](/project/roadmap) before migrating. Audio routes, DTMF, `updateDisplay` and
+Recents call-back have Callx equivalents since 3.0.0; see [phone features](/guide/phone-features).
 
 ## A complete migration journey
 

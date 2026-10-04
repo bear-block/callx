@@ -5,11 +5,10 @@ description: "The complete TypeScript API of @bear-block/callx and @bear-block/c
 
 # TypeScript API
 
-::: info Prepared 0.3.0 APIs
+::: info Latest package release: 3.0.0
 Audio routes, DTMF, caller name updates and system call requests are documented in
-[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+[phone features](/guide/phone-features). They use contract 0.3.0 and are published on npm and pub.dev.
 :::
-
 
 
 ```ts
@@ -80,7 +79,7 @@ interface CallInput { callId: string; displayName: string; handle: string; video
 interface CommandOptions { operationId?: string; deadlineAtMs?: number }
 
 interface Capabilities {
-  contractVersion: '0.2.0';
+  contractVersion: '0.3.0';
   coreVersion: string;
   execution: 'native' | 'preview';
   accountGeneration: string;
@@ -116,6 +115,10 @@ interface Call {
   endedAtMs?: number;
 }
 
+type AudioRouteKind = 'earpiece' | 'speaker' | 'bluetooth' | 'wired' | 'other';
+interface AudioRoute { id: string; kind: AudioRouteKind; name: string }  // id is opaque
+interface CallRequest { handle: string; displayName?: string; video: boolean }
+
 type CallState = 'incoming' | 'outgoing' | 'connecting' | 'active' | 'held' | 'ended';
 
 type LocalVideo = 'off' | 'on' | 'blocked';   // blocked: the OS took the camera, e.g. in the background
@@ -125,7 +128,7 @@ type EndReason = 'localHangup' | 'declined' | 'remoteEnded' | 'callerCancelled' 
   | 'busy' | 'failed' | 'answeredElsewhere' | 'declinedElsewhere';
 
 interface CommandResult {
-  contractVersion: '0.2.0';
+  contractVersion: '0.3.0';
   operationId: string;
   status: 'applied' | 'rejected' | 'timedOut' | 'unknown';
   execution: 'native' | 'preview';
@@ -141,7 +144,7 @@ interface OperationError {
 }
 
 interface OperationLookup {
-  contractVersion: '0.2.0';
+  contractVersion: '0.3.0';
   operationId: string;
   accountGeneration: string;
   status: 'available' | 'unavailable' | 'generationMismatch';
@@ -149,16 +152,16 @@ interface OperationLookup {
 }
 
 interface ObservationSession {
-  contractVersion: '0.2.0';
+  contractVersion: '0.3.0';
   sessionId: string;
   accountGeneration: string;
   status: 'fresh' | 'resumed' | 'resynced';
-  snapshot: {contractVersion: '0.2.0'; watermark: string; calls: Call[]};
+  snapshot: {contractVersion: '0.3.0'; watermark: string; calls: Call[]};
   replay: CallEvent[];
 }
 
 interface CallEvent {
-  contractVersion: '0.2.0';
+  contractVersion: '0.3.0';
   eventId: string;
   sequence: string;
   kind: 'callChanged' | 'operationCompleted' | 'resyncRequired';
@@ -175,7 +178,7 @@ interface PushToken { type: 'voip' | 'fcm'; token: string }
 
 | Export | Value |
 |---|---|
-| `CONTRACT_VERSION` | `'0.2.0'` |
+| `CONTRACT_VERSION` | `'0.3.0'` |
 | `CALL_STATES` | All `CallState` values |
 | `END_REASONS` | All `EndReason` values |
 | `COMMAND_STATUSES` | All command statuses |
@@ -283,7 +286,7 @@ CallxControlGlyph is optional; hosts can supply their own icons. renderVideo sup
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
 
-## System call requests (0.3.0)
+## System call requests
 
 `callx.addCallRequestListener(listener)` returns an unsubscribe function. The listener receives
 `{handle, displayName?, video}` and the host decides whether to place a call. Use one app-level

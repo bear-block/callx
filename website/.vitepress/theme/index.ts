@@ -10,6 +10,7 @@ import CallDemoShowcase from './components/CallDemoShowcase.vue';
 import SetupGuide from './components/SetupGuide.vue';
 import MermaidDiagram from './components/MermaidDiagram.vue';
 import HeroDemo from './components/HeroDemo.vue';
+import ReleaseBadge from './components/ReleaseBadge.vue';
 import './custom.css';
 
 export default {
@@ -18,6 +19,7 @@ export default {
     'aside-outline-after': () => h(SponsorAside),
     'layout-bottom': () => h(SponsorPrompt),
     'home-hero-image': () => h(HeroDemo),
+    'home-hero-info-before': () => h(ReleaseBadge),
   }),
   enhanceApp({app}) {
     app.component('CallDemoShowcase', CallDemoShowcase);

@@ -18,9 +18,12 @@ running, answers are never lost on the lock screen, and cancelled calls never ri
 - **Recovery built in.** A durable journal, idempotent commands with explicit results, and
   replayable events after a crash, a hot restart or a reboot.
 - **Bring your own backend and media.** No hosted service and no Firebase or media dependency. Add
-  [`callx_livekit`](https://pub.dev/packages/callx_livekit) for LiveKit audio with no native code.
+  [`callx_livekit`](https://pub.dev/packages/callx_livekit) for LiveKit audio and video with no native code.
 - **Same core as React Native.** [`@bear-block/callx`](https://www.npmjs.com/package/@bear-block/callx)
   runs the same Swift and Kotlin sources.
+- **Phone features.** Speaker, earpiece and headset switching, keypad tones (DTMF), caller-name
+  updates, and call back from iOS Recents/Siri and Android missed-call notifications
+  ([guide](https://bear-block.github.io/callx/guide/phone-features)).
 - **Private by default.** MIT licensed, no telemetry.
 
 ## Requirements
@@ -105,7 +108,7 @@ The simulator is an explicit opt-in; `Callx()` never falls back to it.
 
 ## Scope
 
-One live call at a time, voice, iOS and Android (web runs the simulator only). Callx does not
+One live call at a time, voice or video, iOS and Android (web runs the simulator only). Callx does not
 host signaling, send pushes or carry media. See the
 [roadmap](https://bear-block.github.io/callx/project/roadmap) and what has been
 [verified on devices](https://bear-block.github.io/callx/project/status).
@@ -123,7 +126,7 @@ MIT licensed.
 
 ## Optional call UI
 
-Version 0.2.2 exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
+Since 0.2.2, Callx exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
 `CallxPresentationController` from `package:callx/callx_ui.dart`. Mount the overlay above your app UI; incoming
 stays on Home until accepted, Back minimizes inside the app, and end removes the call UI.
 Colors/logo and command callbacks belong to your app. The controller never changes native

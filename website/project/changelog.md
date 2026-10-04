@@ -20,11 +20,25 @@ All Callx packages release together with one version number. Each package also k
 
 ## 3.0.0 — 2026-10-04 {#release-3-0-0}
 
+**Published on npm and pub.dev.** Package version 3.0.0; contract 0.3.0. The version follows
+0.2.4 directly: npm never reuses a version number, and 0.3.x, 0.4.x, 1.x and 2.x were already
+taken by earlier uploads of the `@bear-block/callx` name, so all packages moved to 3.0.0 together.
+
 ### Features
 
-Audio route observation/selection, DTMF through optional media adapters (including LiveKit),
-caller name updates, Android missed-call callback requests, and iOS system activity handoff,
-answered-call donation and outgoing connecting timestamps.
+- **Audio routes**: `call.audioRoutes` and `call.audioRoute` from Core-Telecom endpoints and the
+  CallKit audio session; switch with `setAudioRoute`.
+- **Keypad tones**: `sendDtmf` and the CallKit keypad, through an optional adapter interface;
+  the LiveKit adapters publish SIP DTMF. Reported as the `dtmf` capability.
+- **Caller-name updates**: `setDisplayName` updates CallKit and the Android notification.
+- **Call requests**: call back from iOS Recents, contact cards and Siri, and from the new Android
+  missed-call notification, through `Callx.callRequests` / `addCallRequestListener`.
+- iOS donates answered calls to Siri suggestions (`donateCalls`) and reports outgoing calls as
+  connecting to CallKit.
+
+### Fixes
+
+None beyond 0.2.4.
 
 ### Breaking changes and migration
 
@@ -39,9 +53,9 @@ lifecycle APIs keep their signatures. See [phone features and migration](/guide/
 Automated checks cover command behavior and platform mappings. Physical headset/Bluetooth,
 Recents/Siri launch and SIP/IVR acceptance remain pending.
 
-## Website documentation update — 2026-10-04
+## Website documentation update — 2026-10-04 (0.2.3)
 
-Compare now describes 0.2.3, distinguishes system video reporting from media/UI/PiP, and
+Compare described 0.2.3 at the time, distinguishes system video reporting from media/UI/PiP, and
 links the officially reviewed alternatives. Homepage, package/API reference and video setup
 use the current version; UI options and upgrade guidance are synchronized with source.
 Historical release/test dates remain intact. No additional npm/pub release accompanies this

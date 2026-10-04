@@ -5,11 +5,10 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
-::: info Prepared 0.3.0 APIs
+::: info Latest package release: 3.0.0
 Audio routes, DTMF, caller name updates and system call requests are documented in
-[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+[phone features](/guide/phone-features). They use contract 0.3.0 and are published on npm and pub.dev.
 :::
-
 
 
 ```dart
@@ -80,6 +79,8 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 | `CommandResult` | `operationId`, `status`, `execution`, `completedAtMs`, `error?` |
 | `OperationError` | `code`, `message`, `retryable`, `platform?` |
 | `PlatformError` | `domain`, `code` |
+| `AudioRoute` | `id`, `kind` (`AudioRouteKind`), `name` |
+| `CallRequest` | `handle`, `displayName?`, `video` |
 
 ## `CallxVideoView`
 
@@ -117,6 +118,7 @@ nothing on other platforms. See [video calls](/guide/video).
 | `CallEventSource` | `local`, `platform`, `signaling`, `media`, `recovery` |
 | `CallxErrorCode` | See [errors](/reference/errors) |
 | `ExecutionMode` | `native`, `preview` |
+| `AudioRouteKind` | `earpiece`, `speaker`, `bluetooth`, `wired`, `other` |
 
 ## `CallxException`
 
@@ -182,7 +184,9 @@ doneLabel, cameraPausedLabel and localPreviewLabel. Hosts can replace videoBuild
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
 
-## System call requests (0.3.0)
+## System call requests
 
-`Callx.callRequests` is a `Stream<CallRequest>` with `handle`, optional `displayName`, and `video`.
+`Callx.callRequests` (also `CallxCallRequests.requests`) is a `Stream<CallRequest>` with
+`handle`, optional `displayName`, and `video`. A request that launched the app is held natively
+for 60 seconds and delivered to the first listener.
 Listen once at app level; the request does not start a call. See [native handoff setup](/guide/phone-features#requests-from-outside-the-app).

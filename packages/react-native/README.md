@@ -22,8 +22,11 @@ app is not running, answers are never lost on the lock screen, and cancelled cal
   service, compatible with React Native Firebase.
 - **Bring your own backend and media.** No hosted service and no Firebase or media dependency. Add
   [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) for
-  LiveKit audio with no native code.
+  LiveKit audio and video with no native code.
 - **New Architecture.** A typed TurboModule, with a fallback for the legacy architecture.
+- **Phone features.** Speaker, earpiece and headset switching, keypad tones (DTMF), caller-name
+  updates, and call back from iOS Recents/Siri and Android missed-call notifications
+  ([guide](https://bear-block.github.io/callx/guide/phone-features)).
 - **Private by default.** MIT licensed, no telemetry.
 
 ## Requirements
@@ -127,7 +130,7 @@ The simulator is an explicit opt-in; `new Callx()` never falls back to it.
 
 ## Scope
 
-One live call at a time, voice, iOS and Android (web runs the simulator only). Callx does not
+One live call at a time, voice or video, iOS and Android (web runs the simulator only). Callx does not
 host signaling, send pushes or carry media. See the
 [roadmap](https://bear-block.github.io/callx/project/roadmap) and what has been
 [verified on devices](https://bear-block.github.io/callx/project/status).
@@ -145,7 +148,7 @@ MIT licensed.
 
 ## Optional call UI
 
-Version 0.2.2 exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
+Since 0.2.2, Callx exports `CallxCallOverlay`, `CallxCallScreen`, `CallxMiniCall` and
 `CallxPresentationController` from `@bear-block/callx/ui`. Mount the overlay above your app UI; incoming
 stays on Home until accepted, Back minimizes inside the app, and end removes the call UI.
 Colors/logo and command callbacks belong to your app. The controller never changes native

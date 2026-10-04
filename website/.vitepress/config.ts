@@ -1,4 +1,11 @@
+import {readFileSync} from 'node:fs';
 import {defineConfig} from 'vitepress';
+
+// One source for the version shown in the nav: all packages release together (see Packages).
+const readJson = (path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+const version: string = readJson('../../packages/react-native/package.json').version;
+const contractVersion: string = readJson('../../contracts/v0/manifest.json').contractVersion;
+const releaseAnchor = `release-${version.replaceAll('.', '-')}`;
 
 const site = 'https://bear-block.github.io/callx/';
 const description =
@@ -53,6 +60,16 @@ export default defineConfig({
       },
       {text: 'Work with us', link: '/services'},
       {text: 'Sponsor', link: '/sponsor'},
+      {
+        text: `v${version}`,
+        items: [
+          {text: `Release notes for ${version}`, link: `/project/changelog#${releaseAnchor}`},
+          {text: 'What has been verified', link: '/project/status'},
+          {text: `Contract ${contractVersion}`, link: '/reference/contract'},
+          {text: 'npm', link: 'https://www.npmjs.com/package/@bear-block/callx'},
+          {text: 'pub.dev', link: 'https://pub.dev/packages/callx'},
+        ],
+      },
     ],
     sidebar: [
       {
@@ -84,7 +101,7 @@ export default defineConfig({
         items: [
           {text: 'Audio and video with LiveKit', link: '/guide/livekit'},
           {text: 'Video calls', link: '/guide/video'},
-          {text: 'Phone features (0.3.0)', link: '/guide/phone-features'},
+          {text: 'Phone features', link: '/guide/phone-features'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
         ],
       },
@@ -137,7 +154,7 @@ export default defineConfig({
           {text: 'Native API', link: '/reference/native'},
           {text: 'Expo config plugin', link: '/reference/expo-plugin'},
           {text: 'Errors', link: '/reference/errors'},
-          {text: 'Contract v0.2', link: '/reference/contract'},
+          {text: `Contract v${contractVersion.split('.').slice(0, 2).join('.')}`, link: '/reference/contract'},
           {text: 'Packages', link: '/reference/packages'},
         ],
       },
@@ -167,6 +184,8 @@ export default defineConfig({
     },
   },
   vite: {
+    // The home page's release badge reads the same package version as the nav.
+    define: {__CALLX_VERSION__: JSON.stringify(version)},
     // Mermaid's own chunks are large but load only on pages with a diagram.
     build: {chunkSizeWarningLimit: 1500},
   },

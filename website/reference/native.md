@@ -5,11 +5,10 @@ description: "The Kotlin and Swift types a native host uses: bootstrap, ingress,
 
 # Native API
 
-::: info Prepared 0.3.0 APIs
+::: info Latest package release: 3.0.0
 Audio routes, DTMF, caller name updates and system call requests are documented in
-[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+[phone features](/guide/phone-features). They use contract 0.3.0 and are published on npm and pub.dev.
 :::
-
 
 The native API is the same in both framework packages; only the module name and the framework
 entry point differ.
@@ -31,6 +30,7 @@ Kotlin types live in `dev.callx.core` and `dev.callx.telecom`.
 | `CallxBootstrap.started` | | The running pipeline after bootstrap (Android) |
 | `Started.runtime`, `.ingress`, `.media`, `.recoveredCall` | `CallxBootstrap.runtime`, `.ingress`, `.provider`, `.media`, `.ready` | What the bootstrap built. On iOS, `ready` completes with the recovered call after recovery |
 | `CallxMediaStatus` | `CallxMediaStatus` | `Adapter(source)`, host-controlled, or none |
+| | `CallxBootstrapConfig.donateCalls` | Donate each answered call to Siri suggestions (default `true`) |
 
 ## Push tokens
 
@@ -53,7 +53,9 @@ On iOS the bootstrap records the VoIP token itself.
 | `remoteAnswered(callId)` | The remote side answered an outgoing call |
 | `remoteEnded(callId, reason)` | The remote side ended or cancelled; recorded even before the invitation |
 | `silenceIncoming(callId)` (Android) | Stops the ringtone |
-| `requestAudioEndpoint(callId, endpoint)` (Android) | Switches audio route through Telecom |
+| `requestAudioEndpoint(callId, endpoint)` (Android) | Switches audio route through Telecom; Dart/JS use `setAudioRoute` |
+| `supportsVideo`, `supportsDtmf` (Android) | Whether the installed media adapter carries video or keypad tones |
+| `cameraChanged(callID:on:)`, `rename(callID:displayName:)` (iOS) | Update CallKit's video flag and caller name; the bootstrap calls them |
 | `recoverAfterProcessDeath()` | Cleanup after a previous process died; the bootstrap calls it |
 | `startPushRegistry()` (iOS) | Registers for VoIP pushes; the bootstrap calls it |
 | `TelecomIngress.EXTRA_CALL_ID` | Intent extra with the answered call's ID |
@@ -66,6 +68,9 @@ On iOS the bootstrap records the VoIP token itself.
 |---|---|
 | `mediaConnected(callId)` | Media flows (first time or after an interruption) |
 | `mediaInterrupted(callId)` | Connected media dropped |
+| `videoObserved(callId, localVideo, remoteVideo)` | Video state a media adapter observed |
+| `audioRoutesObserved(callId, current, routes)` | Audio outputs the platform reports; the bootstrap calls it on both platforms |
+| `executeNative(type, callId, value)` | A command started from native UI, such as a notification button |
 | `reportIncoming(…)`, `platformAnswered(callId)`, `platformEnded(callId, reason)`, `remoteEnded(callId, reason)` | Provider-managed mode only |
 
 ## Listeners
@@ -98,13 +103,15 @@ On iOS the bootstrap records the VoIP token itself.
 
 | Type | Description |
 |---|---|
-| `CallStylePresenter(context, channelId, smallIcon, fullScreenIntent, contentIntent, labels, lockedAnswer)` | The default notification presenter |
-| `CallNotificationLabels` | `answer`, `decline`, `hangUp`, `openApp`, `incomingChannel`, `ongoingChannel` |
+| `CallStylePresenter(context, channelId, smallIcon, fullScreenIntent, contentIntent, labels, lockedAnswer, missedCalls)` | The default notification presenter. `missedCalls = false` turns off the missed-call notification |
+| `CallNotificationLabels` | `answer`, `decline`, `hangUp`, `openApp`, `incomingChannel`, `ongoingChannel`, `mute`, `unmute`, `hold`, `resume`, `audio`, `missedCall`, `missedVideoCall`, `callBack`, `missedChannel` |
 | `LockedAnswer` | `RequireUnlock`, `ShowOverLockScreen` |
 | `CallxLockScreen.onIntent(activity, intent)` | Needed with `ShowOverLockScreen` |
 | `CallxFullScreenIntent.isAllowed(context)` / `.settingsIntent(context)` | Android 14+ full-screen intent permission |
 | `CallxTelecomAvailability.requireSupported(context)` | Throws when the device has no Telecom |
-| `IncomingCallPresenter` | Implement for full control of the notification |
+| `IncomingCallPresenter` | Implement for full control of the notification; optional `rename(callId, displayName)` and `showMissed(MissedCall)` |
+| `MissedCall` | `callId`, `displayName`, `handle`, `video`, `endedAtMs`: an incoming call that stopped ringing unanswered |
+| `CallxCallBackActivity` | Declared by the library; the missed-call **Call back** button records a call request and opens the app |
 | `TelecomSystemActionHandler` | Backend work for actions from watches and cars |
 
 ## iOS actions and audio
@@ -113,14 +120,34 @@ On iOS the bootstrap records the VoIP token itself.
 |---|---|
 | `CallKitActionPerforming` | Backend work per CallKit action; return `false` to fail it |
 | `CallKitAudioSessionHandling` | `didActivate(_:)`, `didDeactivate(_:)` |
-| `MediaRoutingPerformer` | Wraps a performer so mute actions reach the media adapter |
+| `MediaRoutingPerformer` | Wraps a performer so mute and CallKit keypad actions reach the media adapter |
+| `CallxAudioRoutes` | Lists and switches outputs while CallKit's audio session is active; the bootstrap installs it |
+| `CallxCallFeatureExecutor` | Performs `setAudioRoute`, `sendDtmf` and `setDisplayName`; the bootstrap installs it |
+
+## Call requests
+
+The user asked the system to call someone through the app (ADR-0013). Not a command: the host
+looks up the handle and decides whether to call `startCall`.
+
+| Kotlin | Swift | Description |
+|---|---|---|
+| `CallxCallRequest(handle, displayName, video, requestedAtMs)` | `CallxCallRequest` | One request |
+| `CallxCallRequests.take()` | `CallxCallRequests.take()` | The pending request, delivered once; held for 60 seconds |
+| `CallxCallRequests.setListener(listener)` | `CallxCallRequests.setListener(_:)` | One consumer (the framework plugin) is told when a request arrives |
+| `CallxCallRequests.offer(request)` | `CallxCallRequests.offer(_:)` | Records a request from another source |
+| | `CallxCallRequests.handle(_ activity:)` | Forward an `NSUserActivity` from Recents, contacts or Siri; true when it was a call request |
+| | `CallxStartCallIntentHandler` | Return it from `application(_:handlerFor:)` for Siri voice requests (unverified on a physical iPhone) |
+
+See [phone features](/guide/phone-features#requests-from-outside-the-app) for host setup.
 
 ## Media adapters
 
 | Kotlin | Swift |
 |---|---|
 | `CallxMediaAdapter` (`apiVersion`, `start`, `stop`, `setMuted`) | `CallxMediaAdapter` (same, plus audio session callbacks) |
-| `CallxMediaSink` (`connected`, `interrupted`) | `CallxMediaSink` |
+| `CallxMediaSink` (`connected`, `interrupted`, `videoChanged`) | `CallxMediaSink` |
+| `CallxVideoAdapter` (`setCamera`, `attach`, `detach`; adapter API 2) | `CallxVideoAdapter` |
+| `CallxDtmfAdapter.sendDtmf(callId, digits)` (optional) | `CallxDTMFAdapter.sendDTMF(callID:digits:)` (optional) |
 | `CallxMediaAdapterFactory.create(context)` | `CallxMediaAdapterFactory.makeAdapter(context:)` |
 | `CallxAdapterContext(context, scope, log)` | `CallxAdapterContext(log:)` |
 | Manifest `dev.callx.media.<provider>` | `Info.plist` `CallxMediaAdapterFactories` |

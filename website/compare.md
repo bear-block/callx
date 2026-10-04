@@ -10,7 +10,7 @@ call to CallKit/Telecom does not itself provide a video renderer, an in-app mini
 Callx combines these layers while keeping one native call-state owner and optional UI/media.
 
 ::: info Reviewed on 2026-10-04
-Callx describes the latest release, contract **0.2.0**. Other package versions were checked
+Callx describes package release **3.0.0**, contract **0.3.0**. Other package versions were checked
 against npm/pub.dev, and capabilities against the official project documentation linked below.
 This is a documentation review, not a device benchmark or conformance test of other libraries.
 “Not assessed” means we have not established support or absence; it does not mean unsupported.
@@ -45,9 +45,9 @@ missing behavior from a README. Callx implementation and verification are separa
 | Durable coordinator snapshots, command results and replay | Available | Initial events documented; equivalent durable protocol not assessed | Session API documented; equivalent durable protocol not assessed | activeCalls documented; equivalent durable protocol not assessed |
 | Persistent cancellation tombstones | Available within contract retention/account scope | Not assessed | Not assessed | Not assessed |
 | Video reporting to system call UI | Available | Documented | Documented | Audio/video type documented |
-| DTMF | Not shipped; roadmap | Documented | Documented | Not assessed |
+| DTMF | Available through an optional media adapter; LiveKit publishes SIP DTMF | Documented | Documented | Not assessed |
 | Multiple live calls | One live call; roadmap | Documented | Not assessed | Not assessed |
-| iOS Siri/Recents start-call integration | Not shipped | Start-call event documented | Documented | Not assessed |
+| iOS Siri/Recents start-call integration | Available; physical iPhone acceptance pending | Start-call event documented | Documented | Not assessed |
 
 Sources: [callkeep README](https://github.com/react-native-webrtc/react-native-callkeep#readme),
 [Expo module README](https://github.com/mfairley/expo-callkit-telecom#readme),
@@ -102,6 +102,6 @@ backend is unavailable. See [provider priorities](/project/roadmap#providers-in-
 - **Vendor SDK or custom native integration:** evaluate the required hosted features or the
   cost of maintaining your own native stack; neither is interchangeable with a UI component.
 
-Callx does not currently ship DTMF, multi-call or a hosted backend, and iOS picture-in-picture is
+Callx does not currently ship multi-call or a hosted backend, and iOS picture-in-picture is
 experimental. Physical-device call acceptance remains pending. Follow the [setup guide](/guide/setup)
 and [migration rollout](/guides/migration-rollout) rather than switching call ownership mid-call.
