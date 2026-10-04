@@ -93,12 +93,20 @@ instead of hiding them.
 **Small, stable surfaces.** One contract (`0.2.0` in version 0.2.2 packages), checked by executable fixtures on Swift,
 Kotlin, Dart and TypeScript. Package versions move in lockstep.
 
+## Build on the native foundation
+
+That foundation now supports optional native media adapters, video surfaces, Android system
+PiP and framework call UI. Your screens observe the same snapshots; installing an adapter or
+using the call overlay does not transfer call ownership to Dart or TypeScript.
+[Explore the features and real emulator captures](/guide/features), or
+[check platform verification](/project/status) before choosing an integration.
+
 ## What Callx does not do
 
 Callx is deliberately not a calling service:
 
-- **No media.** It does not capture, relay or mix audio. You connect your media engine, or
-  install an adapter such as [LiveKit](/guide/livekit).
+- **No media server.** The core coordinates media through an adapter; the optional
+  [LiveKit adapter](/guide/livekit) handles native audio/video. Your provider runs the media infrastructure.
 - **No signaling server.** It does not create calls, choose who answered first or deliver
   events between users. Your backend does; [the backend guide](/guides/backend) gives a
   complete reference design.

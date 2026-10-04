@@ -6,7 +6,9 @@ description: "Release notes for all Callx packages, which share one version numb
 # Changelog
 
 This page is the public release history; publishing a package does not require a GitHub Release.
-Development changes stay under **Unreleased** until the package version is published.
+Development changes stay under **Unreleased**, or are explicitly marked publication pending.
+Every release records features, fixes, breaking changes (including none), migration steps and
+verification limits. Breaking API changes and visible behavior changes are described separately.
 
 All Callx packages release together with one version number. Each package also keeps its own
 `CHANGELOG.md` with package-specific details:
@@ -15,6 +17,50 @@ All Callx packages release together with one version number. Each package also k
 [callx_livekit](https://github.com/bear-block/callx/blob/main/packages/callx_livekit/CHANGELOG.md),
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
+
+## Unreleased
+
+No additional changes queued.
+
+## 0.2.3 — 2026-10-04 {#release-0-2-3}
+
+**Published on npm and pub.dev.** Package version 0.2.3; contract remains 0.2.0.
+
+### Features
+
+- Reusable Flutter/React Native call controls, custom header/status/end slots, leading controls,
+  localized labels, preview placement and additional brand colors.
+- Compact video controls: equal 58dp buttons including End, a top local preview, direct Hold,
+  and a transparent camera-switch icon. Connected video controls hide after five idle seconds;
+  foreground return restores them with a fresh timeout. Screen readers and reduced motion are respected.
+- Android native locked-call screen retains timer, mute/hold and Telecom audio controls after
+  Answer. Open app requests unlocking; camera activation remains an explicit action after unlock.
+- Refreshed two-device and secure-lock demos, feature gallery and copyable Dart/TypeScript setup generator.
+
+### Fixes
+
+- Android API33 journal pruning uses an API available on older runtimes.
+- Safe areas, control alignment and portrait/landscape access to End in the example apps.
+- Hidden controls cannot receive a destructive action on the first reveal gesture.
+- Steven and hao.dev7 examples identify their owner and show the correct peer contact.
+
+### Breaking changes
+
+No removed or renamed public API and no call-contract or media-adapter version change.
+**UI behavior changes:** the supplied connected-video screen now hides controls by default;
+its layout and local-preview placement change. Native Android Answer with RequireUnlock keeps
+an ongoing-call screen visible. Hosts using custom controls should review the upgrade guide.
+
+### Migration
+
+See [upgrade from 0.2.2 to 0.2.3](/guide/upgrade-0-2-3) for dependency updates, persistent controls,
+safe-area configuration, customization and the unchanged native ownership rules.
+
+### Verification and limitations
+
+Two-device Android trial: 25 checks; secure-PIN Android trial: 46 checks. Native iOS Simulator:
+92 tests, with both example Home screens running. Physical-device and iPhone call acceptance
+remain pending; iOS system PiP is not implemented. See [status](/project/status).
 
 ## 0.2.2 — 2026-10-02
 
@@ -53,6 +99,12 @@ those numbers were previously used on npm and cannot be reused.
 - **`setup()` takes no arguments.** `appName` was validated and never used; the call screens show
   your app's display name (`CFBundleDisplayName` on iOS, `android:label` on Android).
   `appName` is deprecated and ignored, so existing calls keep working.
+
+### Breaking changes and migration
+
+The 0.2.2 call contract adds optional video fields and commands; media adapter API2 retains API1
+compatibility. Existing setup appName is deprecated and ignored. Update core and adapters
+together; see [video integration](/guide/video) and [migration rollout](/guides/migration-rollout).
 
 ## 0.1.3
 

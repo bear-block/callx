@@ -37,6 +37,13 @@ device checks; dates depend on device coverage and funding. Vote or comment on i
 - [ ] iOS video and physical-device acceptance
 - [x] Publish 0.2.2 packages on npm and pub.dev
 
+## Released: 0.2.3
+
+Version 0.2.3 adds equal-sized direct framework controls, a top local preview, foreground-aware
+auto-hide and persistent native presentation after locked Answer, with timer,
+mute, hold and Telecom audio routes. Open app explicitly requests unlocking. See the
+[development-build demo](/guide/lockscreen-demo); these changes require 0.2.3.
+
 ## Presentation roadmap
 
 | Item | Status | Scope |
@@ -53,7 +60,7 @@ Custom presentation retains native call ownership and the required system integr
 
 | Item | Status | Scope |
 |---|---|---|
-| [Interactive setup guide](/guide/setup) | Implemented in docs | Select framework, OS, presentation, media, backend and migration path; generate a supported integration checklist |
+| [Interactive setup guide](/guide/setup) | Implemented in docs | Select framework, OS, presentation, media, backend and migration path; generate copyable Dart/TypeScript starter files, native fragments and integration checkpoints |
 | [Detailed migration journeys](/guides/migration-rollout) | Implemented in docs | CallKeep and flutter_callkit_incoming: ownership, backend routing, staged rollout and rollback |
 | Standalone Android SDK | In development; not published | Local Maven packaging and independent consumer compile check; Kotlin API and runnable native example pending; optional Compose UI to be scoped |
 | Standalone iOS SDK | In development; not published | Root Swift package and independent iOS consumer compile check; Swift API and runnable native example pending; optional SwiftUI UI to be scoped |

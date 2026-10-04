@@ -60,6 +60,9 @@ The ingress checks, in order:
 
 ## Android: FCM and Core-Telecom
 
+Watch the [secure lock-screen voice/video demo](/guide/lockscreen-demo) for the
+current native incoming flow and camera behavior under the default RequireUnlock policy.
+
 - Your app's Firebase messaging service forwards each message to `ingress.handlePush`. Callx
   declares no messaging service and does not depend on Firebase. The Expo plugin generates the
   service for you.

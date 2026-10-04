@@ -128,3 +128,79 @@ See the complete integrations in
 [Flutter main.dart](https://github.com/bear-block/callx/blob/main/packages/callx/example/lib/main.dart)
 and [RN App.tsx](https://github.com/bear-block/callx/blob/main/packages/react-native/example/App.tsx),
 and the [verification status](/project/status).
+
+
+## Coordinated call layout (0.2.3)
+
+The following additions are available in **0.2.3**. For changes from 0.2.2, see the
+[upgrade guide](/guide/upgrade-0-2-3).
+The Flutter and React Native examples use the library's optional call screen and controls.
+Home remains mounted beneath the root call overlay; Diagnostics contains trial tools.
+
+Android still uses **self-managed Core-Telecom** for call coordination and audio routing.
+Its application-owned incoming and active screens are expected in this model; Android does
+not supply a complete video call layout. See [Android Telecom](https://developer.android.com/develop/connectivity/telecom?hl=en).
+The native locked-call screen belongs to the library, while the example owns demo signaling
+and media credentials. The native presentation and Flutter/React Native presentation are
+separate surfaces sharing observed call state.
+
+`CallxCallControl` provides a circular button with a label, selected/disabled state and
+accessibility information. Hosts supply callbacks and derive state from snapshots. Hosts
+can replace every control; importing UI never accepts calls or joins media.
+
+Customization includes:
+
+- Brand background, accent, foreground, surface and destructive colors, plus an app logo.
+- A custom header, status text, localized action labels and a separate end-call slot.
+- Preview placement and size, controls and local-camera controls.
+- React Native's existing `renderVideo`; Flutter's optional `videoBuilder` for a custom video surface.
+
+Video fills its surface with `cover`. Remote video takes the main surface; a local preview
+appears when both sources exist. A front local camera is mirrored. With no video source,
+the host's background and logo remain visible. Compact layouts and larger text can scroll
+so the end-call action stays reachable.
+
+For Flutter, pass `onPressed: null` to disable a control. For React Native, pass `disabled`.
+Camera permission requests, command errors, audio endpoint selection, backend authorization
+and token renewal remain host responsibilities. The examples demonstrate these boundaries;
+their local console is not a production backend.
+
+
+React Native hosts using edge-to-edge windows should pass `contentInsets` (top, right,
+bottom, left) to `CallxCallScreen` and `CallxCallOverlay`. The example measures them with
+`react-native-safe-area-context` inside `SafeAreaProvider`; call controls stay inside those
+insets while video extends behind system bars. This API was added in **0.2.3**.
+Flutter uses `SafeArea`; the default Android incoming/locked screen applies system-bar and
+cutout insets itself. Neither fixed status-bar heights nor decorative demo frames substitute
+for device insets.
+
+
+## Compact video controls (0.2.3)
+
+The **0.2.3** examples use a Material 3 style video action row: microphone, camera,
+audio output and end call. Flutter uses Material 3 icon buttons; the RN example
+uses Material Icons. Controls use equal 58 dp circular buttons with 28 dp icons, matching the contact-card
+actions. End uses the same size and a red color. Hosts can override button size. Hold/resume is directly
+available at the top left; camera switching sits on the local preview, or at the top right
+when only the local camera is available. The preview anchors to the top safe area, separately
+from the name and timer. The camera-switch overlay is a small 20 dp icon with a transparent
+background and a 48 dp touch target, so it leaves the preview visible. No system PiP button appears in the call row.
+
+Connected video controls fade out after five idle seconds. Returning to the foreground restores them and starts a fresh timeout. Touching the video restores them;
+that first touch does not invoke a hidden action. Voice calls, held/reconnecting calls, errors,
+ongoing host actions and screen readers keep controls visible. Reduced-motion settings remove
+the fade animation. Compact video actions remain inside safe areas in portrait and landscape;
+large text and custom expanded controls can scroll.
+
+Hosts can customize the UI with `compactVideoControls`, `autoHideControls`,
+`controlsPinned` and the timeout (`controlsTimeout` in Flutter, `controlsTimeoutMs` in RN).
+Pass `compact: true` / `compact` to individual `CallxCallControl` buttons for an icon-only
+control. `size` customizes a button diameter, and `leadingControls` supplies direct top-left
+actions. Custom controls, headers, branding, video surfaces and end actions remain host slots.
+Pin controls while showing a host dialog or running a command. These APIs require 0.2.3 or later.
+
+The 0.2.3 examples enable automatic system PiP by default on supported Android versions.
+Back from the call overlay produces the in-app mini-call; Home or leaving the Activity produces
+system PiP for a live video call on Android 12+. Navigating inside the app never invokes system
+PiP. Hosts can configure that behavior with the existing PiP APIs; manual entry remains an SDK
+capability for apps that explicitly choose it. iOS system PiP remains unsupported.

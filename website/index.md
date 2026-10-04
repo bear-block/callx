@@ -5,8 +5,8 @@ titleTemplate: "Native calls for Flutter and React Native"
 
 hero:
   name: Callx
-  text: Calls that ring, even when your app is not running
-  tagline: CallKit, Core-Telecom, VoIP push and crash recovery in one shared native core, for Flutter and React Native. Bring your own backend and media, or add LiveKit with one package.
+  text: Native calls. Your app’s experience.
+  tagline: Incoming calls, native audio and video, optional call screens and Android PiP for Flutter and React Native. One shared native core. Your backend, your branding.
   image:
     src: /logo.svg
     alt: Callx
@@ -15,8 +15,8 @@ hero:
       text: Get started
       link: /guide/setup
     - theme: alt
-      text: Why Callx?
-      link: /why
+      text: Explore features
+      link: /guide/features
     - theme: alt
       text: View on GitHub
       link: https://github.com/bear-block/callx
@@ -26,8 +26,8 @@ features:
     title: Native owns the call
     details: The push is received, the call reported to CallKit or Telecom, and every answer and hang-up recorded natively, before Dart or JavaScript starts. Your UI observes the recorded result when its runtime starts; delivery and recovery limits are documented.
   - icon: 🧭
-    title: One contract, two frameworks
-    details: The same Swift and Kotlin core runs under Flutter and React Native. Same states, same results, same error codes, checked by shared fixtures.
+    title: Voice and video, natively
+    details: Install the optional LiveKit adapter for native media, camera commands and video surfaces, or connect your own media. Android video has emulator evidence; iOS video acceptance is pending.
   - icon: ♻️
     title: Recovery built in
     details: A durable journal, idempotent commands and replayable events. After a crash, a reload or a reboot, your UI catches up from a snapshot instead of guessing.
@@ -35,8 +35,8 @@ features:
     title: Bring your own everything
     details: No hosted service, no Firebase dependency, no media lock-in. Use your backend and media engine, or install an adapter such as LiveKit and write no native code.
   - icon: 🔕
-    title: Rings only when it should
-    details: Duplicate, expired, busy and already-cancelled invitations never ring. A ring deadline ends unanswered calls. Cancelled calls stay cancelled.
+    title: Your screens, with continuation
+    details: Build your own UI or customize the supplied call overlay and mini-call. Android system PiP keeps a compact call visible outside the app. Native still owns the call state.
   - icon: 🛡️
     title: Private by default
     details: MIT licensed. The library never phones home. Credentials stay on the device, encrypted with the Android Keystore and the iOS keychain.
@@ -48,6 +48,8 @@ features:
 Version 0.2.2 includes contract 0.2.0, native video, Android PiP and optional call overlays
 with an in-app mini-call. See [status](/project/status) for what has been verified.
 :::
+
+<CallFeatureGallery />
 
 <CallDemoShowcase />
 

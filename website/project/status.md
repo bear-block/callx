@@ -12,7 +12,7 @@ describes how Callx is designed to behave; this page says where that behaviour h
 and where it has not been yet.
 </p>
 
-**Last updated:** 2026-10-02 · **Packages:** `0.2.2` · **Contract:** `0.2.0`
+**Last updated:** 2026-10-04 · **Packages:** `0.2.3` · **Contract:** `0.2.0`
 
 Version 0.2.2 includes native video, Android PiP and optional framework UI. The results below
 describe the tested platforms and builds; publication does not establish physical-device
@@ -20,9 +20,37 @@ or iOS video acceptance.
 
 Watch the [Steven → hao.dev7 two-device demo](/guide/demos): React Native on Android API 36
 calls Flutter on API 33 through real FCM and native LiveKit. The recorded trial passed
-18 checks, including remote video on both hosts, in-app minimize/expand, Android system PiP,
+25 checks, including remote video on both hosts, camera switching, in-app minimize/expand, Android system PiP,
 camera-off branding and remote-end cleanup. Screen recording is silent; physical-device and
 iOS acceptance remain separate gates.
+
+The [secure lock-screen demo](/guide/lockscreen-demo) adds a warm-process RN trial with
+46 passing checks on a **development build**: native voice/video invitations, locked timer,
+mute/hold/Speaker controls, explicit camera activation after unlock, and camera pause/resume.
+The updated unlock flow and native controls ship in 0.2.3; package 0.2.2 does not include them.
+The emulator exposes Speaker only, so earpiece/Bluetooth switching remains unverified.
+The source examples now separate Home and Diagnostics and use exported compact call controls.
+Video controls auto-hide; app navigation uses a mini-call, and leaving the app uses automatic Android PiP.
+The RN example measures safe-area insets; Android native incoming/locked UI handles system
+bars and cutouts. An API 33 journal-pruning crash found during these trials is fixed in source.
+These UI and runtime changes ship in **0.2.3**. See the [upgrade guide](/guide/upgrade-0-2-3).
+
+The [setup guide](/guide/setup#generated-code) now generates copyable Dart or TypeScript
+starter files and native configuration fragments for released integration choices.
+
+On 2026-10-04, the native iOS Simulator suite passed **92 tests**. Both source examples built
+and displayed their Home screens on iPhone 17 / iOS 26.5 Simulator, including safe-area layout
+and the distinct demo identities. React Native required refreshing its generated CocoaPods
+after adding the Safe Area dependency. This confirms example startup and native test behavior;
+VoIP push, locked answering and real audio/video still need physical iPhone acceptance.
+System PiP is currently Android-only; iOS uses CallKit's system incoming presentation.
+
+## Release 0.2.3 verification
+
+On 2026-10-04, all five packages published as stable 0.2.3. Registry metadata and clean
+consumer installations verified the exact versions: three npm packages and both pub packages.
+Flutter consumer analysis, ten quick-test groups, archive checks and website build passed.
+This does not substitute for fresh remote CI or physical-device call acceptance.
 
 ## How we verify
 

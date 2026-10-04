@@ -7,7 +7,8 @@ description: "What you need for real calls with Callx, and the path for Flutter,
 
 Callx turns a push from your backend into a real phone call: the system incoming-call UI on
 iOS and Android, answer and decline from anywhere, and a call state your app can trust. This
-page explains the pieces; the next pages install them.
+page explains the pieces; the next pages install them. Callx also provides native media integration,
+video surfaces, Android PiP and optional call UI. [See the capabilities and screenshots](/guide/features).
 
 Not sure which pages apply? [Personalize your setup](/guide/setup) to get a checklist for your
 framework, platforms, UI, media and backend. Then follow [your first real call](/guide/first-call).

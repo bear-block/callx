@@ -34,6 +34,7 @@ export default withMermaid(defineConfig({
     siteTitle: 'Callx',
     nav: [
       {text: 'Get started', link: '/guide/'},
+      {text: 'Features', link: '/guide/features'},
       {text: 'Guides', link: '/guides/backend'},
       {text: 'Reference', link: '/reference/javascript'},
       {
@@ -44,7 +45,7 @@ export default withMermaid(defineConfig({
           {text: 'Status', link: '/project/status'},
           {text: 'Roadmap', link: '/project/roadmap'},
           {text: 'Decisions', link: '/project/decisions'},
-          {text: 'Changelog', link: '/project/changelog'},
+          {text: 'Changelog & releases', link: '/project/changelog'},
           {text: 'Contributing', link: '/project/contributing'},
           {text: 'Security', link: '/project/security'},
         ],
@@ -56,6 +57,7 @@ export default withMermaid(defineConfig({
       {
         text: 'Introduction',
         items: [
+          {text: 'What you can build', link: '/guide/features'},
           {text: 'Why Callx', link: '/why'},
           {text: 'Compare', link: '/compare'},
           {text: 'Status', link: '/project/status'},
@@ -75,6 +77,7 @@ export default withMermaid(defineConfig({
           {text: 'Video calls', link: '/guide/video'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
           {text: 'Two-device demo', link: '/guide/demos'},
+          {text: 'Lock-screen demo', link: '/guide/lockscreen-demo'},
           {text: 'Try without a backend', link: '/guide/simulator'},
         ],
       },
@@ -131,7 +134,7 @@ export default withMermaid(defineConfig({
           {text: 'Status', link: '/project/status'},
           {text: 'Roadmap', link: '/project/roadmap'},
           {text: 'Decisions', link: '/project/decisions'},
-          {text: 'Changelog', link: '/project/changelog'},
+          {text: 'Changelog & releases', link: '/project/changelog'},
           {text: 'Contributing', link: '/project/contributing'},
           {text: 'Security', link: '/project/security'},
           {text: 'Sponsor', link: '/sponsor'},
