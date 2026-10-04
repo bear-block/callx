@@ -62,7 +62,8 @@ private class RecordingListener : TelecomIngressListener {
     override fun onPushReceived(callId: String?, priority: Int?, originalPriority: Int?) { pushes += Triple(callId, priority, originalPriority) }
     override fun onInvitationAccepted(invitation: Invitation) { accepted += invitation.callId }
     override fun onInvitationRejected(invitation: Invitation?, outcome: IncomingOutcome?) { rejected += invitation?.callId to outcome }
-    override fun onUserAnswered(callId: String) { answered += callId }
+    var throwOnAnswer = false
+    override fun onUserAnswered(callId: String) { answered += callId; if (throwOnAnswer) error("Host callback failed") }
     override fun onUserEnded(callId: String) { ended += callId }
     override fun onRingTimedOut(callId: String) { timedOut += callId }
     val media = list<String>()
@@ -453,4 +454,54 @@ class TelecomIngressTest {
         assertEquals(false, h.muted())
         h.scope.cancel()
     }
+    @Test fun lockedScreenControlsUseTheNativeCoordinator() = runBlocking {
+        val h = Harness()
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        h.ingress.systemActions(h.host()).answer("call-1", 1)
+        h.runtime.mediaConnected("call-1")
+        assertEquals(dev.callx.core.OperationStatus.applied,
+            h.ingress.callControl("call-1", dev.callx.core.CommandType.setMuted, true).toCompletableFuture().join().status)
+        assertEquals(true, h.ingress.callSnapshot("call-1")?.muted)
+        assertEquals(dev.callx.core.OperationStatus.applied,
+            h.ingress.callControl("call-1", dev.callx.core.CommandType.setHeld, true).toCompletableFuture().join().status)
+        assertEquals(dev.callx.core.CallState.held, h.ingress.callSnapshot("call-1")?.state)
+        h.ingress.callControl("call-1", dev.callx.core.CommandType.setHeld, false).toCompletableFuture().join()
+        assertEquals(dev.callx.core.CallState.active, h.ingress.callSnapshot("call-1")?.state)
+        h.ingress.remoteEnded("call-1")
+        assertNull(h.ingress.audioSnapshot("call-1"))
+        assertEquals(dev.callx.core.OperationStatus.rejected,
+            h.ingress.callControl("call-1", dev.callx.core.CommandType.setMuted, false).toCompletableFuture().join().status)
+        h.scope.cancel()
+    }
+
+    @Test fun rejectedAnswerIsReportedToTheNativeScreen() = runBlocking {
+        val h = Harness()
+        val result = CompletableDeferred<Boolean>()
+        h.ingress.onNotificationAction("missing", TelecomIngress.ACTION_ANSWER) { result.complete(it) }
+        assertFalse(result.await())
+        h.scope.cancel()
+    }
+
+    @Test fun hostCallbackFailureDoesNotRejectAnAppliedLockedAnswer() = runBlocking {
+        val h = Harness()
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        h.listener.throwOnAnswer = true
+        val result = CompletableDeferred<Boolean>()
+        h.ingress.onNotificationAction("call-1", TelecomIngress.ACTION_ANSWER) { result.complete(it) }
+        assertTrue(result.await())
+        assertEquals(dev.callx.core.CallState.connecting, h.ingress.callSnapshot("call-1")?.state)
+        h.scope.cancel()
+    }
+
+    @Test fun failedLockedMuteLeavesObservedStateUnchanged() = runBlocking {
+        val h = Harness(media = FakeMedia(accept = false))
+        h.ingress.handleInvitation(h.invitation("call-1"))
+        h.ingress.systemActions(h.host()).answer("call-1", 1)
+        h.runtime.mediaConnected("call-1")
+        val result = h.ingress.callControl("call-1", dev.callx.core.CommandType.setMuted, true).toCompletableFuture().join()
+        assertEquals(dev.callx.core.OperationStatus.rejected, result.status)
+        assertEquals(false, h.ingress.callSnapshot("call-1")?.muted)
+        h.scope.cancel()
+    }
+
 }

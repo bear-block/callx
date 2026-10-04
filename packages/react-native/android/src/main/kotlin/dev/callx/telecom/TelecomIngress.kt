@@ -15,6 +15,7 @@ import dev.callx.core.Invitation
 import dev.callx.core.InvitationCodec
 import dev.callx.core.InvitationViolation
 import dev.callx.core.LocalVideo
+import dev.callx.core.NativeOperation
 import dev.callx.core.NativeCommand
 import dev.callx.core.OperationStatus
 import dev.callx.core.PlatformCommandExecutor
@@ -124,6 +125,26 @@ class TelecomIngress(
     private val registrations = mutableMapOf<String, Registration>()
     private val presentationLock = Any()
     private val ringJobs = ConcurrentHashMap<String, Job>()
+    internal data class CallAudio(val current: CallEndpointCompat, val available: List<CallEndpointCompat>)
+    private val callAudio = ConcurrentHashMap<String, CallAudio>()
+
+    internal fun callSnapshot(callId: String): CallRecord? = runtime.currentCall()?.takeIf { it.callId == callId }
+    internal fun audioSnapshot(callId: String): CallAudio? = callAudio[callId]
+    internal fun callControl(callId: String, type: CommandType, value: Boolean): CompletionStage<NativeOperation> {
+        require(type == CommandType.setMuted || type == CommandType.setHeld)
+        return runtime.executeNative(type, callId, value)
+    }
+    internal fun selectAudio(callId: String, endpoint: CallEndpointCompat, complete: (Boolean) -> Unit) {
+        scope.launch {
+            val applied = withTimeoutOrNull(systemActionBudgetMs) {
+                runCatching {
+                    callAudio[callId]?.available?.any { it.identifier == endpoint.identifier } == true &&
+                        requestAudioEndpoint(callId, endpoint)
+                }.getOrDefault(false)
+            } ?: false
+            complete(applied)
+        }
+    }
 
     /** Pass the result to [CoreTelecomSessionManager] so system-surface actions reach the coordinator. */
     fun systemActions(host: TelecomSystemActionHandler): TelecomSystemActionHandler = object : TelecomSystemActionHandler {
@@ -157,6 +178,9 @@ class TelecomIngress(
     val audioObserver: TelecomCallAudioObserver = object : TelecomCallAudioObserver {
         override suspend fun onMuteChanged(callId: String, muted: Boolean) = applySystemMute(callId, muted)
         override fun onEndpointsChanged(callId: String, current: CallEndpointCompat, available: List<CallEndpointCompat>) {
+            synchronized(presentationLock) {
+                if (isLive(callId)) callAudio[callId] = CallAudio(current, available.toList())
+            }
             listener?.onAudioEndpointsChanged(callId, current, available)
         }
     }
@@ -272,18 +296,22 @@ class TelecomIngress(
     internal fun isLive(callId: String): Boolean =
         runtime.currentCall()?.let { it.callId == callId && it.state != CallState.ended } == true
 
-    internal fun onNotificationAction(callId: String, action: String) {
+    internal fun onNotificationAction(callId: String, action: String, complete: (Boolean) -> Unit = {}) {
         scope.launch {
-            when (action) {
-                ACTION_ANSWER -> {
-                    val operation = runtime.executeNative(CommandType.answer, callId).await()
-                    if (operation.status == OperationStatus.applied) listener?.onUserAnswered(callId)
-                }
-                ACTION_DECLINE, ACTION_HANG_UP -> {
-                    val operation = runtime.executeNative(CommandType.end, callId).await()
-                    if (operation.status == OperationStatus.applied) listener?.onUserEnded(callId)
-                }
+            val type = when (action) {
+                ACTION_ANSWER -> CommandType.answer
+                ACTION_DECLINE, ACTION_HANG_UP -> CommandType.end
+                else -> { complete(false); return@launch }
             }
+            val operation = try { runtime.executeNative(type, callId).await() }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { null }
+            val applied = operation?.status == OperationStatus.applied
+            // Host callbacks cannot turn a committed native action into a rejected UI result.
+            if (applied) runCatching {
+                if (type == CommandType.answer) listener?.onUserAnswered(callId) else listener?.onUserEnded(callId)
+            }
+            complete(applied)
         }
     }
 
@@ -390,6 +418,7 @@ class TelecomIngress(
     private fun cancelRing(callId: String) { ringJobs.remove(callId)?.cancel() }
     /** Every terminal path ends here, whichever presenter the host uses. */
     private fun dismissCall(callId: String) {
+        callAudio.remove(callId)
         presenter.dismiss(callId); CallxIncomingCallActivity.callEnded(callId); CallxLockScreen.release()
         (media as? CallxMediaAdapter)?.stop(callId)
         listener?.onCallEnded(callId)

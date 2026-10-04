@@ -28,6 +28,11 @@ data class CallNotificationLabels(
     /** Notification channel names in the app's system settings. */
     val incomingChannel: CharSequence = "Incoming calls",
     val ongoingChannel: CharSequence = "Ongoing calls",
+    val mute: CharSequence = "Mute",
+    val unmute: CharSequence = "Unmute",
+    val hold: CharSequence = "Hold",
+    val resume: CharSequence = "Resume",
+    val audio: CharSequence = "Audio",
 )
 
 /**

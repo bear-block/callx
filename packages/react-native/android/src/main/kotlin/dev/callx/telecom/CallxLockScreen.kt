@@ -13,7 +13,7 @@ import java.lang.ref.WeakReference
 enum class LockedAnswer {
     /**
      * The iOS behaviour: the call connects at once, and the app opens only after the user unlocks.
-     * Until then a native call screen with the caller, a timer and hang-up stays on the lock screen.
+     * Until then a native call screen with the caller, a timer, mute/hold/audio controls and hang-up stays on the lock screen.
      */
     RequireUnlock,
 

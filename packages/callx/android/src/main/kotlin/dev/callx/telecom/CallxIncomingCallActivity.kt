@@ -1,5 +1,6 @@
 package dev.callx.telecom
 
+import android.app.AlertDialog
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
@@ -9,15 +10,22 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
+import dev.callx.core.CallState
+import dev.callx.core.CommandType
+import dev.callx.core.OperationStatus
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
-import android.widget.Chronometer
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.ScrollView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.graphics.PathParser
 import java.lang.ref.WeakReference
 
@@ -26,7 +34,8 @@ import java.lang.ref.WeakReference
  * over the lock screen instead of waiting for Flutter or React Native to start. Decline only
  * closes it. Answer connects the call, then opens the app's launcher Activity with
  * [TelecomIngress.EXTRA_CALL_ID]; while the device is locked, [LockedAnswer] decides whether the
- * app waits for the user to unlock or opens above the lock screen. Hosts replace this screen with
+ * app waits for the user to unlock or opens above the lock screen. RequireUnlock keeps native
+ * call controls visible; Open app explicitly requests unlocking. Hosts replace this screen with
  * `CallStylePresenter(fullScreenIntent = ...)`.
  *
  * The notification's answer button opens this Activity with [EXTRA_ANSWER] instead of a broadcast
@@ -40,6 +49,11 @@ class CallxIncomingCallActivity : Activity() {
         internal const val EXTRA_ANSWER_LABEL = "dev.callx.telecom.ANSWER_LABEL"
         internal const val EXTRA_DECLINE_LABEL = "dev.callx.telecom.DECLINE_LABEL"
         internal const val EXTRA_HANG_UP_LABEL = "dev.callx.telecom.HANG_UP_LABEL"
+        internal const val EXTRA_MUTE = "dev.callx.telecom.MUTE"
+        internal const val EXTRA_UNMUTE = "dev.callx.telecom.UNMUTE"
+        internal const val EXTRA_HOLD = "dev.callx.telecom.HOLD"
+        internal const val EXTRA_RESUME = "dev.callx.telecom.RESUME"
+        internal const val EXTRA_AUDIO = "dev.callx.telecom.AUDIO"
         internal const val EXTRA_OPEN_APP_LABEL = "dev.callx.telecom.OPEN_APP_LABEL"
         @Volatile private var shown: WeakReference<CallxIncomingCallActivity>? = null
 
@@ -54,6 +68,8 @@ class CallxIncomingCallActivity : Activity() {
             .putExtra(EXTRA_DECLINE_LABEL, labels.decline)
             .putExtra(EXTRA_HANG_UP_LABEL, labels.hangUp)
             .putExtra(EXTRA_OPEN_APP_LABEL, labels.openApp)
+            .putExtra(EXTRA_MUTE, labels.mute).putExtra(EXTRA_UNMUTE, labels.unmute)
+            .putExtra(EXTRA_HOLD, labels.hold).putExtra(EXTRA_RESUME, labels.resume).putExtra(EXTRA_AUDIO, labels.audio)
 
         /** The call was answered elsewhere (the app, a headset, the car): close the ringing screen. */
         internal fun callAnswered(callId: String) = finishIf(callId) { !it.inCall }
@@ -70,6 +86,16 @@ class CallxIncomingCallActivity : Activity() {
     private var callId: String? = null
     /** Answered while locked with [LockedAnswer.RequireUnlock]: this screen now shows the call. */
     private var inCall = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var refresh: Runnable? = null
+    private var commandPending = false
+
+    override fun onResume() {
+        super.onResume()
+        if (inCall && !getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+            callId?.let { openApp(it, overLockScreen = false) }; finish()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +115,7 @@ class CallxIncomingCallActivity : Activity() {
     }
 
     override fun onDestroy() {
+        refresh?.let { handler.removeCallbacks(it) }; refresh = null
         if (shown?.get() === this) shown = null
         super.onDestroy()
     }
@@ -98,21 +125,33 @@ class CallxIncomingCallActivity : Activity() {
         val ingress = TelecomIngress.active
         if (inCall && id == callId) return
         // Without an attached ingress, or once the call stopped ringing, there is nothing to answer.
-        if (id == null || ingress == null || !ingress.isRinging(id)) { finish(); return }
+        if (id == null || ingress == null || !ingress.isLive(id)) { finish(); return }
+        if (!ingress.isRinging(id)) {
+            callId = id; shown = WeakReference(this); inCall = true
+            setCallContent(inCallContent(ingress, id)); return
+        }
         callId = id; shown = WeakReference(this)
         if (intent.getBooleanExtra(EXTRA_ANSWER, false)) { answer(ingress, id); return }
-        setContentView(content(intent, ingress, id))
+        setCallContent(content(intent, ingress, id))
     }
 
     private fun answer(ingress: TelecomIngress, id: String) {
-        ingress.onNotificationAction(id, TelecomIngress.ACTION_ANSWER)
+        // Mark our own answer before the presenter can dismiss a ringing Activity.
+        inCall = true
+        ingress.onNotificationAction(id, TelecomIngress.ACTION_ANSWER) { applied -> runOnUiThread {
+            if (!applied && !isFinishing && !isDestroyed) {
+                refresh?.let { handler.removeCallbacks(it) }; refresh = null
+                inCall = false; setCallContent(content(intent, ingress, id))
+                android.widget.Toast.makeText(this, "Could not answer. Please try again.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } }
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
         val policy = intent.getStringExtra(EXTRA_LOCKED_ANSWER)
             ?.let { runCatching { LockedAnswer.valueOf(it) }.getOrNull() } ?: LockedAnswer.RequireUnlock
         when {
             !locked -> { openApp(id, overLockScreen = false); finish() }
             policy == LockedAnswer.ShowOverLockScreen -> { openApp(id, overLockScreen = true); finish() }
-            else -> { inCall = true; setContentView(inCallContent(ingress, id)); requestUnlock(id) }
+            else -> { setCallContent(inCallContent(ingress, id)) }
         }
     }
 
@@ -125,6 +164,8 @@ class CallxIncomingCallActivity : Activity() {
     }
 
     private fun openApp(id: String, overLockScreen: Boolean) {
+        // Unlock may finish after a remote end; never reopen a terminal call.
+        if (TelecomIngress.active?.isLive(id) != true) return
         packageManager.getLaunchIntentForPackage(packageName)?.let {
             startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(TelecomIngress.EXTRA_CALL_ID, id)
@@ -133,23 +174,57 @@ class CallxIncomingCallActivity : Activity() {
     }
 
     private fun inCallContent(ingress: TelecomIngress, id: String): View {
-        val root = screen(intent.getStringExtra(EXTRA_DISPLAY_NAME) ?: id)
-        root.addView(Chronometer(this).apply {
-            base = SystemClock.elapsedRealtime(); gravity = Gravity.CENTER
-            setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f); start()
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            .apply { topMargin = dp(12) })
-        root.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
-        root.addView(text(intent.getCharSequenceExtra(EXTRA_OPEN_APP_LABEL) ?: "Open app", 16f, Color.WHITE).apply {
-            setPadding(dp(28), dp(12), dp(28), dp(12))
-            background = GradientDrawable().apply { cornerRadius = dp(24).toFloat(); setColor(Color.argb(0x33, 0xff, 0xff, 0xff)) }
-            isClickable = true; isFocusable = true; setOnClickListener { requestUnlock(id) }
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            .apply { bottomMargin = dp(40) })
-        root.addView(button(intent.getCharSequenceExtra(EXTRA_HANG_UP_LABEL) ?: "Hang up", Color.rgb(0xc6, 0x28, 0x28), declines = true) {
-            ingress.onNotificationAction(id, TelecomIngress.ACTION_HANG_UP); finish()
-        })
-        return root
+        val labels = CallNotificationLabels(
+            hangUp = intent.getCharSequenceExtra(EXTRA_HANG_UP_LABEL) ?: "Hang up",
+            openApp = intent.getCharSequenceExtra(EXTRA_OPEN_APP_LABEL) ?: "Open app",
+            mute = intent.getCharSequenceExtra(EXTRA_MUTE) ?: "Mute",
+            unmute = intent.getCharSequenceExtra(EXTRA_UNMUTE) ?: "Unmute",
+            hold = intent.getCharSequenceExtra(EXTRA_HOLD) ?: "Hold",
+            resume = intent.getCharSequenceExtra(EXTRA_RESUME) ?: "Resume",
+            audio = intent.getCharSequenceExtra(EXTRA_AUDIO) ?: "Audio",
+        )
+        lateinit var view: CallxLockedCallView
+        fun command(type: CommandType, value: Boolean) {
+            if (commandPending) return
+            commandPending = true; view.showError("")
+            ingress.callControl(id, type, value).whenComplete { result, failure -> runOnUiThread {
+                commandPending = false
+                if (!isDestroyed && (failure != null || result?.status != OperationStatus.applied))
+                    view.showError("Action unavailable. Please try again.")
+            } }
+        }
+        view = CallxLockedCallView(this, appLabel(), intent.getStringExtra(EXTRA_DISPLAY_NAME) ?: id, labels,
+            onMute = { ingress.callSnapshot(id)?.let { command(CommandType.setMuted, !it.muted) } },
+            onHold = { ingress.callSnapshot(id)?.let { command(CommandType.setHeld, it.state != CallState.held) } },
+            onAudio = {
+                ingress.audioSnapshot(id)?.let { endpoints ->
+                    AlertDialog.Builder(this).setTitle(labels.audio)
+                        .setSingleChoiceItems(endpoints.available.map { it.name.toString() }.toTypedArray(),
+                            endpoints.available.indexOfFirst { it.identifier == endpoints.current.identifier }) { dialog, which ->
+                            dialog.dismiss(); commandPending = true; view.showError("")
+                            ingress.selectAudio(id, endpoints.available[which]) { applied -> runOnUiThread {
+                                commandPending = false
+                                if (!isDestroyed && !applied) view.showError("Audio route unavailable. Please try again.")
+                            } }
+                        }.setNegativeButton(android.R.string.cancel, null).show()
+                }
+            },
+            onOpenApp = { requestUnlock(id) },
+            onEnd = { ingress.onNotificationAction(id, TelecomIngress.ACTION_HANG_UP) },
+        )
+        refresh?.let { handler.removeCallbacks(it) }
+        refresh = object : Runnable {
+            override fun run() {
+                val call = ingress.callSnapshot(id)
+                if (call == null || call.state == CallState.ended) { finish(); return }
+                view.render(call, ingress.audioSnapshot(id), commandPending)
+                if (!getSystemService(KeyguardManager::class.java).isKeyguardLocked) {
+                    openApp(id, overLockScreen = false); finish(); return
+                }
+                handler.postDelayed(this, 500)
+            }
+        }.also { handler.post(it) }
+        return view
     }
 
     private fun content(intent: Intent, ingress: TelecomIngress, id: String): View {
@@ -165,6 +240,22 @@ class CallxIncomingCallActivity : Activity() {
         })
         root.addView(buttons)
         return root
+    }
+
+    private fun setCallContent(content: View) {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val safe = if (content is ScrollView) content else ScrollView(this).apply {
+            isFillViewport = true
+            addView(content, android.widget.FrameLayout.LayoutParams(-1, -1))
+        }
+        safe.setBackgroundColor(Color.rgb(0x17, 0x2c, 0x2a))
+        ViewCompat.setOnApplyWindowInsetsListener(safe) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+        setContentView(safe)
+        ViewCompat.requestApplyInsets(safe)
     }
 
     /** The shared top of both screens: app name, caller initials and caller name. */
