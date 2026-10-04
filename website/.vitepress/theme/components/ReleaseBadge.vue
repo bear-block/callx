@@ -9,7 +9,7 @@ const anchor = `release-${version.replaceAll('.', '-')}`;
 <template>
   <a class="release-badge" :href="withBase(`/project/changelog#${anchor}`)">
     <span class="release-badge-version">New in {{ version }}</span>
-    <span class="release-badge-text">Audio routes, DTMF, call back from Recents and missed calls</span>
+    <span class="release-badge-text">Backend events from Dart and JavaScript, cancel pushes, Call back fix</span>
     <span aria-hidden="true">→</span>
   </a>
 </template>

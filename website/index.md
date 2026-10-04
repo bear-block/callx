@@ -49,9 +49,10 @@ features:
 
 <CallFeatureGallery />
 
-::: info Latest release: 3.0.0
-Audio routes, DTMF, caller-name updates and system call requests, plus the existing video, PiP and call UI APIs.
-[Release notes](/project/changelog#release-3-0-0) · [What has been verified](/project/status)
+::: info Latest release: 3.0.1
+Backend events from Dart and JavaScript, cancel pushes that stop a ringing Android call, and a
+fixed missed-call Call back. 3.0.0 added audio routes, DTMF, caller-name updates and call back.
+[Release notes](/project/changelog#release-3-0-1) · [What has been verified](/project/status)
 :::
 
 ## Start with your app

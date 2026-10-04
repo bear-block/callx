@@ -1,6 +1,6 @@
 {
   "name": "@bear-block/callx",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Native call coordination for React Native using CallKit and Android Core-Telecom",
   "keywords": [
     "react-native",

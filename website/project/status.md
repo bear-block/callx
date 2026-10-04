@@ -11,7 +11,7 @@ The single source of truth for what has been verified. The rest of the site desc
 Callx is designed to behave; this page says where that has been proven, and where it has not.
 </p>
 
-**Last updated:** 2026-10-04 · **Packages:** `3.0.0` · **Contract:** `0.3.0`
+**Last updated:** 2026-10-04 · **Packages:** `3.0.1` · **Contract:** `0.3.0`
 
 ::: warning Not verified yet
 No physical phone has run a Callx call yet: no iPhone, no Android vendor ROM, no Bluetooth or
@@ -22,10 +22,12 @@ acceptance. [Help verify](#help-verify).
 
 ## Latest release
 
-Package version **3.0.0** uses contract **0.3.0**. It adds
+Package version **3.0.1** uses contract **0.3.0**. It lets Dart and JavaScript signaling
+clients [report backend events](/backend/call-flows#where-signaling-events-enter-callx), stops
+a ringing Android call with a cancel push even when the app was killed, and fixes the
+missed-call Call back button. 3.0.0 added
 [audio routes, DTMF, caller name updates and system call requests](/guide/phone-features).
-Native automated tests cover mappings and command behavior; physical
-Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
+Physical Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 
 ## At a glance
 
@@ -62,7 +64,7 @@ Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
 | Audio routes: listing and `setAudioRoute` (Android endpoints, iOS audio session) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | DTMF through the adapter, CallKit keypad (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | `setDisplayName` (CallKit, Android notification) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
-| Android missed-call notification and Call back (fixed after 3.0.0) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Android missed-call notification and Call back (fixed in 3.0.1) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | iOS call requests from Recents and Siri | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | **Frameworks** | | | |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
@@ -94,7 +96,7 @@ counts as a device pass.
 | Calls before the first unlock after a reboot are missed | Platform limit today; direct-boot support is on the [roadmap](/project/roadmap) |
 | Below Android 14, Telecom records video calls as audio | Core-Telecom limit; video itself works. See [video calls](/guide/video#platform-notes) |
 | The Android emulator exposes the speaker only | Earpiece and Bluetooth switching remain unverified |
-| 3.0.0: the Android missed-call **Call back** button does nothing, and an old missed-call notification can reappear when the app starts | Fixed for 3.0.1 ([changelog](/project/changelog#unreleased)) |
+| 3.0.0: the Android missed-call **Call back** button does nothing, and an old missed-call notification can reappear when the app starts | Fixed in 3.0.1 ([changelog](/project/changelog#release-3-0-1)) |
 
 ## Evidence
 
@@ -102,7 +104,7 @@ Newest first. Each record names the build, the platform and the date.
 
 ### Android cancel push and Call back — 2026-10-04 {#android-cancel-push}
 
-Development build after 3.0.0 (Flutter example, debug), Android 16 / API 36 emulator, real FCM.
+3.0.1 sources (Flutter example, debug), Android 16 / API 36 emulator, real FCM.
 With the app killed, an invitation rang through Telecom; a normal-priority `call.ended` push
 (`callerCancelled`) stopped the ringing in about a second with no app code running; one
 missed-call notification appeared; **Call back** opened the app and removed it. The same run

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (3.0.1)
+## 3.0.1 — 2026-10-04
 
 - `--message end` and `--message accept` now send the production signal format under the
   `callx` key, which Callx 3.0.1+ applies natively (ADR-0014). Apps on 3.0.0 ignore it.

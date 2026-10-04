@@ -10,7 +10,7 @@ call to CallKit/Telecom does not itself provide a video renderer, an in-app mini
 Callx combines these layers while keeping one native call-state owner and optional UI/media.
 
 ::: info Reviewed on 2026-10-04
-Callx describes package release **3.0.0**, contract **0.3.0**. Other package versions were checked
+Callx describes package release **3.0.1**, contract **0.3.0**. Other package versions were checked
 against npm/pub.dev, and capabilities against the official project documentation linked below.
 This is a documentation review, not a device benchmark or conformance test of other libraries.
 “Not assessed” means we have not established support or absence; it does not mean unsupported.

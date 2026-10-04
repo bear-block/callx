@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (3.0.1)
+## 3.0.1 — 2026-10-04
 
 - Adds backend events from app code: Dart `CallxSignaling.remoteAnswered` / `remoteEnded` and
   TypeScript `reportRemoteAnswered` / `reportRemoteEnded`, so a Dart or JavaScript signaling

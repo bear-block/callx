@@ -1,12 +1,12 @@
 ---
 title: "Phone features"
-description: "Audio routes, keypad tones, caller name updates and system call requests in Callx 3.0.0."
+description: "Audio routes, keypad tones, caller name updates and system call requests in Callx 3.0 and later."
 ---
 
 # Phone features
 
-::: info Available in 3.0.0
-These APIs use contract **0.3.0**. Install 3.0.0 and rebuild the native app, including Expo development
+::: info Available since 3.0.0
+These APIs use contract **0.3.0**. Install 3.0.0 or later and rebuild the native app, including Expo development
 builds. Updating JavaScript or Dart alone does not install the native APIs.
 :::
 
@@ -129,7 +129,7 @@ accepted on a physical iPhone**. See [Apple's intent handler guidance](https://d
 
 ## Migration from 0.2.4
 
-Upgrade the core and provider adapter packages together to 3.0.0, reinstall native dependencies,
+Upgrade the core and provider adapter packages together to 3.0.0 or later, reinstall native dependencies,
 and rebuild. Native cores continue accepting 0.1.0 and 0.2.0 command envelopes; new wrappers send
 0.3.0 and require the matching native core. Custom TypeScript backends must add the `dtmf` boolean
 capability (`false` when unavailable). New route fields are optional on the wire. Existing camera,

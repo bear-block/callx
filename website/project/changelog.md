@@ -18,9 +18,12 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
-## Unreleased (3.0.1) {#unreleased}
+## 3.0.1 — 2026-10-04 {#release-3-0-1}
 
-Not published yet.
+**Published on npm and pub.dev.** Package version 3.0.1; contract remains 0.3.0. No breaking
+changes: upgrade all packages together and rebuild the native app.
+
+### Features
 
 - **Backend events from app code** ([ADR-0014](/project/decisions)): Dart
   `CallxSignaling.remoteAnswered` / `remoteEnded` and TypeScript `reportRemoteAnswered` /
@@ -33,16 +36,19 @@ Not published yet.
 - Native `remoteEnded` / `remoteAnswered` return whether the call changed; existing callers
   compile unchanged.
 
-**Fixes in 3.0.0:**
+### Fixes
 
 - The Android missed-call **Call back** button did nothing: the Flutter and React Native package
   manifests lacked `CallxCallBackActivity`, because the native source sync copied the core's
   Kotlin files but not its manifest. Both are now synced and checked.
 - An earlier missed-call notification reappeared every time the app process started cold.
 
-Verified on an Android 16 (API 36) emulator with real FCM and the app killed: the cancel push
-stops ringing in about a second, one missed-call notification appears, and Call back opens the
-app.
+### Verification
+
+On an Android 16 (API 36) emulator with real FCM and the app killed, the cancel push stops
+ringing in about a second, one missed-call notification appears, and Call back opens the app.
+Automated suites pass on Android, iOS (Simulator), Flutter and React Native. iOS has no push
+equivalent: cancellation there stays on signaling with the invitation expiry as the backstop.
 
 ## 3.0.0 — 2026-10-04 {#release-3-0-0}
 

@@ -14,7 +14,7 @@ Bring your own media with the core alone, or install an adapter
 
 ## Status
 
-Version `3.0.0` on [pub.dev](https://pub.dev/packages/callx) and
+Version `3.0.1` on [pub.dev](https://pub.dev/packages/callx) and
 [npm](https://www.npmjs.com/package/@bear-block/callx), contract `0.3.0`: native video with
 LiveKit, Android picture-in-picture, optional call UI, audio routes, DTMF, caller-name updates
 and system call requests. Automated, emulator and simulator results and remaining physical-device checks are on the

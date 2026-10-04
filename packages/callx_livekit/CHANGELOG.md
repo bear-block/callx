@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.1 — 2026-10-04
+
+- Version alignment with core 3.0.1; no adapter changes. Upgrade core and adapter together.
+
 ## 3.0.0 — 2026-10-04
 
 - LiveKit implements the optional native DTMF adapter on Android and iOS; digits publish as SIP DTMF packets. Remote IVR acceptance is not verified.
