@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Secure PIN lock screen",
+    "seconds": 0.042
+  },
+  {
+    "name": "Incoming voice call from Steven",
+    "seconds": 3.746
+  },
+  {
+    "name": "Decline without unlocking",
+    "seconds": 8.599
+  },
+  {
+    "name": "Answer a voice call while locked",
+    "seconds": 11.068
+  },
+  {
+    "name": "Mute and unmute without unlocking",
+    "seconds": 19.965
+  },
+  {
+    "name": "Hold and resume without unlocking",
+    "seconds": 24.731
+  },
+  {
+    "name": "Choose speaker through Telecom",
+    "seconds": 30.066
+  },
+  {
+    "name": "Remote caller ends the voice call",
+    "seconds": 36.071
+  },
+  {
+    "name": "Incoming video call while locked",
+    "seconds": 38.343
+  },
+  {
+    "name": "Answer video: camera stays off while locked",
+    "seconds": 42.799
+  },
+  {
+    "name": "Unlock and explicitly enable camera",
+    "seconds": 50.048
+  },
+  {
+    "name": "Lock again: camera pauses",
+    "seconds": 66.298
+  },
+  {
+    "name": "Unlock: camera resumes",
+    "seconds": 69.312
+  },
+  {
+    "name": "End call",
+    "seconds": 75.311
+  }
+]

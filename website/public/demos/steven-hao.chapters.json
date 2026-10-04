@@ -1,42 +1,42 @@
 [
   {
     "name": "Steven calls hao.dev7",
-    "seconds": 1.298
+    "seconds": 1.381
   },
   {
     "name": "Accept from native incoming screen",
-    "seconds": 10.099
+    "seconds": 4.87
   },
   {
     "name": "Enable video on both devices",
-    "seconds": 14.515
+    "seconds": 7.736
   },
   {
     "name": "Mute and unmute",
-    "seconds": 22.937
+    "seconds": 27.38
   },
   {
     "name": "Hold and resume",
-    "seconds": 29.883
+    "seconds": 34.734
   },
   {
     "name": "Switch local camera",
-    "seconds": 38.738
+    "seconds": 40.619
   },
   {
     "name": "Minimize inside app",
-    "seconds": 47.215
+    "seconds": 45.292
   },
   {
     "name": "Android system PiP",
-    "seconds": 52.581
+    "seconds": 49.942
   },
   {
     "name": "Camera off and branded fallback",
-    "seconds": 61.79
+    "seconds": 58.069
   },
   {
     "name": "hao.dev7 ends the call",
-    "seconds": 74.119
+    "seconds": 69.634
   }
 ]

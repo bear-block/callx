@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Flutter or RN example PiP trial on an emulator. Restarts the example; requires local console/media and camera permission.
+// Automatic PiP trial for the Flutter or RN example on Android 12+. Restarts the example; requires local console/media and camera permission.
 // node tool/pip-smoke.mjs --device emulator-5556 --output /tmp/callx-pip-api36
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -23,6 +23,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const packageName = 'dev.bearblock.callx';
 const activity = (await adb('shell', 'cmd', 'package', 'resolve-activity', '--brief', packageName)).trim().split('\n').pop();
 const sdk = Number((await adb('shell', 'getprop', 'ro.build.version.sdk')).trim());
+if (sdk < 31) throw new Error('This example smoke test covers automatic PiP on Android 12+. Manual SDK entry on older Android requires a host integration test.');
 const dimensions = (await adb('shell', 'wm', 'size')).match(/(\d+)x(\d+)/);
 const [width, height] = dimensions.slice(1).map(Number);
 const steps = [];
@@ -69,8 +70,8 @@ async function brandedPixels() {
 }
 async function videoMotion() {
   const bounds = await pinnedBounds();
-  const first = decodePng(readFileSync(join(options.output, 'manual-pip.png')));
-  const second = decodePng(readFileSync(join(options.output, 'manual-pip-next-frame.png')));
+  const first = decodePng(readFileSync(join(options.output, 'home-pip.png')));
+  const second = decodePng(readFileSync(join(options.output, 'home-pip-next-frame.png')));
   if (first.width !== second.width || first.height !== second.height) throw new Error('Screenshot size changed');
   // Restrict motion to the middle of the video window; exclude launcher/system PiP controls.
   const marginX = Math.round((bounds[2] - bounds[0]) * .15);
@@ -105,7 +106,11 @@ async function tap(label) {
       await adb('shell', 'input', 'tap', String(point.x), String(point.y));
       await sleep(800); return;
     }
-    // Call controls fit the screen. Scroll only when navigating the diagnostics page.
+    if (attempt === 0) {
+      await adb('shell', 'input', 'tap', String(Math.round(width / 2)), String(Math.round(height * .42)));
+      await sleep(250); continue;
+    }
+    // Call controls auto-hide. Scroll only when navigating diagnostics.
     await swipe(attempt >= 2);
   }
   throw new Error(`Control missing: ${label}`);
@@ -128,9 +133,10 @@ try {
   await adb('reverse', 'tcp:8787', 'tcp:8787'); await adb('reverse', 'tcp:7880', 'tcp:7880');
   await adb('shell', 'am', 'force-stop', packageName);
   await front(); await adb('logcat', '-c');
+  await tap('Diagnostics');
   await tap('Incoming video');
   const incomingUI = await xml();
-  check('incoming keeps Home without opening the call overlay', incomingUI.includes('Incoming video') && !incomingUI.includes('Minimize call'));
+  check('incoming keeps the host screen without opening the call overlay', incomingUI.includes('Incoming video') && !incomingUI.includes('Minimize call'));
   check('local video invitation rings', await waitFor(async () => /ringing /.test(await appLog())));
   callId = [...(await appLog()).matchAll(/ringing (\S+) \(/g)].at(-1)?.[1];
   if (!callId) throw new Error('Could not identify the test call');
@@ -151,21 +157,22 @@ try {
   await screenshot('fullscreen-video');
   await adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
   const minimizedUI = await xml();
-  check('Back minimizes into Home with an in-app mini-call', minimizedUI.includes('Incoming video') && minimizedUI.includes('Return to call') && !minimizedUI.includes('Minimize call'));
+  check('Back preserves the host screen with an in-app mini-call', (minimizedUI.includes('Diagnostics') || minimizedUI.includes('Calls')) && minimizedUI.includes('Return to call') && !minimizedUI.includes('Minimize call'));
   check('minimizing inside the app does not enter system PiP', !await pinned());
+  if (controlPoint(minimizedUI, 'Calls')) await tap('Calls');
   await screenshot('in-app-mini-call');
   await tap('Return to call');
   check('mini-call expands without answering again', (await xml()).includes('Minimize call') && !(await appLog()).includes('camera paused'));
 
-  await tap('Picture in picture');
-  check('manual entry pins the activity', await waitFor(pinned));
+  await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
+  check('leaving app automatically pins the activity', await waitFor(pinned));
   await sleep(2000);
-  await screenshot('manual-pip');
-  await sleep(1200); await screenshot('manual-pip-next-frame');
+  await screenshot('home-pip');
+  await sleep(1200); await screenshot('home-pip-next-frame');
   const motion = await videoMotion();
   check('PiP video frames change', motion > 0.0005, `changed fraction ${motion.toFixed(5)}`);
   const compact = await xml();
-  writeFileSync(join(options.output, 'manual-pip-ui.xml'), compact);
+  writeFileSync(join(options.output, 'home-pip-ui.xml'), compact);
   check('PiP hides app controls', !compact.includes('End call') && !compact.includes('Diagnostics') &&
     !compact.includes('Minimize call') && !compact.includes('Incoming video'));
   check('camera continues in PiP', !(await appLog()).includes('camera paused'));
@@ -187,14 +194,14 @@ try {
   if (options.fallback === 'true') {
     await caller.evaluate(`callers[${JSON.stringify(callId)}].room.localParticipant.setCameraEnabled(false)`);
     check('remote camera can stop', await waitFor(async () => new RegExp(`remote video for ${callId} (stopped|paused)`).test(await appLog())));
-    await tap('Picture in picture');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
     check('local-only video enters PiP', await waitFor(pinned));
     await sleep(2000); await screenshot('local-only-pip'); await front();
     await tap('Camera off');
-    await tap('Picture in picture');
+    await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME');
     check('no-video call enters PiP', await waitFor(pinned));
     await sleep(2000); await screenshot('branded-pip');
-    // Android 10 can omit the PiP app from accessibility windows. Verify the actual
+    // System PiP can omit the app from accessibility windows. Verify the actual
     // branded pixels inside the native window, rather than treating missing semantics as UI failure.
     const brand = await brandedPixels();
     check('no-video PiP shows the app background and logo',
@@ -205,20 +212,22 @@ try {
   }
   await tap('Minimize call');
   await tap('Diagnostics');
-  await tap('Auto PiP off');
+  await tap('Auto PiP on');
+  await tap('Calls');
+  await tap('Return to call');
+  await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME'); await sleep(1200);
+  check('host can disable automatic entry', !await pinned());
+  await front(); await tap('Minimize call'); await tap('Diagnostics');
+  await tap('Auto PiP off'); await tap('Calls');
   await tap('Return to call');
   await adb('shell', 'input', 'keyevent', 'KEYCODE_HOME'); await sleep(2000);
-  if (sdk >= 31) {
-    check('automatic entry pins the activity', await waitFor(pinned));
-    await sleep(2000);
-    await screenshot('automatic-pip');
-  } else {
-    check('auto-entry stays disabled below Android 12', !await pinned());
-  }
+  check('automatic entry pins the activity', await waitFor(pinned));
+  await sleep(2000);
+  await screenshot('automatic-pip');
   await front(); await tap('End call');
   check('call ends in the app', await waitFor(async () => {
     const ui = await xml();
-    return ui.includes('Call ended') || (/(?:text|content-desc)="ENDED(?:[\s&·]|")/.test(ui) && ui.includes('Reason: localHangup'));
+    return ui.includes('Ready to call') || ui.includes('Call ended') || (/(?:text|content-desc)="ENDED(?:[\s&·]|")/.test(ui) && ui.includes('Reason: localHangup'));
   }, 10));
   const terminalUI = await xml();
   check('ended call removes the overlay and mini-call', !terminalUI.includes('Minimize call') && !terminalUI.includes('Return to call'));

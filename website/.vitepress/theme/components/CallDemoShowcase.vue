@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue';
+import {computed, onMounted, ref} from 'vue';
 import {withBase} from 'vitepress';
-import chapters from '../../../public/demos/steven-hao.chapters.json';
+import twoDeviceChapters from '../../../public/demos/steven-hao.chapters.json';
+import lockscreenChapters from '../../../public/demos/lockscreen.chapters.json';
+
+const props = withDefaults(defineProps<{demo?: 'two-device' | 'lockscreen'}>(), {demo: 'two-device'});
+const locked = computed(() => props.demo === 'lockscreen');
+const chapters = computed(() => locked.value ? lockscreenChapters : twoDeviceChapters);
+const asset = computed(() => locked.value ? 'lockscreen' : 'steven-hao');
+const guide = computed(() => locked.value ? '/guide/lockscreen-demo' : '/guide/demos');
+const title = computed(() => locked.value ? 'Incoming calls, even while locked' : 'Steven calls hao.dev7');
 
 const video = ref<HTMLVideoElement>();
 const current = ref(-1);
@@ -10,7 +18,7 @@ onMounted(() => { ready.value = true; });
 function updateChapter() {
   const seconds = video.value?.currentTime ?? 0;
   // Browsers may round currentTime slightly below the requested seek position.
-  current.value = chapters.findLastIndex(chapter => chapter.seconds <= seconds + 0.05);
+  current.value = chapters.value.findLastIndex(chapter => chapter.seconds <= seconds + 0.05);
 }
 function seek(seconds: number) {
   if (!video.value) return;
@@ -21,21 +29,21 @@ function seek(seconds: number) {
 </script>
 
 <template>
-  <section class="call-demo" aria-label="Steven calls hao.dev7 demo">
+  <section class="call-demo" :aria-label="title">
     <div class="demo-heading">
       <div>
-        <span class="demo-label">TWO ANDROID EMULATORS · REAL NATIVE MEDIA</span>
-        <h2>Steven calls hao.dev7</h2>
-        <p>React Native and Flutter. One native call lifecycle.</p>
+        <span class="demo-label">{{ locked ? 'SECURE PIN · NATIVE INCOMING · ANDROID EMULATOR' : 'TWO ANDROID EMULATORS · REAL NATIVE MEDIA' }}</span>
+        <h2>{{ title }}</h2>
+        <p>{{ locked ? 'Voice, video and native call controls · development build.' : 'React Native and Flutter · development build. One native call lifecycle.' }}</p>
       </div>
-      <a :href="withBase('/guide/demos')">How this was recorded →</a>
+      <a :href="withBase(guide)">How this was recorded →</a>
     </div>
     <video ref="video" controls playsinline preload="metadata" tabindex="0"
-      :poster="withBase('/demos/steven-hao.jpg')" @timeupdate="updateChapter"
-      aria-label="Side-by-side recording: Steven on React Native calls hao.dev7 on Flutter">
-      <source :src="withBase('/demos/steven-hao.mp4')" type="video/mp4">
+      :poster="withBase(`/demos/${asset}.jpg`)" @timeupdate="updateChapter"
+      :aria-label="title">
+      <source :src="withBase(`/demos/${asset}.mp4`)" type="video/mp4">
       <track kind="captions" label="Actions (English)" srclang="en" default
-        :src="withBase('/demos/steven-hao.vtt')">
+        :src="withBase(`/demos/${asset}.vtt`)">
       Your browser cannot play this video. Download the recording below.
     </video>
     <div class="demo-chapters" aria-label="Jump to a demo chapter">
@@ -44,11 +52,12 @@ function seek(seconds: number) {
         {{ chapter.name }}
       </button>
     </div>
-    <p class="demo-note">Recorded from two Android emulators with real FCM and native LiveKit.
+    <p class="demo-note">{{ locked ? 'Secure PIN and RequireUnlock on Android 16. Native controls shown here require 0.2.3; package 0.2.2 does not include this update. Keyguard intervals use timestamped screen captures.' : 'Recorded from two Android emulators with real FCM and native LiveKit. The center column describes each recorded action.' }}
+      Licensed sample clips feed the cameras; people shown are not Callx endorsers.
       Silent recording; the test checks media connection and remote video, not audible speech.
-      <a :href="withBase('/guide/demos#recording-transcript')">Read the transcript</a>
-      · <a :href="withBase('/demos/steven-hao.mp4')" download>Download MP4</a>
-      · <a :href="withBase('/demos/steven-hao.gif')" download>GIF preview</a>
+      <a :href="withBase(`${guide}#recording-transcript`)">Read the transcript</a>
+      · <a :href="withBase(`/demos/${asset}.mp4`)" download>Download MP4</a>
+      <template v-if="!locked"> · <a :href="withBase('/demos/steven-hao.gif')" download>GIF preview</a></template>
     </p>
   </section>
 </template>
@@ -60,7 +69,7 @@ function seek(seconds: number) {
 .demo-heading h2 { border: 0; margin: 8px 0; padding: 0; font-size: 28px; line-height: 1.2; }
 .demo-heading p { margin: 0; color: var(--vp-c-text-2); }
 .demo-heading > a { flex-shrink: 0; font-size: 13px; }
-video { display: block; width: 100%; max-width: 620px; margin-inline: auto; border-radius: 12px; background: #10251e; }
+video { display: block; width: 100%; max-width: 820px; margin-inline: auto; border-radius: 12px; background: #edf3ef; }
 video::cue { font-size: 14px; background-color: #102b24ee; color: white; }
 .demo-chapters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .demo-chapters button { padding: 7px 12px; border: 1px solid var(--vp-c-divider); border-radius: 20px; font-size: 12px; line-height: 1.5; background: var(--vp-c-bg); transition: background-color .15s, border-color .15s; }
