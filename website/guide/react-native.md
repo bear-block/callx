@@ -205,7 +205,7 @@ payloads your server sends in production.
 
 ## Next steps
 
-- [Add LiveKit audio](/guide/livekit).
+- [Add audio and video with LiveKit](/guide/livekit).
 - [Connect your own media](/guides/own-media).
 - [JavaScript API reference](/reference/javascript).
 

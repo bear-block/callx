@@ -1,11 +1,10 @@
 import {defineConfig} from 'vitepress';
-import {withMermaid} from 'vitepress-plugin-mermaid';
 
 const site = 'https://bear-block.github.io/callx/';
 const description =
   'Native incoming and outgoing calls for Flutter and React Native: CallKit, Core-Telecom, push and recovery in one shared native core.';
 
-export default withMermaid(defineConfig({
+export default defineConfig({
   title: 'Callx',
   description,
   base: '/callx/',
@@ -18,7 +17,9 @@ export default withMermaid(defineConfig({
     ['meta', {name: 'theme-color', content: '#165a45'}],
     ['meta', {property: 'og:type', content: 'website'}],
     ['meta', {property: 'og:site_name', content: 'Callx'}],
-    ['meta', {property: 'og:image', content: `${site}og.png`}],
+    ['meta', {property: 'og:image', content: `${site}og.jpg`}],
+    ['meta', {property: 'og:image:width', content: '1200'}],
+    ['meta', {property: 'og:image:height', content: '630'}],
     ['meta', {name: 'twitter:card', content: 'summary_large_image'}],
   ],
   transformPageData(page) {
@@ -60,6 +61,8 @@ export default withMermaid(defineConfig({
           {text: 'What you can build', link: '/guide/features'},
           {text: 'Why Callx', link: '/why'},
           {text: 'Compare', link: '/compare'},
+          {text: 'Two-device demo', link: '/guide/demos'},
+          {text: 'Lock-screen demo', link: '/guide/lockscreen-demo'},
           {text: 'Status', link: '/project/status'},
           {text: 'Work with us', link: '/services'},
         ],
@@ -69,16 +72,19 @@ export default withMermaid(defineConfig({
         items: [
           {text: 'Overview', link: '/guide/'},
           {text: 'Personalize your setup', link: '/guide/setup'},
-          {text: 'Your first real call', link: '/guide/first-call'},
           {text: 'Flutter', link: '/guide/flutter'},
           {text: 'React Native', link: '/guide/react-native'},
           {text: 'Expo', link: '/guide/expo'},
-          {text: 'Add LiveKit audio', link: '/guide/livekit'},
+          {text: 'Your first real call', link: '/guide/first-call'},
+          {text: 'Try without a backend', link: '/guide/simulator'},
+        ],
+      },
+      {
+        text: 'Features',
+        items: [
+          {text: 'Audio and video with LiveKit', link: '/guide/livekit'},
           {text: 'Video calls', link: '/guide/video'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
-          {text: 'Two-device demo', link: '/guide/demos'},
-          {text: 'Lock-screen demo', link: '/guide/lockscreen-demo'},
-          {text: 'Try without a backend', link: '/guide/simulator'},
         ],
       },
       {
@@ -102,11 +108,17 @@ export default withMermaid(defineConfig({
           {text: 'Write a media adapter', link: '/guides/write-an-adapter'},
           {text: 'Provider-managed signaling', link: '/guides/provider-managed'},
           {text: 'Test on devices', link: '/guides/testing'},
-          {text: 'Migration rollout and rollback', link: '/guides/migration-rollout'},
-          {text: 'Migrate from react-native-callkeep', link: '/guides/migrate-callkeep'},
-          {text: 'Migrate from flutter_callkit_incoming', link: '/guides/migrate-flutter-callkit-incoming'},
           {text: 'Troubleshooting', link: '/guides/troubleshooting'},
           {text: 'FAQ', link: '/guides/faq'},
+          {
+            text: 'Migrate',
+            collapsed: true,
+            items: [
+              {text: 'From react-native-callkeep', link: '/guides/migrate-callkeep'},
+              {text: 'From flutter_callkit_incoming', link: '/guides/migrate-flutter-callkit-incoming'},
+              {text: 'Rollout and rollback', link: '/guides/migration-rollout'},
+            ],
+          },
         ],
       },
       {
@@ -153,5 +165,19 @@ export default withMermaid(defineConfig({
       copyright: 'Copyright © 2026 Callx contributors',
     },
   },
-  mermaid: {theme: 'neutral'},
-}));
+  vite: {
+    // Mermaid's own chunks are large but load only on pages with a diagram.
+    build: {chunkSizeWarningLimit: 1500},
+  },
+  markdown: {
+    config(md) {
+      // ```mermaid fences render client-side, loading Mermaid only where a diagram exists.
+      const fence = md.renderer.rules.fence!;
+      md.renderer.rules.fence = (tokens, index, options, env, self) => {
+        const token = tokens[index];
+        if (token.info.trim() !== 'mermaid') return fence(tokens, index, options, env, self);
+        return `<ClientOnly><MermaidDiagram code="${encodeURIComponent(token.content)}" /></ClientOnly>`;
+      };
+    },
+  },
+});

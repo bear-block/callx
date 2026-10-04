@@ -131,7 +131,7 @@ and [RN App.tsx](https://github.com/bear-block/callx/blob/main/packages/react-na
 and the [verification status](/project/status).
 
 
-## Coordinated call layout (0.2.3)
+## Coordinated call layout
 
 The following additions are available in **0.2.3**. For changes from 0.2.2, see the
 [upgrade guide](/guide/upgrade-0-2-3).
@@ -176,7 +176,7 @@ cutout insets itself. Neither fixed status-bar heights nor decorative demo frame
 for device insets.
 
 
-## Compact video controls (0.2.3)
+## Compact video controls
 
 The **0.2.3** examples use a Material 3 style video action row: microphone, camera,
 audio output and end call. Flutter uses Material 3 icon buttons; the RN example

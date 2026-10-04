@@ -42,7 +42,7 @@ These are implementation and verification levels, not physical-device guarantees
 **0.2.2** provides the shared core, native video and LiveKit adapter, Android PiP, and optional
 framework UI. **0.2.3** adds equal-sized direct controls,
 top local preview, foreground-aware fade-out and persistent native locked-call controls.
-The recordings use development builds of this code. Upgrade to 0.2.3 to use these UI updates.
+The UI shown in these recordings is available from 0.2.3.
 
 Twilio, Zoom Video SDK and Agora adapters are [planned](/project/roadmap#providers-in-order).
 Standalone Kotlin/Swift SDKs are in development; a hosted Callx backend is a future direction.

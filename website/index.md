@@ -6,7 +6,7 @@ titleTemplate: "Native calls for Flutter and React Native"
 hero:
   name: Callx
   text: Native calls. Your app’s experience.
-  tagline: Incoming calls, native audio and video, optional call screens and Android PiP for Flutter and React Native. One shared native core. Your backend, your branding.
+  tagline: Incoming and outgoing calls, native audio and video, picture-in-picture and optional call screens for Flutter and React Native, on one shared native core. Your backend, your branding.
   image:
     src: /logo.svg
     alt: Callx
@@ -22,33 +22,31 @@ hero:
       link: https://github.com/bear-block/callx
 
 features:
-  - icon: 📲
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>'
     title: Native owns the call
-    details: The push is received, the call reported to CallKit or Telecom, and every answer and hang-up recorded natively, before Dart or JavaScript starts. Your UI observes the recorded result when its runtime starts; delivery and recovery limits are documented.
-  - icon: 🧭
-    title: Voice and video, natively
-    details: Install the optional LiveKit adapter for native media, camera commands and video surfaces, or connect your own media. Android video has emulator evidence; iOS video acceptance is pending.
-  - icon: ♻️
+    details: Pushes are received, reported to CallKit or Telecom, and every answer recorded natively, even before Dart or JavaScript starts.
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg>'
+    title: Voice and video
+    details: Native media with the LiveKit adapter, camera commands and one video view, or bring your own media engine.
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>'
     title: Recovery built in
-    details: A durable journal, idempotent commands and replayable events. After a crash, a reload or a reboot, your UI catches up from a snapshot instead of guessing.
-  - icon: 🔌
+    details: A durable journal and idempotent commands. After a crash, a reload or a reboot, your UI catches up from a snapshot.
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3M15 7V3"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v4"/></svg>'
     title: Bring your own everything
-    details: No required Callx hosted service or media vendor. Android FCM integration needs Firebase configuration. Use your backend and media engine, or install an adapter such as LiveKit and write no native code.
-  - icon: 🔕
+    details: No Callx service in between. Use your backend and media, or install an adapter and write no native code.
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="10" width="7" height="6" rx="1"/></svg>'
     title: Your screens, with continuation
-    details: Build your own UI or customize the supplied call overlay and mini-call. Android system PiP keeps a compact call visible outside the app. Native still owns the call state.
-  - icon: 🛡️
+    details: Build your own UI or customize the supplied call overlay, mini-call and picture-in-picture.
+  - icon: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>'
     title: Private by default
-    details: MIT licensed. No Callx telemetry endpoint. Persisted media configuration uses Android Keystore and iOS keychain; your app chooses its backend and media provider.
+    details: MIT licensed, no telemetry. Credentials stay in the Keystore and keychain; you choose the backend and provider.
 ---
 
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
-::: info Release and development
-Version **0.2.4** is published on npm and pub.dev, with contract 0.2.0, native video, Android PiP, experimental iOS PiP
-and optional call overlays. This release adds experimental iOS video-call PiP on the same APIs.
-Read the [release notes](/project/changelog#release-0-2-4); coming from 0.2.2, see the
-[0.2.3 upgrade guide](/guide/upgrade-0-2-3). See [status](/project/status) for what has been verified.
+::: info Latest release: 0.2.4
+Experimental iOS picture-in-picture on the same APIs as Android.
+[Release notes](/project/changelog#release-0-2-4) · [What has been verified](/project/status)
 :::
 
 <CallFeatureGallery />

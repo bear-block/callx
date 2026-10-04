@@ -3,13 +3,13 @@ import {withBase} from 'vitepress';
 
 const features = [
   {title: 'Answer from the lock screen', image: 'locked-voice', alt: 'Steven voice call with native timer, mute, hold and audio controls while securely locked',
-    detail: 'Native incoming, answer and decline. The 0.2.3 adds ongoing controls without unlocking.', link: '/guide/lockscreen-demo', badge: 'Android · 0.2.3'},
+    detail: 'Native incoming, answer and decline, and in-call controls without unlocking.', link: '/guide/lockscreen-demo', badge: 'Android'},
   {title: 'Make video part of your app', image: 'video-call', alt: 'Live video call with top local preview, direct Hold and consistent microphone, camera, audio and end controls',
-    detail: 'Native video surfaces and camera commands. Choose your own screens or customize the optional Callx UI.', link: '/guide/call-ui', badge: 'Video + UI · 0.2.3'},
+    detail: 'Native video surfaces and camera commands. Choose your own screens or customize the optional Callx UI.', link: '/guide/call-ui', badge: 'Video + UI'},
   {title: 'Keep the call while you navigate', image: 'mini-call', alt: 'Live in-app mini-call floating over the Home screen',
-    detail: 'Back minimizes into your app. Expand returns to the same call, with your Home screen still mounted.', link: '/guide/call-ui', badge: 'Flutter + React Native · 0.2.2'},
+    detail: 'Back minimizes into your app. Expand returns to the same call, with your Home screen still mounted.', link: '/guide/call-ui', badge: 'Flutter + React Native'},
   {title: 'Continue outside the app', image: 'system-pip', alt: 'Android system picture-in-picture showing the active video call over the launcher',
-    detail: 'Android system PiP shows video or your colors and logo. The source examples enter automatically when leaving the app.', link: '/guide/video', badge: 'Android · PiP in 0.2.2'},
+    detail: 'Picture-in-picture shows video or your colors and logo when the user leaves the app.', link: '/guide/video', badge: 'Android · iOS experimental'},
 ];
 </script>
 
@@ -35,7 +35,7 @@ const features = [
       </article>
     </div>
     <p class="feature-evidence">Actual Android emulator captures with native Telecom and LiveKit.
-      Camera inputs are licensed sample clips. The revised UI and native locked controls require 0.2.3.
+      Camera inputs are licensed sample clips.
       <a :href="withBase('/project/status')">Check platform coverage and verification →</a>
     </p>
   </section>

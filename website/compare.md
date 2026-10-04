@@ -20,7 +20,7 @@ This is a documentation review, not a device benchmark or conformance test of ot
 
 | Option | Framework | Registry version at review | Role |
 |---|---|---|---|
-| **Callx** | Flutter, React Native, Expo development builds | [0.2.3 npm](https://www.npmjs.com/package/@bear-block/callx) · [0.2.3 pub.dev](https://pub.dev/packages/callx) | Native coordination, optional media adapter and app UI |
+| **Callx** | Flutter, React Native, Expo development builds | [npm](https://www.npmjs.com/package/@bear-block/callx) · [pub.dev](https://pub.dev/packages/callx) | Native coordination, optional media adapter and app UI |
 | [react-native-callkeep](https://github.com/react-native-webrtc/react-native-callkeep#readme) | React Native | [4.3.16](https://www.npmjs.com/package/react-native-callkeep) | CallKit/ConnectionService bridge |
 | [expo-callkit-telecom](https://github.com/mfairley/expo-callkit-telecom#readme) | React Native with Expo modules | [0.5.0](https://www.npmjs.com/package/expo-callkit-telecom) | Native calling, push and audio-session integration |
 | [flutter_callkit_incoming](https://github.com/hiennguyen92/flutter_callkit_incoming#readme) | Flutter | [3.1.6](https://pub.dev/packages/flutter_callkit_incoming) | Incoming presentation and call actions |

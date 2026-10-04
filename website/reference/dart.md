@@ -155,7 +155,7 @@ await CallxLiveKit.configure(LiveKitConfig(tokenUrl: url, headers: {...}));
 await CallxLiveKit.reset();
 ```
 
-## Optional call UI (0.2.3)
+## Optional call UI
 
 Import `package:callx/callx_ui.dart` in Flutter or `@bear-block/callx/ui` in React Native.
 UI observes snapshots and invokes host callbacks; it never creates another native call owner.

@@ -9,7 +9,7 @@ Steven uses the React Native example. hao.dev7 uses the Flutter example.
 Both examples use the same Kotlin call core and native LiveKit adapter.
 Each Home identifies its owner and shows the other person as the contact: Steven sees
 hao.dev7, and hao.dev7 sees Steven. These are demo identities, not authenticated accounts.
-The recording uses a **0.2.3 development build** of the compact UI.
+The recording shows the compact call UI, available from 0.2.3.
 
 For native incoming behavior, watch the separate [secure lock-screen voice/video demo](/guide/lockscreen-demo).
 

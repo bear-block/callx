@@ -1,9 +1,9 @@
 ---
-title: "Add LiveKit audio"
-description: "Real two-way call audio with LiveKit, joined natively on answer, with one package and no native code."
+title: "Audio and video with LiveKit"
+description: "Real two-way call audio and video with LiveKit, joined natively on answer, with one package and no native code."
 ---
 
-# Add LiveKit audio
+# Audio and video with LiveKit
 
 The LiveKit adapter gives every call real two-way audio through a
 [LiveKit](https://livekit.io) room. Installing it is the whole integration: Callx's bootstrap

@@ -80,3 +80,6 @@
   font-size: 0.92rem;
   color: var(--vp-c-text-2);
 }
+
+/* Home feature icons: line icons in the brand color. */
+.VPFeature .icon { color: var(--vp-c-brand-1); background-color: var(--vp-c-brand-soft); }

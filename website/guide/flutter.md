@@ -231,7 +231,7 @@ the push, and the phone rings with the system call UI.
 
 ## Next steps
 
-- [Add LiveKit audio](/guide/livekit) with one package and no native code.
+- [Add audio and video with LiveKit](/guide/livekit) with one package and no native code.
 - [Connect your own media](/guides/own-media) from the native callbacks.
 - [Commands and results](/concepts/commands): retries, deadlines and operation lookup.
 - [Dart API reference](/reference/dart).

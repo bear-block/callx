@@ -7,190 +7,68 @@ sponsorPrompt: verify
 # Status
 
 <p class="lead">
-This page is the single source of truth for what has been verified. The rest of the site
-describes how Callx is designed to behave; this page says where that behaviour has been proven,
-and where it has not been yet.
+The single source of truth for what has been verified. The rest of the site describes how
+Callx is designed to behave; this page says where that has been proven, and where it has not.
 </p>
 
 **Last updated:** 2026-10-04 · **Packages:** `0.2.4` · **Contract:** `0.2.0`
 
-Version 0.2.3 includes native video, Android PiP and optional framework UI. The results below
-describe the tested platforms and builds; publication does not establish physical-device
-or iOS video acceptance.
+::: warning Not verified yet
+No physical phone has run a Callx call yet: no iPhone, no Android vendor ROM, no Bluetooth or
+car audio. iOS has been checked in the Simulator only, which cannot receive VoIP pushes or keep
+a CallKit call. Everything below marked on emulators is real OS integration, not device
+acceptance. [Help verify](#help-verify).
+:::
 
-Watch the [Steven → hao.dev7 two-device demo](/guide/demos): React Native on Android API 36
-calls Flutter on API 33 through real FCM and native LiveKit. The recorded trial passed
-25 checks, including remote video on both hosts, camera switching, in-app minimize/expand, Android system PiP,
-camera-off branding and remote-end cleanup. Screen recording is silent; physical-device and
-iOS acceptance remain separate gates.
-
-The [secure lock-screen demo](/guide/lockscreen-demo) adds a warm-process RN trial with
-46 passing checks on a **development build**: native voice/video invitations, locked timer,
-mute/hold/Speaker controls, explicit camera activation after unlock, and camera pause/resume.
-The updated unlock flow and native controls ship in 0.2.3; package 0.2.2 does not include them.
-The emulator exposes Speaker only, so earpiece/Bluetooth switching remains unverified.
-The source examples now separate Home and Diagnostics and use exported compact call controls.
-Video controls auto-hide; app navigation uses a mini-call, and leaving the app uses automatic Android PiP.
-The RN example measures safe-area insets; Android native incoming/locked UI handles system
-bars and cutouts. An API 33 journal-pruning crash found during these trials is fixed in source.
-These UI and runtime changes ship in **0.2.3**. See the [upgrade guide](/guide/upgrade-0-2-3).
-
-The [setup guide](/guide/setup#generated-code) now generates copyable Dart or TypeScript
-starter files and native configuration fragments for released integration choices.
-
-On 2026-10-04, the native iOS Simulator suite passed **92 tests**. Both source examples built
-and displayed their Home screens on iPhone 17 / iOS 26.5 Simulator, including safe-area layout
-and the distinct demo identities. React Native required refreshing its generated CocoaPods
-after adding the Safe Area dependency. This confirms example startup and native test behavior;
-VoIP push, locked answering and real audio/video still need physical iPhone acceptance.
-iOS uses CallKit's system incoming presentation. iOS system PiP is experimental from 0.2.4 (below).
-
-## iOS PiP (0.2.4, experimental)
-
-Version 0.2.4 adds AVKit video-call PiP on iOS 15+, using the same Dart/TypeScript
-configuration and listener APIs. It has native lifecycle, source selection, branded fallback,
-restore and call-end cleanup tests, and both framework examples compile with the native bridge.
-LiveKit uses a sample-buffer renderer for PiP and pauses background publication unless the
-call's PiP is presenting and the capture session supports multitasking camera access.
-
-It is **experimental**: physical iPhone camera continuity, stashing,
-restoration and two-party media acceptance remain pending. The native fixture on iPhone 18 Pro / iOS 27 Simulator reported
-`isPictureInPictureSupported() == false`, and manual entry returned false as designed.
-This is not evidence of a successful system PiP window or a supported physical device trial.
-See the [iOS PiP setup requirements](/guide/video#picture-in-picture-on-ios).
-
-## Release 0.2.3 verification
-
-On 2026-10-04, all five packages published as stable 0.2.3. Registry metadata and clean
-consumer installations verified the exact versions: three npm packages and both pub packages.
-Flutter consumer analysis, ten quick-test groups, archive checks and website build passed.
-This does not substitute for fresh remote CI or physical-device call acceptance.
-
-## How we verify
-
-| Level | What it proves | Where it runs |
-|---|---|---|
-| **Automated** | Logic, contract fixtures, result mapping, recovery, parity between Swift and Kotlin | Every commit in CI: Swift, Kotlin, Dart and TypeScript suites |
-| **Emulator / Simulator** | Integration with the real OS frameworks: Telecom, notifications, CallKit APIs, Expo builds | Android emulator, iOS Simulator |
-| **Physical device** | Push delivery, the lock screen, real audio, vendor ROMs, Bluetooth | Real iPhones and Android phones |
-
-A behaviour counts as verified on a level only with a dated record. A simulator run never counts
-as a device pass.
-
-## Feature status
+## At a glance
 
 <span class="ok">●</span> verified · <span class="part">◐</span> partly verified ·
 <span class="no">○</span> not yet verified
 
 | Feature | Automated | Emulator / Simulator | Physical device |
 |---|---|---|---|
-| Contract and result mapping (Swift, Kotlin, Dart, TS) | <span class="ok">●</span> | <span class="ok">●</span> | n/a |
+| **Core** | | | |
+| Contract and result mapping (Swift, Kotlin, Dart, TypeScript) | <span class="ok">●</span> | <span class="ok">●</span> | n/a |
 | Durable journal, replay, operation lookup | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: FCM invitation rings through Telecom | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: answer from notification with the app locked | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: repeating ringtone, volume-down silence | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: cancel before invitation, ring deadline | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: recovery after process death | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Android: vendor ROMs (Xiaomi, Samsung, Oppo…) | n/a | n/a | <span class="no">○</span> |
-| iOS: VoIP push reported to CallKit, `mustReport` handling | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| iOS: CallKit actions and audio activation | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| iOS: lock-screen answer | n/a | n/a | <span class="no">○</span> |
-| LiveKit adapter: two-way audio, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| LiveKit adapter: audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
-| Flutter video calls on Android (LiveKit): ring as video, video both ways, `CallxVideoView`, camera commands, background pause | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Flutter Android PiP: manual and automatic entry, compact layout, camera continues, auto-entry disabled after end (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| RN Android PiP: manual and automatic entry, compact layout, camera continuity and call-end cleanup (API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Optional root call overlay / mini-call: Home until accept, Back minimizes, same call expands, terminal cleanup (Flutter/RN API 36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Flutter/RN video invitation with secure PIN lock: native answer/decline, audio before unlock, video after foreground, camera pause/resume (API 36) | <span class="part">◐</span> native lifecycle tests | <span class="ok">●</span> | <span class="no">○</span> |
-| iOS PiP | Not implemented | n/a | n/a |
-| Video calls (iOS) | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Adapter discovery (Flutter and React Native) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| React Native New Architecture (TurboModule) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| **Android** | | | |
+| FCM invitation rings through Telecom (API 29–36) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Answer from the notification and the secure lock screen | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Ringtone, volume-down silence, cancel, ring deadline | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Recovery after process death | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Vendor ROMs (Xiaomi, Samsung, Oppo…) | n/a | n/a | <span class="no">○</span> |
+| **iOS** | | | |
+| VoIP push reported to CallKit, `mustReport` handling | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
+| CallKit actions and audio activation | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
+| Lock-screen answer | n/a | n/a | <span class="no">○</span> |
+| **Media and video** | | | |
+| LiveKit audio: two-way, interruption, recovery (Android) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| LiveKit audio inside the CallKit window (iOS) | <span class="ok">●</span> | <span class="part">◐</span> | <span class="no">○</span> |
+| Video calls on Android: video both ways, `CallxVideoView`, camera commands, background pause | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| Video calls on iOS | <span class="ok">●</span> | <span class="no">○</span> | <span class="no">○</span> |
 | Bluetooth and route changes | n/a | n/a | <span class="no">○</span> |
+| **Picture-in-picture and UI** | | | |
+| Android PiP: manual and automatic entry, compact layout, camera continuity, end cleanup | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| iOS PiP (experimental, 0.2.4) | <span class="ok">●</span> | <span class="no">○</span> Simulator unsupported | <span class="no">○</span> |
+| Call overlay and mini-call: Back minimizes, expand returns to the same call | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| **Frameworks** | | | |
+| Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
+| React Native New Architecture (TurboModule, Fabric view) | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | iPhone ↔ Android call through one backend | n/a | n/a | <span class="no">○</span> |
 
-iOS Simulator rows are partial because the Simulator cannot receive VoIP pushes and ends CallKit
-calls immediately; it proves builds, discovery and API wiring, not a ringing call.
+iOS Simulator rows are partial: the Simulator proves builds, discovery and API wiring, not a
+ringing call.
 
-### Android emulator matrix
+### How we verify
 
-`npm run conformance:matrix` runs the LiveKit adapter conformance on each emulator in turn: a
-real FCM invitation, ringing through Telecom, answer from the notification, media connected,
-interruption and recovery, remote end, and no crash.
-
-| Android | API | Result | Date |
-|---|---|---|---|
-| 10 | 29 | 8/8 | 2026-10-01 |
-| 12 | 31 | 8/8 | 2026-10-01 |
-| 13 | 33 | 8/8 | 2026-10-01 |
-| 16 | 36 | 8/8 | 2026-10-01 |
-
-The first run found that calls did not ring below Android 13; the fix is in the
-[changelog](/project/changelog).
-
-With `--video` the matrix runs the video conformance: a video invitation, the caller's camera
-on the device and the device's camera at the caller, video moving in `CallxVideoView`,
-switching camera, and the camera pausing in the background and resuming in front.
-
-| Android | API | Video result | Date |
-|---|---|---|---|
-| 13 | 33 | 15/15 (Telecom's video registration needs API 34) | 2026-10-02 |
-| 16 | 36 | 16/16 | 2026-10-02 |
-
-### Video calls with a secure lock screen
-
-On 2026-10-02, the Flutter debug and React Native release examples passed 14 checks each
-on Android 16 / API 36 with a temporary secure PIN. The native incoming Activity appeared
-while keyguard was showing, secure and occluded; this was not merely a screen-off trial.
-
-- A real FCM video invitation rang while the screen was off; Decline ended the call.
-- Answer connected LiveKit audio before entering the PIN; the camera did not auto-start.
-- Unlocking and bringing the app foreground opened the call overlay. Remote video arrived,
-  and the caller subscribed to local video after explicitly enabling the camera.
-- Locking the active call paused the camera; unlocking and returning resumed it.
-- Ending the call removed the overlay. The temporary PIN was removed after the trial.
-
-These checks cover the default `RequireUnlock` policy on API 36. `ShowOverLockScreen`, other
-Android versions, iOS, physical devices and acoustic audio quality remain outside this trial.
-
-### Release readiness
-
-Local verification on 2026-10-02 passed all 10 quick-test groups, 157 native Android tests
-(including build variants), 92 core iOS Simulator tests, package version consistency, and
-npm/pub packaging dry runs. LiveKit iOS Simulator tests also passed locally, with one
-expected entitlement limitation in the test environment.
-
-Version 0.2.2 was published following local checks with CI verification of the final source
-and physical-device acceptance still pending. These remain verification gaps; package
-availability does not establish support on untested devices.
-
-### Android PiP smoke test
-
-On 2026-10-02 both development examples with LiveKit passed a separate UI trial on Android 16
-(API 36). The RN example used a release APK; Flutter used a debug APK. Checks covered:
-
-- A local video invitation answered from the notification, with video in both directions.
-- Manual PiP with changing video frames, app controls hidden and camera continuing.
-- Closing PiP pauses the camera; returning to the app resumes it.
-- Remote video → local-only video → the app background and logo when both cameras are off.
-- Automatic entry on Home and automatic entry disabled after ending the call, with no crash.
-
-The examples now separate the call overlay from diagnostics, with the local preview at the top
-right. The root overlay/mini-call continuation passed Android 16 trials for both frameworks:
-incoming stays on Home, notification accept opens the overlay, Back shows a live mini-call,
-and expanding it does not answer again or pause the camera. These are local signaling UI trials using `tool/pip-smoke.mjs`, separate from FCM
-conformance and `callx-conformance --video`.
-
-| Example | Android / API | PiP result |
+| Level | What it proves | Where it runs |
 |---|---|---|
-| Flutter debug | 16 / 36 | Manual/automatic, dismiss/resume, video and branded fallback, end cleanup |
-| RN release | 16 / 36 | Manual/automatic, dismiss/resume, video and branded fallback, end cleanup |
-| RN release | 10 / 29 | Manual, video and branded fallback, end cleanup |
-| Flutter debug and RN release | 11 / 30 | Manual, dismiss/resume, video and branded fallback, end cleanup |
+| **Automated** | Logic, contract fixtures, result mapping, recovery, Swift and Kotlin parity | Every commit: Swift, Kotlin, Dart and TypeScript suites |
+| **Emulator / Simulator** | Integration with the real OS frameworks: Telecom, notifications, CallKit APIs, Expo builds | Android emulator, iOS Simulator |
+| **Physical device** | Push delivery, the lock screen, real audio, vendor ROMs, Bluetooth | Real iPhones and Android phones |
 
-The API 29/30 PiP trials predate the optional root overlay integration; the updated root UI
-was checked on API 36. Automatic entry correctly stays disabled below API 31. Physical-device PiP remains pending.
+A behaviour counts as verified on a level only with a dated record below. A simulator run never
+counts as a device pass.
 
 <SponsorCallout reason="verify" />
 
@@ -200,35 +78,95 @@ was checked on API 36. Automatic entry correctly stays disabled below API 31. Ph
 |---|---|
 | WebRTC crash (`SIGSEGV`) in the LiveKit SDK on an API 34 emulator with the microphone granted | Under investigation; to be reproduced or ruled out on a physical device |
 | Calls before the first unlock after a reboot are missed | Platform limit today; direct-boot support is on the [roadmap](/project/roadmap) |
+| Below Android 14, Telecom records video calls as audio | Core-Telecom limit; video itself works. See [video calls](/guide/video#platform-notes) |
+| The Android emulator exposes the speaker only | Earpiece and Bluetooth switching remain unverified |
 
-## Device trial plan
+## Evidence
 
-The device trials cover, among others: killed, background and foreground pushes on iOS; the lock
-screen on both platforms; audible two-way audio; AirPods and Bluetooth; network switches during a
-call; process death during a call; Xiaomi and Samsung battery managers; full-screen intents
-denied on Android 14+; a 30-minute call; and account switches.
+Newest first. Each record names the build, the platform and the date.
 
-Results are published on this page, with the device, OS version and date of each run, as the
-trials pass.
+### iOS Simulator and 0.2.4 release checks — 2026-10-04 {#ios-simulator-2026-10-04}
 
-### What the trials are waiting for
+- The native iOS Simulator suites (core and LiveKit) passed, including the new PiP lifecycle,
+  call-observer and renderer tests. Both example apps built for the Simulator.
+- iOS PiP: on iPhone 18 Pro / iOS 27 Simulator, `isPictureInPictureSupported()` is false and
+  manual entry returns false as designed. This is **not** evidence of a working PiP window.
+  See [iOS PiP setup](/guide/video#picture-in-picture-on-ios).
+- Earlier the same day the core suite passed 92 tests, and both examples showed their Home
+  screens on iPhone 17 / iOS 26.5 Simulator with correct safe areas.
+- All packages passed version checks and npm/pub packaging dry runs before 0.2.3 and 0.2.4 were
+  published; clean consumer installs verified 0.2.3 on both registries.
 
-| Platform | Needed | Why emulators cannot stand in |
+### Two-device call — 2026-10-02 {#two-device-call}
+
+React Native on Android API 36 called Flutter on API 33 through real FCM and native LiveKit.
+The recorded trial passed 25 checks: remote video on both hosts, camera switching, in-app
+minimize and expand, Android PiP, camera-off branding and remote-end cleanup.
+[Watch the demo](/guide/demos).
+
+### Video calls with a secure lock screen — 2026-10-02 {#secure-lock-screen}
+
+Flutter (debug) and React Native (release) passed 14 checks each on Android 16 / API 36 with a
+temporary secure PIN; a later warm-process React Native trial passed 46 checks on a
+development build. [Watch the demo](/guide/lockscreen-demo).
+
+- A real FCM video invitation rang with the screen off; Decline ended the call.
+- Answer connected audio before the PIN was entered; the camera did not start by itself.
+- After unlocking, remote video arrived, and the caller received local video once the camera
+  was turned on. Locking paused the camera and unlocking resumed it.
+
+These cover the default `RequireUnlock` policy on API 36 only.
+
+### Android video conformance — 2026-10-02 {#android-video-conformance}
+
+`npm run conformance:matrix -- --video`: a video invitation, video in both directions, video
+moving in `CallxVideoView`, switching camera, and the camera pausing in the background.
+
+| Android | API | Result |
 |---|---|---|
-| iOS | Results from iPhones on iOS 15 or later, and an Apple Developer Program membership | PushKit and APNs need a paid membership, and the Simulator neither receives VoIP pushes nor keeps CallKit calls |
-| Android | Results from the vendors users have: Samsung and Xiaomi first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
+| 13 | 33 | 15/15 (Telecom's video registration needs API 34) |
+| 16 | 36 | 16/16 |
 
-The recorded Android emulator runs cover several API levels; their dates are listed above. The fastest way to fill
-this table is results from phones people already own: if you run the
-[acceptance checklist](/guides/testing#acceptance-checklist) on yours, please
-[share the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml). They are listed here with credit.
+### Android picture-in-picture — 2026-10-02 {#android-pip}
+
+Local signaling UI trials with `tool/pip-smoke.mjs`: video both ways, manual PiP with moving
+frames, camera continuing in PiP, pausing when PiP closes, branded fallback when both cameras
+are off, and automatic entry disabled after the call ends.
+
+| Example | Android / API | Result |
+|---|---|---|
+| Flutter debug, RN release | 16 / 36 | Manual and automatic entry, dismiss and resume, video and fallback, end cleanup |
+| Flutter debug, RN release | 11 / 30 | Manual entry, dismiss and resume, video and fallback, end cleanup |
+| RN release | 10 / 29 | Manual entry, video and fallback, end cleanup |
+
+Automatic entry correctly stays disabled below API 31. The call overlay and mini-call were
+checked on API 36 for both frameworks.
+
+### Android audio conformance — 2026-10-01 {#android-emulator-matrix}
+
+`npm run conformance:matrix`: a real FCM invitation, ringing through Telecom, answer from the
+notification, media connected, interruption and recovery, remote end, and no crash.
+
+| Android | API | Result |
+|---|---|---|
+| 10 | 29 | 8/8 |
+| 12 | 31 | 8/8 |
+| 13 | 33 | 8/8 |
+| 16 | 36 | 8/8 |
+
+The first run found that calls did not ring below Android 13; fixed in 0.1.3.
 
 ## Help verify
 
-Device coverage is the most valuable contribution right now. You can help by:
+The fastest way to close the gaps above is results from phones people already own.
 
-- Running the [acceptance checklist](/guides/testing#acceptance-checklist) on your phone and
-  [sharing the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml).
-- Passing on a phone you no longer use, especially Android 10–12 or a vendor ROM: see
-  [help verify on real devices](/sponsor#help-verify-on-real-devices).
-- [Sponsoring](/sponsor) the maintainer time that turns results into fixes and releases.
+| Platform | Needed | Why emulators cannot stand in |
+|---|---|---|
+| iOS | Results from iPhones on iOS 15 or later | The Simulator neither receives VoIP pushes nor keeps CallKit calls |
+| Android | Results from Samsung and Xiaomi phones first | Vendor battery managers, Bluetooth and real audio paths exist only on hardware |
+
+- Run the [acceptance checklist](/guides/testing#acceptance-checklist) on your phone and
+  [share the results](https://github.com/bear-block/callx/issues/new?template=device-results.yml).
+  They are listed here with credit.
+- Pass on a phone you no longer use: see [help verify on real devices](/sponsor#help-verify-on-real-devices).
+- [Sponsor](/sponsor) the maintainer time that turns results into fixes and releases.
