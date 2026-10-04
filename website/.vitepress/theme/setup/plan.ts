@@ -1,5 +1,5 @@
 export const choices = {
-  framework: [['flutter', 'Flutter'], ['rn', 'React Native CLI'], ['expo', 'Expo development build'], ['native', 'Kotlin / Swift SDK — planned']],
+  framework: [['flutter', 'Flutter'], ['rn', 'React Native CLI'], ['expo', 'Expo development build'], ['native', 'Kotlin / Swift SDK — in development']],
   platform: [['both', 'Android + iOS'], ['android', 'Android'], ['ios', 'iOS']],
   ui: [['supplied', 'Callx overlay + mini-call'], ['custom', 'My Dart / TypeScript screens'], ['native', 'Configured native call screen — planned']],
   media: [['livekit', 'LiveKit audio/video'], ['own', 'My media engine'], ['twilio', 'Twilio — planned'], ['zoom', 'Zoom — planned'], ['agora', 'Agora — planned']],
@@ -11,7 +11,7 @@ export const defaults: Selection = {framework: 'flutter', platform: 'both', ui: 
 export type Step = {title: string; detail: string; check: string; link: string};
 export function buildPlan(s: Selection) {
   const blockers: string[] = [];
-  if (s.framework === 'native') blockers.push('Standalone Kotlin/Swift packages are planned, not published. Native host APIs currently ship inside Flutter/RN packages.');
+  if (s.framework === 'native') blockers.push('Standalone Kotlin/Swift SDKs are in development, not published. Local packaging checks exist; native host APIs currently ship inside Flutter/RN packages.');
   if (s.ui === 'native') blockers.push('A unified native call-screen configuration from Dart/TypeScript is planned. Android presenter hooks exist in Kotlin; iOS incoming presentation uses CallKit.');
   if (!['livekit', 'own'].includes(s.media)) blockers.push(`The ${s.media} Callx adapter is planned and has no installable package.`);
   if (s.backend === 'hosted') blockers.push('The Callx hosted backend is a future direction, not an available service.');
