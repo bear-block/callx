@@ -83,3 +83,17 @@
 
 /* Home feature icons: line icons in the brand color. */
 .VPFeature .icon { color: var(--vp-c-brand-1); background-color: var(--vp-c-brand-soft); }
+
+/* The hero image area holds the demo video, not a glowing logo. VitePress sizes it for a square
+   image with negative margins; let the video set its own height instead. */
+.VPHero .image { margin: 8px 0 32px; }
+.VPHero .image-container { position: static; transform: none; width: 100%; height: auto; display: flex; justify-content: center; }
+.VPHero .image-bg { display: none; }
+@media (min-width: 960px) { .VPHero .image { margin: 0 0 0 32px; } }
+
+/* Between the hamburger breakpoint and a wide window the full nav does not fit; tighten it. */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .VPNavBarMenuLink, .VPNavBarMenuGroup .button { padding: 0 8px !important; font-size: 13px !important; }
+  .VPNavBarSearch { flex-grow: 0 !important; padding-left: 12px !important; }
+  .VPNavBarSearch .DocSearch-Button-Placeholder, .VPNavBarSearch .DocSearch-Button-Keys { display: none; }
+}

@@ -9,6 +9,7 @@ import CallFeatureGallery from './components/CallFeatureGallery.vue';
 import CallDemoShowcase from './components/CallDemoShowcase.vue';
 import SetupGuide from './components/SetupGuide.vue';
 import MermaidDiagram from './components/MermaidDiagram.vue';
+import HeroDemo from './components/HeroDemo.vue';
 import './custom.css';
 
 export default {
@@ -16,6 +17,7 @@ export default {
   Layout: () => h(DefaultTheme.Layout, null, {
     'aside-outline-after': () => h(SponsorAside),
     'layout-bottom': () => h(SponsorPrompt),
+    'home-hero-image': () => h(HeroDemo),
   }),
   enhanceApp({app}) {
     app.component('CallDemoShowcase', CallDemoShowcase);

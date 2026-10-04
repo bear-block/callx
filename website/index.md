@@ -7,6 +7,7 @@ hero:
   name: Callx
   text: Native calls. Your app’s experience.
   tagline: Incoming and outgoing calls, native audio and video, picture-in-picture and optional call screens for Flutter and React Native, on one shared native core. Your backend, your branding.
+  # The hero shows the recorded call (HeroDemo); VitePress needs an image entry to render that slot.
   image:
     src: /logo.svg
     alt: Callx
@@ -44,14 +45,14 @@ features:
 
 <div class="vp-doc" style="max-width: 1152px; margin: 64px auto 0; padding: 0 24px;">
 
+<CallDemoShowcase demo="lockscreen" />
+
+<CallFeatureGallery />
+
 ::: info Latest release: 0.2.4
 Experimental iOS picture-in-picture on the same APIs as Android.
 [Release notes](/project/changelog#release-0-2-4) · [What has been verified](/project/status)
 :::
-
-<CallFeatureGallery />
-
-<CallDemoShowcase />
 
 ## Start with your app
 
