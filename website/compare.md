@@ -1,6 +1,6 @@
 ---
 title: "Compare"
-description: "Compare Callx 0.2.3 native coordination, media and optional UI with callkeep, Expo and Flutter alternatives, including verification limits."
+description: "Compare Callx native coordination, media and optional UI with callkeep, Expo and Flutter alternatives, including verification limits."
 ---
 
 # Compare
@@ -10,7 +10,7 @@ call to CallKit/Telecom does not itself provide a video renderer, an in-app mini
 Callx combines these layers while keeping one native call-state owner and optional UI/media.
 
 ::: info Reviewed on 2026-10-04
-Callx describes published **0.2.3**, contract **0.2.0**. Other package versions were checked
+Callx describes the latest release, contract **0.2.0**. Other package versions were checked
 against npm/pub.dev, and capabilities against the official project documentation linked below.
 This is a documentation review, not a device benchmark or conformance test of other libraries.
 “Not assessed” means we have not established support or absence; it does not mean unsupported.
@@ -36,7 +36,7 @@ Callx is MIT licensed. Check the linked projects' licenses and provider terms be
 **Host integration** means the app needs additional wiring. **Not assessed** avoids inferring
 missing behavior from a README. Callx implementation and verification are separate; see [status](/project/status).
 
-| Capability | Callx 0.2.3 | callkeep | expo-callkit-telecom | flutter_callkit_incoming |
+| Capability | Callx | callkeep | expo-callkit-telecom | flutter_callkit_incoming |
 |---|---|---|---|---|
 | Flutter and React Native share one core | Available | React Native | React Native / Expo modules | Flutter |
 | Native iOS VoIP ingress | Available | Host integration with separate push module | Documented | AppDelegate integration |
@@ -56,12 +56,12 @@ Push integration and reporting deadlines still require platform-specific setup i
 
 ## Media and presentation
 
-| Capability | Callx 0.2.3 | Other options in this page |
+| Capability | Callx | Other options in this page |
 |---|---|---|
 | Native audio/video adapter | LiveKit installable; own-media interface available | Evaluate the chosen library together with its media engine |
 | Native video surfaces and camera commands | Available for Flutter and RN; Android video trials, iPhone acceptance pending | Not assessed; system video reporting alone is insufficient evidence |
 | Android system PiP | Available; video/local/branding fallback and emulator trials | Not assessed |
-| iOS system PiP | Experimental from 0.2.4 ([setup](/guide/video#picture-in-picture-on-ios)); physical acceptance pending | Not assessed |
+| iOS system PiP | Experimental ([setup](/guide/video#picture-in-picture-on-ios)); physical acceptance pending | Not assessed |
 | Root overlay and in-app mini-call | Optional exported Dart/TypeScript components; retains native call state | Not assessed |
 | Supplied customizable call screen | Colors/logo, header/status/end slots, control sizes, preview placement and host video rendering | Incoming customization exists in some options; accepted-call UI not assessed |
 | Foreground-aware video controls | Five-second idle hide, fresh timeout on return, screen-reader/reduced-motion handling | Not assessed |
@@ -78,7 +78,7 @@ Android locked screen and Apple's CallKit UI are different platform surfaces. Wa
 
 | Callx adapter | Status | Scope |
 |---|---|---|
-| [LiveKit](/guide/livekit) | Published 0.2.3; audio/video introduced in 0.2.2 | Native media |
+| [LiveKit](/guide/livekit) | Available: audio and video | Native media |
 | Twilio Video | Planned next; no package | Media |
 | Twilio Programmable Voice | Planned; signaling interface required | Provider-managed signaling |
 | Zoom Video SDK | Planned; no package | Media |
@@ -102,6 +102,6 @@ backend is unavailable. See [provider priorities](/project/roadmap#providers-in-
 - **Vendor SDK or custom native integration:** evaluate the required hosted features or the
   cost of maintaining your own native stack; neither is interchangeable with a UI component.
 
-Callx does not currently ship DTMF, multi-call, iOS system PiP or a hosted backend. Physical-device
-call acceptance remains pending. Follow the [setup guide](/guide/setup), [migration rollout](/guides/migration-rollout)
-and [0.2.3 upgrade notes](/guide/upgrade-0-2-3) rather than switching call ownership mid-call.
+Callx does not currently ship DTMF, multi-call or a hosted backend, and iOS picture-in-picture is
+experimental. Physical-device call acceptance remains pending. Follow the [setup guide](/guide/setup)
+and [migration rollout](/guides/migration-rollout) rather than switching call ownership mid-call.

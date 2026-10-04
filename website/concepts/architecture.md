@@ -108,8 +108,8 @@ flowchart LR
 
 ## Scope of this version
 
-One live call at a time on iOS and Android. Version 0.2.3 includes native video, Android PiP
-and optional framework UI. Web runs only the simulator. See
+One live call at a time on iOS and Android, with native video, picture-in-picture and optional
+framework UI. Web runs only the simulator. See
 [status](/project/status) for verification and the [roadmap](/project/roadmap) for remaining work.
 
 
@@ -143,8 +143,9 @@ flowchart TB
   Mini -->|call ended| End
 ```
 
-Mini-call is app UI; system PiP is an Android window mode. Automatic PiP requires Android
-12+ and a live eligible video call. The app supplies compact video or branding, and also
-handles a call ending while the PiP window remains open. iOS system PiP is not implemented.
+Mini-call is app UI; system PiP is an OS window. On Android the whole activity shrinks, and
+automatic PiP requires Android 12+ and a live eligible video call; the app supplies compact
+video or branding and handles a call ending while the PiP window remains open. On iOS
+(experimental) the core shows the call's video in AVKit's video-call PiP window.
 Secure PIN lock-screen video acceptance has passed for Flutter/RN on Android API 36. Other
 Android versions, iOS and physical devices remain unverified; see [status](/project/status).

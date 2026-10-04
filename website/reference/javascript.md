@@ -5,11 +5,6 @@ description: "The complete TypeScript API of @bear-block/callx and @bear-block/c
 
 # TypeScript API
 
-::: info Released reference
-This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
-See [status](/project/status) for verification limits and [changelog](/project/changelog).
-:::
-
 
 ```ts
 import {Callx} from '@bear-block/callx';
@@ -229,7 +224,7 @@ Import these functions from `@bear-block/callx/video`:
 | `enterPictureInPicture(): Promise<boolean>` | Requests entry; false when the activity or device cannot enter PiP |
 | `addPictureInPictureListener(listener: (inPiP: boolean) => void): () => void` | Reports mode changes; returns an unsubscribe function |
 
-From 0.2.4 the same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
+The same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
 Android PiP uses the entire activity;
 your app renders the video or its own branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
@@ -274,5 +269,4 @@ UI observes snapshots and invokes host callbacks; it never creates another nativ
 RN hosts can supply contentInsets from a safe-area provider, previewStyle, style and labels.
 CallxControlGlyph is optional; hosts can supply their own icons. renderVideo supplies the media surface.
 
-See [Call UI](/guide/call-ui) for composition and platform distinctions, and
-[upgrade 0.2.3](/guide/upgrade-0-2-3) for behavior changes from 0.2.2.
+See [Call UI](/guide/call-ui) for composition and platform distinctions.

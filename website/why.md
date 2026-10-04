@@ -93,7 +93,7 @@ instead of hiding them.
 integration, signaling and media credentials; configured media adapters contact your token
 endpoint and provider. This is separate from usage tracking.
 
-**Small, stable surfaces.** One contract (`0.2.0` in version 0.2.3 packages), checked by executable fixtures on Swift,
+**Small, stable surfaces.** One contract (`0.2.0`), checked by executable fixtures on Swift,
 Kotlin, Dart and TypeScript. Package versions move in lockstep.
 
 ## Build on the native foundation

@@ -9,7 +9,6 @@ Steven uses the React Native example. hao.dev7 uses the Flutter example.
 Both examples use the same Kotlin call core and native LiveKit adapter.
 Each Home identifies its owner and shows the other person as the contact: Steven sees
 hao.dev7, and hao.dev7 sees Steven. These are demo identities, not authenticated accounts.
-The recording shows the compact call UI, available from 0.2.3.
 
 For native incoming behavior, watch the separate [secure lock-screen voice/video demo](/guide/lockscreen-demo).
 
@@ -125,5 +124,5 @@ so both screens remain visible through the last chapter.
 This is an Android emulator demonstration. It does not establish physical-device acceptance,
 iOS behavior, secure lock-screen video behavior, network reconnection or crash recovery.
 See [status](/project/status) and [testing](/guides/testing) for the remaining platform gates.
-iOS system PiP is not implemented. System PiP on Android uses the host activity;
+This recording shows Android only; iOS system PiP is experimental. System PiP on Android uses the host activity;
 the in-app mini-call is a separate framework component.

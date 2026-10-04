@@ -23,10 +23,9 @@ Your app supplies signaling and media credentials; no Callx hosted service is re
 ## Versions
 
 - All packages release together with the **same version number**.
-- Adapters depend on the core with a caret range (`^0.2.3`), and check the media interface's
-  `apiVersion` at bootstrap.
-- Current version 0.2.3 uses [contract `0.2.0`](/reference/contract), with native video, Android PiP
-  and optional call UI. Version 0.1.3 shipped contract `0.1.0`.
+- Adapters depend on the core with a caret range on the same version, and check the media
+  interface's `apiVersion` at bootstrap.
+- The current packages use [contract `0.2.0`](/reference/contract); 0.1.x packages used `0.1.0`.
   Contract versions and media adapter API versions are separate from package versions.
 - Until 1.0, minor versions may contain breaking changes, always listed in the
   [changelog](/project/changelog).

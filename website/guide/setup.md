@@ -13,7 +13,7 @@ Your choices stay in this page; nothing is submitted to a server.
 
 ## Before you start
 
-- Callx packages are at **0.2.3**, contract **0.2.0**. Read [requirements](/guide/#requirements).
+- Read the [requirements](/guide/#requirements) first.
 - New to calling? Your backend signals *who is calling whom*. Your media provider carries
   microphone/camera tracks. Callx coordinates the native phone lifecycle and your app UI.
 - A local console is a development tool, not a hosted backend. Real FCM/APNs trials still

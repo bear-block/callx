@@ -31,18 +31,13 @@ an adapter joins media. Adding a UI component does not create another calling en
 | Native incoming/reporting and typed call lifecycle | Implemented; automated and emulator checks | Implemented; automated and Simulator checks |
 | LiveKit audio/video | Implemented; Android video emulator trials | Implemented; physical-device audio/video acceptance pending |
 | Framework overlay and in-app mini-call | Available | Available; platform acceptance still needed |
-| System picture-in-picture | Available; automatic entry needs Android 12+ | Not implemented |
-| Persistent native locked-call timer, mute, hold and audio controls | 0.2.3; RN API36 secure-PIN demo | CallKit owns system presentation; this Android screen is not an iOS feature |
+| System picture-in-picture | Available; automatic entry needs Android 12+ | Experimental, iOS 15+; not yet tried on an iPhone |
+| Persistent native locked-call timer, mute, hold and audio controls | Available; RN API 36 secure-PIN demo | CallKit owns system presentation; this Android screen is not an iOS feature |
 
 These are implementation and verification levels, not physical-device guarantees.
 [Status](/project/status) lists the tested builds and remaining device checks.
 
-## Released and in development
-
-**0.2.2** provides the shared core, native video and LiveKit adapter, Android PiP, and optional
-framework UI. **0.2.3** adds equal-sized direct controls,
-top local preview, foreground-aware fade-out and persistent native locked-call controls.
-The UI shown in these recordings is available from 0.2.3.
+## What is next
 
 Twilio, Zoom Video SDK and Agora adapters are [planned](/project/roadmap#providers-in-order).
 Standalone Kotlin/Swift SDKs are in development; a hosted Callx backend is a future direction.

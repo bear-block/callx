@@ -52,7 +52,7 @@ function seek(seconds: number) {
         {{ chapter.name }}
       </button>
     </div>
-    <p class="demo-note">{{ locked ? 'Secure PIN and RequireUnlock on Android 16. Native controls shown here require 0.2.3; package 0.2.2 does not include this update. Keyguard intervals use timestamped screen captures.' : 'Recorded from two Android emulators with real FCM and native LiveKit. The center column describes each recorded action.' }}
+    <p class="demo-note">{{ locked ? 'Secure PIN and RequireUnlock on Android 16. Keyguard intervals use timestamped screen captures.' : 'Recorded from two Android emulators with real FCM and native LiveKit. The center column describes each recorded action.' }}
       Licensed sample clips feed the cameras; people shown are not Callx endorsers.
       Silent recording; the test checks media connection and remote video, not audible speech.
       <a :href="withBase(`${guide}#recording-transcript`)">Read the transcript</a>

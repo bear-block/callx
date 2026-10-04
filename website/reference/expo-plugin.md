@@ -5,11 +5,6 @@ description: "Every option of the @bear-block/callx and @bear-block/callx-liveki
 
 # Expo config plugin
 
-::: info Released reference
-This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
-See [status](/project/status) for verification limits and [changelog](/project/changelog).
-:::
-
 
 ```json
 {

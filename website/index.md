@@ -106,15 +106,15 @@ await callx.answer(callId);
 ## Choose your call UI
 
 Keep your own Dart or TypeScript screens, or use the [call overlay and mini-call components](/guide/call-ui) with your colors, logo and controls.
-Native code owns the call lifecycle in either case. Android system PiP keeps a compact
-video or branded layout visible when leaving the app; iOS system PiP is not implemented.
+Native code owns the call lifecycle in either case. Picture-in-picture keeps a compact video or
+branded layout visible when the user leaves the app (experimental on iOS).
 A unified configuration for native, custom and supplied UI is [planned](/project/roadmap).
 
 ## Provider adapters
 
 | Provider | Status | Scope |
 |---|---|---|
-| [LiveKit](/guide/livekit) | **Audio and video in 0.2.2** | Native media adapter for Flutter and React Native |
+| [LiveKit](/guide/livekit) | **Available: audio and video** | Native media adapter for Flutter and React Native |
 | Twilio Video / Programmable Voice | **Planned next** | Media adapter and a separate provider-managed signaling adapter |
 | Zoom Video SDK | **Planned** | Audio/video media adapter |
 | Agora | **Planned** | Audio/video media adapter |

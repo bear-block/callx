@@ -84,7 +84,8 @@ Dart/TypeScript should not also join the room from an answer event.
 
 Add [video](/guide/video) only after audio works. Enable camera explicitly and verify local and
 remote views separately. Test Back → mini-call → expand with the same call ID. Test Android
-system PiP separately from the in-app mini-call; iOS system PiP is not implemented.
+system PiP separately from the in-app mini-call; iOS system PiP is
+[experimental](/guide/video#picture-in-picture-on-ios).
 
 **Check:** minimizing changes presentation without ending or answering again. When both cameras
 are off, the configured branding appears. Ending removes the overlay and mini-call.

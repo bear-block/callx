@@ -5,11 +5,6 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
-::: info Released reference
-This page describes version 0.2.3 with contract 0.2.0, native video and Android PiP.
-See [status](/project/status) for verification limits and [changelog](/project/changelog).
-:::
-
 
 ```dart
 import 'package:callx/callx.dart';
@@ -142,7 +137,7 @@ final preview = CallxPreview();
 | `enter(): Future<bool>` | Requests entry; false when unsupported |
 | `changes: Stream<bool>` | Reports PiP mode changes on Android |
 
-From 0.2.4 the same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
+The same APIs work on iOS 15+ ([experimental](/guide/video#picture-in-picture-on-ios)).
 On other platforms configuration has no effect, entry returns false and `changes` emits nothing.
 The app supplies its compact layout and branded fallback. See [PiP layout](/guide/video#picture-in-picture-on-android).
 
@@ -176,5 +171,4 @@ UI observes snapshots and invokes host callbacks; it never creates another nativ
 Flutter uses SafeArea. Preview sizing uses previewSize; customize text with minimizeLabel,
 doneLabel, cameraPausedLabel and localPreviewLabel. Hosts can replace videoBuilder, controls and endControl.
 
-See [Call UI](/guide/call-ui) for composition and platform distinctions, and
-[upgrade 0.2.3](/guide/upgrade-0-2-3) for behavior changes from 0.2.2.
+See [Call UI](/guide/call-ui) for composition and platform distinctions.

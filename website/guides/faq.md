@@ -24,8 +24,8 @@ No. You use your own backend and push credentials. There is no Callx service bet
 ### Does Callx carry audio or video?
 
 No. It coordinates the media engine you choose: install the [LiveKit adapter](/guide/livekit) or
-[bring your own](/guides/own-media). Version 0.2.3 includes native [video calls](/guide/video) and LiveKit video for Flutter and
-React Native, plus Android PiP. Verification differs by platform; see [status](/project/status).
+[bring your own](/guides/own-media). Callx includes native [video calls](/guide/video) and LiveKit video for Flutter and
+React Native, plus picture-in-picture (experimental on iOS). Verification differs by platform; see [status](/project/status).
 
 ### Can I use Callx with Twilio, Agora, Stream, Daily…?
 

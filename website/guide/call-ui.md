@@ -5,10 +5,6 @@ description: "Optional Flutter and React Native UI, with native-owned call state
 
 # Call overlay and mini-call
 
-::: info Available since 0.2.2
-These optional UI components are included in version 0.2.2.
-:::
-
 Mount `CallxCallOverlay` once above your app's navigation. Its Home/navigation child stays
 mounted when the call expands. Use `CallxPresentationController` to decide what to show from
 native snapshots; it does not answer, end, join media or write call state.
@@ -25,7 +21,7 @@ presentation independently from the screen shown after acceptance.
 |---|---|---|
 | Native presentation | Android provides a default incoming notification/lock-screen presenter and a native `CallxBootstrapConfig.presenter` factory. iOS uses CallKit. A complete native video-call screen with Dart/TypeScript configuration is not implemented. | Android hosts can replace the presenter in Kotlin. System UI appearance is controlled by the OS. |
 | Your Flutter or React Native UI | Supported through snapshots, commands and video views; importing the optional UI package is unnecessary. | Build your own Dart or TypeScript/TSX screens and navigation. |
-| Callx Flutter or React Native UI | The optional components below are available in version 0.2.2. | Supply branding, controls, video rendering and expanded/minimized widgets. |
+| Callx Flutter or React Native UI | The optional components below. | Supply branding, controls, video rendering and expanded/minimized widgets. |
 
 These are integration choices, not a shipped three-value configuration API. There is
 currently no Dart/TypeScript switch that disables all native presentation. Using a custom
@@ -122,7 +118,7 @@ Automatic entry still requires native live video-call evidence and Android 12+.
 Do not automatically enter system PiP when navigating between pages of the same Activity.
 
 The in-app mini-call is available to Flutter and React Native UI on either mobile platform.
-iOS system PiP ships in 0.2.4 as an [experimental feature](/guide/video#picture-in-picture-on-ios);
+iOS system PiP is [experimental](/guide/video#picture-in-picture-on-ios);
 physical iOS media/navigation acceptance remains pending.
 
 See the complete integrations in
@@ -133,8 +129,6 @@ and the [verification status](/project/status).
 
 ## Coordinated call layout
 
-The following additions are available in **0.2.3**. For changes from 0.2.2, see the
-[upgrade guide](/guide/upgrade-0-2-3).
 The Flutter and React Native examples use the library's optional call screen and controls.
 Home remains mounted beneath the root call overlay; Diagnostics contains trial tools.
 
@@ -170,7 +164,7 @@ their local console is not a production backend.
 React Native hosts using edge-to-edge windows should pass `contentInsets` (top, right,
 bottom, left) to `CallxCallScreen` and `CallxCallOverlay`. The example measures them with
 `react-native-safe-area-context` inside `SafeAreaProvider`; call controls stay inside those
-insets while video extends behind system bars. This API was added in **0.2.3**.
+insets while video extends behind system bars.
 Flutter uses `SafeArea`; the default Android incoming/locked screen applies system-bar and
 cutout insets itself. Neither fixed status-bar heights nor decorative demo frames substitute
 for device insets.
@@ -178,7 +172,7 @@ for device insets.
 
 ## Compact video controls
 
-The **0.2.3** examples use a Material 3 style video action row: microphone, camera,
+The examples use a Material 3 style video action row: microphone, camera,
 audio output and end call. Flutter uses Material 3 icon buttons; the RN example
 uses Material Icons. Controls use equal 58 dp circular buttons with 28 dp icons, matching the contact-card
 actions. End uses the same size and a red color. Hosts can override button size. Hold/resume is directly
@@ -198,11 +192,11 @@ Hosts can customize the UI with `compactVideoControls`, `autoHideControls`,
 Pass `compact: true` / `compact` to individual `CallxCallControl` buttons for an icon-only
 control. `size` customizes a button diameter, and `leadingControls` supplies direct top-left
 actions. Custom controls, headers, branding, video surfaces and end actions remain host slots.
-Pin controls while showing a host dialog or running a command. These APIs require 0.2.3 or later.
+Pin controls while showing a host dialog or running a command.
 
-The 0.2.3 examples enable automatic system PiP by default on supported Android versions.
+The examples enable automatic system PiP by default on supported Android versions.
 Back from the call overlay produces the in-app mini-call; Home or leaving the Activity produces
 system PiP for a live video call on Android 12+. Navigating inside the app never invokes system
 PiP. Hosts can configure that behavior with the existing PiP APIs; manual entry remains an SDK
 capability for apps that explicitly choose it. iOS system PiP is
-[experimental from 0.2.4](/guide/video#picture-in-picture-on-ios).
+[experimental](/guide/video#picture-in-picture-on-ios).

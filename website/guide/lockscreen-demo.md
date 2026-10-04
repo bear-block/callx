@@ -10,7 +10,6 @@ Decline, and starting the native media adapter while the device is still locked.
 It uses the React Native example on Android 16 / API 36 with a **secure PIN** and the
 default **RequireUnlock** policy. The caller is a local browser test participant named Steven.
 
-The native lock-screen controls in this recording are available from 0.2.3.
 
 <CallDemoShowcase demo="lockscreen" />
 

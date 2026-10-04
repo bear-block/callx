@@ -49,7 +49,7 @@ acceptance. [Help verify](#help-verify).
 | Bluetooth and route changes | n/a | n/a | <span class="no">○</span> |
 | **Picture-in-picture and UI** | | | |
 | Android PiP: manual and automatic entry, compact layout, camera continuity, end cleanup | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
-| iOS PiP (experimental, 0.2.4) | <span class="ok">●</span> | <span class="no">○</span> Simulator unsupported | <span class="no">○</span> |
+| iOS PiP (experimental) | <span class="ok">●</span> | <span class="no">○</span> Simulator unsupported | <span class="no">○</span> |
 | Call overlay and mini-call: Back minimizes, expand returns to the same call | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
 | **Frameworks** | | | |
 | Expo managed: no native code, FCM through the generated service | <span class="ok">●</span> | <span class="ok">●</span> | <span class="no">○</span> |
