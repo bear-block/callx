@@ -39,7 +39,8 @@ class EventJournal(val state: JournalCheckpoint = JournalCheckpoint()) {
         while (state.events.size > EVENT_QUOTA) removeFirst()
         while (state.events.size > 1 && encodedEventBytes + state.events.size + ENVELOPE_BYTES > BYTE_QUOTA) removeFirst()
     }
-    private fun removeFirst() { encodedEventBytes -= JournalCodec.encodedEventBytes(state.events.removeFirst()) }
+    // Avoid Java List.removeFirst: older Android runtimes do not implement it.
+    private fun removeFirst() { encodedEventBytes -= JournalCodec.encodedEventBytes(state.events.removeAt(0)) }
 }
 class JournalViolation(message: String) : IllegalArgumentException(message)
 
