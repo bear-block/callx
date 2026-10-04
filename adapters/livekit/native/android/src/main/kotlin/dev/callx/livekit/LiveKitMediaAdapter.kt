@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import dev.callx.core.CameraFacing
 import dev.callx.core.LocalVideo
+import dev.callx.telecom.CallxDtmfAdapter
 import dev.callx.telecom.CallxCameraError
 import dev.callx.telecom.CallxMediaSink
 import dev.callx.telecom.CallxVideoAdapter
@@ -51,7 +52,7 @@ class LiveKitMediaAdapter(
     private val scope: CoroutineScope,
     private val credentials: suspend (callId: String) -> LiveKitCredentials,
     private val log: (String) -> Unit,
-) : CallxVideoAdapter {
+) : CallxVideoAdapter, CallxDtmfAdapter {
     private val context = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
     private class Session(val job: Job, val sink: CallxMediaSink) {
@@ -174,6 +175,19 @@ class LiveKitMediaAdapter(
     }
 
     /** Publishes, switches or stops the camera. The core already checked that the app is in front. */
+    override suspend fun sendDtmf(callId: String, digits: String): Boolean {
+        if (!Regex("^[0-9*#]{1,32}$").matches(digits)) return false
+        val session = sessions[callId] ?: return false
+        val room = session.room ?: return false
+        if (room.state != Room.State.CONNECTED) return false
+        for (digit in digits) {
+            if (sessions[callId] !== session) return false
+            val code = when (digit) { '*' -> 10; '#' -> 11; else -> digit.digitToInt() }
+            if (room.localParticipant.publishDtmf(code, digit.toString()).isFailure) return false
+        }
+        return true
+    }
+
     override suspend fun setCamera(callId: String, on: Boolean, facing: CameraFacing): CallxCameraError? {
         val session = sessions[callId] ?: return CallxCameraError.mediaNotReady
         val room = session.room ?: return CallxCameraError.mediaNotReady

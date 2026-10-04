@@ -21,7 +21,7 @@ import CallxCore
 /// (ADR-0009, ADR-0010): the ingress starts and stops it, it reports readiness, interruptions and
 /// video through the call's sink, never a call end, and it renders video with LiveKit's
 /// `VideoView` in the surfaces `CallxVideoView` attaches.
-public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked Sendable {
+public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, CallxDTMFAdapter, @unchecked Sendable {
   private let credentials: @Sendable (String) async throws -> LiveKitCredentials
   private let log: @Sendable (String) -> Void
   private let lock = NSLock()
@@ -214,6 +214,19 @@ public final class LiveKitMediaAdapter: NSObject, CallxVideoAdapter, @unchecked 
   }
 
   /// Mute from the app or from CallKit. Before joining, applies on join.
+  public func sendDTMF(callID: String, digits: String) async -> Bool {
+    guard (1...32).contains(digits.count), digits.allSatisfy({ "0123456789*#".contains($0) }), let session = lock.withLock({ sessions[callID] }),
+      session.room.connectionState == .connected else { return false }
+    do {
+      for digit in digits {
+        guard isCurrent(session) else { return false }
+        let code: UInt32 = digit == "*" ? 10 : digit == "#" ? 11 : UInt32(String(digit))!
+        try await session.room.localParticipant.publishDtmf(code: code, digit: String(digit))
+      }
+      return true
+    } catch { return false }
+  }
+
   public func setMuted(callID: String, muted: Bool) async -> Bool {
     guard let session = lock.withLock({ sessions[callID] }) else { return false }
     session.muted = muted
