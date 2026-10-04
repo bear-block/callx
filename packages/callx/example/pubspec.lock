@@ -23,14 +23,14 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.2.3"
+    version: "0.2.4"
   callx_livekit:
     dependency: "direct main"
     description:
       path: "../../callx_livekit"
       relative: true
     source: path
-    version: "0.2.3"
+    version: "0.2.4"
   characters:
     dependency: transitive
     description:
