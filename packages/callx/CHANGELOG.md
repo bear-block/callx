@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — publication pending
+
+- Adds observed audio routes and `setAudioRoute`, active-call `sendDtmf`, and `setDisplayName`.
+- Adds system call request handoff from iOS activities and Android missed-call callback actions.
+- iOS reports outgoing connecting time and optionally donates answered calls for system suggestions.
+- Contract moves to 0.3.0; native continues accepting 0.1/0.2 envelopes. Rebuild the native app.
+- Custom executors/backends with exhaustive command switches must handle the three new cases.
+- TypeScript custom backends must report `dtmf`; optional DTMF adapter support does not change the adapter API version.
+- Physical Bluetooth, Recents and Siri acceptance remains pending.
+
 ## 0.2.4 — 2026-10-04
 
 - Add experimental iOS 15+ native video-call PiP using existing configuration, entry and listener APIs.

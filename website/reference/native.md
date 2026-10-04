@@ -5,6 +5,12 @@ description: "The Kotlin and Swift types a native host uses: bootstrap, ingress,
 
 # Native API
 
+::: info Prepared 0.3.0 APIs
+Audio routes, DTMF, caller name updates and system call requests are documented in
+[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+:::
+
+
 The native API is the same in both framework packages; only the module name and the framework
 entry point differ.
 

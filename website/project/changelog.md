@@ -18,6 +18,28 @@ All Callx packages release together with one version number. Each package also k
 [@bear-block/callx-livekit](https://github.com/bear-block/callx/blob/main/packages/react-native-livekit/CHANGELOG.md),
 [@bear-block/callx-testkit](https://github.com/bear-block/callx/blob/main/packages/testkit/CHANGELOG.md).
 
+## 0.3.0 — publication pending {#release-0-3-0}
+
+### Features
+
+Audio route observation/selection, DTMF through optional media adapters (including LiveKit),
+caller name updates, Android missed-call callback requests, and iOS system activity handoff,
+answered-call donation and outgoing connecting timestamps.
+
+### Breaking changes and migration
+
+Contract 0.3.0 adds three commands, optional call route fields and the `dtmf` capability. Custom
+TypeScript backends must supply `dtmf`. Exhaustive command switches in custom backends/native
+executors must handle `setAudioRoute`, `sendDtmf` and `setDisplayName`. Native still accepts older envelopes, but new wrappers
+need the new native core: upgrade core/provider together and rebuild the app. Existing PiP and
+lifecycle APIs keep their signatures. See [phone features and migration](/guide/phone-features).
+
+### Verification limits
+
+Automated checks cover command behavior and platform mappings. Physical headset/Bluetooth,
+Recents/Siri launch and SIP/IVR acceptance remain pending. This section is preparation, not a
+claim that 0.3.0 has been published.
+
 ## Website documentation update — 2026-10-04
 
 Compare now describes 0.2.3, distinguishes system video reporting from media/UI/PiP, and

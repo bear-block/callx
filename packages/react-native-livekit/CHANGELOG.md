@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — publication pending
+
+- LiveKit implements the optional native DTMF adapter on Android and iOS; digits publish as SIP DTMF packets. Remote IVR acceptance is not verified.
+- Aligns with core 0.3.0; upgrade core and adapter together and rebuild the app.
+
 ## 0.2.4 — 2026-10-04
 
 - Render native iOS PiP surfaces with LiveKit sample buffers.

@@ -5,6 +5,12 @@ description: "The complete TypeScript API of @bear-block/callx and @bear-block/c
 
 # TypeScript API
 
+::: info Prepared 0.3.0 APIs
+Audio routes, DTMF, caller name updates and system call requests are documented in
+[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+:::
+
+
 
 ```ts
 import {Callx} from '@bear-block/callx';
@@ -48,6 +54,9 @@ All commands accept an optional last argument `options: CommandOptions` and reso
 | `setHeld(callId, held: boolean, options?)` | Holds or resumes the call |
 | `setCamera(callId, on: boolean, options?)` | Turns the local camera on or off; needs a video adapter and the app in front. See [video calls](/guide/video) |
 | `switchCamera(callId, facing: CameraFacing, options?)` | Chooses the front or back camera; remembered while the camera is off |
+| `setAudioRoute(callId, routeId, options?)` | Select an observed audio endpoint |
+| `sendDtmf(callId, digits, options?)` | Send keypad tones during an active call; requires `dtmf` |
+| `setDisplayName(callId, name, options?)` | Update the caller name |
 | `queryOperation(operationId, accountGeneration)` | Looks up a stored result: `Promise<OperationLookup>` |
 
 ### Observation sessions
@@ -81,6 +90,7 @@ interface Capabilities {
   hold: boolean;
   mute: boolean;
   video: boolean;          // a video media adapter is installed
+  dtmf: boolean;           // an optional keypad-tone adapter is installed
 }
 
 interface Snapshot { sequence: string; call: Call | null }
@@ -97,6 +107,8 @@ interface Call {
   localVideo?: LocalVideo;      // absent means 'off'
   cameraFacing?: CameraFacing;  // present while localVideo is not 'off'
   remoteVideo?: boolean;        // a remote video track can be rendered
+  audioRoutes?: readonly AudioRoute[];
+  audioRoute?: string;           // current observed route id
   endReason?: EndReason;
   createdAtMs?: number;
   acceptedAtMs?: number;
@@ -270,3 +282,9 @@ RN hosts can supply contentInsets from a safe-area provider, previewStyle, style
 CallxControlGlyph is optional; hosts can supply their own icons. renderVideo supplies the media surface.
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
+
+## System call requests (0.3.0)
+
+`callx.addCallRequestListener(listener)` returns an unsubscribe function. The listener receives
+`{handle, displayName?, video}` and the host decides whether to place a call. Use one app-level
+consumer; see [system handoff and native setup](/guide/phone-features#requests-from-outside-the-app).

@@ -84,6 +84,7 @@ export default defineConfig({
         items: [
           {text: 'Audio and video with LiveKit', link: '/guide/livekit'},
           {text: 'Video calls', link: '/guide/video'},
+          {text: 'Phone features (0.3.0)', link: '/guide/phone-features'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
         ],
       },

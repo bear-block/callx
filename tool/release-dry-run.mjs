@@ -16,6 +16,7 @@ export const NPM_PACKAGES = {
   'packages/react-native': ['lib/index.js', 'lib/index.d.ts', 'app.plugin.cjs', 'plugin/CallxMessagingService.kt.template',
     'callx-react-native.podspec', 'react-native.config.js', 'android/build.gradle', 'ios/CallxModule.swift',
     'ios/CallxModule.mm', 'src/specs/NativeCallx.ts', 'android/src/main/kotlin/dev/callx/reactnative/CallxPackage.kt',
+    'ios/CallxCore/CallxPhoneFeatures.swift', 'android/src/main/kotlin/dev/callx/telecom/CallxCallRequests.kt',
     'ios/CallxCore/CallxBootstrap.swift', 'android/src/main/kotlin/dev/callx/telecom/CallxBootstrap.kt', 'LICENSE', 'README.md'],
   'packages/react-native-livekit': ['lib/index.js', 'lib/index.d.ts', 'app.plugin.cjs', 'callx-livekit.podspec',
     'react-native.config.js', 'android/build.gradle', 'android/src/main/AndroidManifest.xml',

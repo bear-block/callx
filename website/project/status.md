@@ -20,6 +20,13 @@ a CallKit call. Everything below marked on emulators is real OS integration, not
 acceptance. [Help verify](#help-verify).
 :::
 
+## Prepared next release
+
+Version **0.3.0** is being prepared with contract **0.3.0**. It adds
+[audio routes, DTMF, caller name updates and system call requests](/guide/phone-features).
+It is not published yet. Native automated tests cover mappings and command behavior; physical
+Bluetooth, iOS Recents/Siri and remote SIP/IVR acceptance remain pending.
+
 ## At a glance
 
 <span class="ok">●</span> verified · <span class="part">◐</span> partly verified ·

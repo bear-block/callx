@@ -33,3 +33,14 @@ test('a lagging adapter dependency is reported', () => {
   const lagging = { ...files, 'packages/callx_livekit/pubspec.yaml': 'name: callx_livekit\nversion: 1.0.0\ndependencies:\n  callx: 0.9.0\n' };
   assert.ok(disagreements(versionSites((path) => lagging[path])).some((line) => line.includes('dependency callx: 0.9.0')));
 });
+
+test('release version updates lockfile metadata and local example links without resolving dependencies', () => {
+  const withLocks = {...files,
+    'packages/react-native/package-lock.json': JSON.stringify({name:'@bear-block/callx', version:'0.9.0', packages:{'': {name:'@bear-block/callx', version:'0.9.0'}}}),
+    'packages/react-native/example/package-lock.json': JSON.stringify({version:'example-version', packages:{'../../react-native-livekit': {name:'@bear-block/callx-livekit', version:'0.9.0', peerDependencies:{'@bear-block/callx':'^0.9.0'}}}}),
+  };
+  assert.ok(disagreements(versionSites(path => withLocks[path])).length);
+  for (const site of versionSites(path => withLocks[path])) withLocks[site.path] = site.set(withLocks[site.path], '1.0.0');
+  assert.deepEqual(disagreements(versionSites(path => withLocks[path])), []);
+  assert.equal(JSON.parse(withLocks['packages/react-native/example/package-lock.json']).version, 'example-version');
+});

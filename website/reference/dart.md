@@ -5,6 +5,12 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
+::: info Prepared 0.3.0 APIs
+Audio routes, DTMF, caller name updates and system call requests are documented in
+[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+:::
+
+
 
 ```dart
 import 'package:callx/callx.dart';
@@ -47,6 +53,9 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 | `setHeld(String callId, bool held, {CommandOptions? options})` | Holds or resumes |
 | `setCamera(String callId, bool on, {CommandOptions? options})` | Turns the local camera on or off; needs a video adapter and the app in front. See [video calls](/guide/video) |
 | `switchCamera(String callId, CameraFacing facing, {CommandOptions? options})` | Chooses the front or back camera; remembered while the camera is off |
+| `setAudioRoute(callId, routeId, {options})` | Select an observed audio endpoint |
+| `sendDtmf(callId, digits, {options})` | Send keypad tones during an active call; requires `dtmf` |
+| `setDisplayName(callId, name, {options})` | Update the caller name |
 | `queryOperation(String operationId, String accountGeneration)` | `Future<OperationLookup>` |
 
 ### Observation sessions
@@ -65,9 +74,9 @@ Each takes an optional named `options: CommandOptions` and returns `Future<Comma
 | `CallxConfig` | `appName?` (deprecated, ignored) |
 | `CallInput` | `callId`, `displayName`, `handle`, `video` (default false) |
 | `CommandOptions` | `operationId?`, `deadlineAtMs?` |
-| `CallxCapabilities` | `coreVersion`, `execution`, `accountGeneration`, `nativeCalling`, `durableReplay`, `providerManagedSignaling`, `hold`, `mute`, `video` |
+| `CallxCapabilities` | `coreVersion`, `execution`, `accountGeneration`, `nativeCalling`, `durableReplay`, `providerManagedSignaling`, `hold`, `mute`, `video`, `dtmf` |
 | `CallSnapshot` | `sequence`, `call?` |
-| `Call` | `callId`, `displayName`, `direction`, `state`, `muted`, `mediaReady`, `mediaInterrupted`, `video`, `localVideo` (`LocalVideo.off`, `on`, `blocked`), `cameraFacing?`, `remoteVideo`, `endReason?`, `createdAtMs?`, `acceptedAtMs?`, `mediaConnectedAtMs?`, `endedAtMs?` |
+| `Call` | `callId`, `displayName`, `direction`, `state`, `muted`, `mediaReady`, `mediaInterrupted`, `video`, `localVideo` (`LocalVideo.off`, `on`, `blocked`), `cameraFacing?`, `remoteVideo`, `audioRoutes`, `audioRoute?`, `endReason?`, `createdAtMs?`, `acceptedAtMs?`, `mediaConnectedAtMs?`, `endedAtMs?` |
 | `CommandResult` | `operationId`, `status`, `execution`, `completedAtMs`, `error?` |
 | `OperationError` | `code`, `message`, `retryable`, `platform?` |
 | `PlatformError` | `domain`, `code` |
@@ -172,3 +181,8 @@ Flutter uses SafeArea. Preview sizing uses previewSize; customize text with mini
 doneLabel, cameraPausedLabel and localPreviewLabel. Hosts can replace videoBuilder, controls and endControl.
 
 See [Call UI](/guide/call-ui) for composition and platform distinctions.
+
+## System call requests (0.3.0)
+
+`Callx.callRequests` is a `Stream<CallRequest>` with `handle`, optional `displayName`, and `video`.
+Listen once at app level; the request does not start a call. See [native handoff setup](/guide/phone-features#requests-from-outside-the-app).

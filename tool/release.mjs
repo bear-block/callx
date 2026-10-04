@@ -28,6 +28,25 @@ export function versionSites(read = (path) => readFileSync(join(root, path), 'ut
         set: (text, version) => replaceJson(text, (json) => { json.peerDependencies['@bear-block/callx'] = `^${version}`; }) });
     }
   }
+  // npm ci also reads lockfile root metadata and local example links.
+  for (const path of [...NPM.map(dir => `${dir}/package-lock.json`), 'packages/react-native/example/package-lock.json']) {
+    let lock;
+    try { const text = read(path); if (text) lock = JSON.parse(text); } catch { continue; }
+    if (!lock) continue;
+    if (NPM.some(dir => path === `${dir}/package-lock.json`)) {
+      sites.push({label: `${lock.name} lockfile version`, path, value: lock.version,
+        set: (text, version) => replaceJson(text, json => { json.version = version; })});
+    }
+    for (const [key, entry] of Object.entries(lock.packages ?? {})) {
+      if (!['@bear-block/callx', '@bear-block/callx-livekit', '@bear-block/callx-testkit'].includes(entry.name)) continue;
+      sites.push({label: `${entry.name} locked version`, path, value: entry.version,
+        set: (text, version) => replaceJson(text, json => { json.packages[key].version = version; })});
+      if (entry.peerDependencies?.['@bear-block/callx']) {
+        sites.push({label: `${entry.name} locked peer`, path, value: entry.peerDependencies['@bear-block/callx'],
+          set: (text, version) => replaceJson(text, json => { json.packages[key].peerDependencies['@bear-block/callx'] = `^${version}`; })});
+      }
+    }
+  }
   for (const dir of PUB) {
     const path = `${dir}/pubspec.yaml`;
     const text = read(path);

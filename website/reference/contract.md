@@ -1,14 +1,20 @@
 ---
-title: "Contract v0.2"
+title: "Contract v0.3"
 description: "The framework-neutral contract that the Swift, Kotlin, Dart and TypeScript layers implement, and its invariants."
 ---
 
-# Contract v0.2
+# Contract v0.3
+
+::: info Prepared 0.3.0 APIs
+Audio routes, DTMF, caller name updates and system call requests are documented in
+[phone features](/guide/phone-features). Publication is pending; 0.2.4 remains the published version.
+:::
+
 
 
 The contract defines the vocabulary every Callx layer speaks: states, commands, results, events
 and limits. Swift, Kotlin, Dart and TypeScript implement it, and shared executable fixtures check
-each of them. Contract version `0.2.0` is independent of package versions; 0.2 added video
+each of them. Contract version `0.3.0` is independent of package versions; 0.3 adds phone features and 0.2 added video
 ([ADR-0010](/project/decisions)) with optional fields and two commands, so 0.1 wrappers keep working.
 
 The machine-readable manifest and fixtures are in
@@ -64,6 +70,9 @@ Video is not a state. A call may carry these optional fields, omitted at their d
 | `answer`, `end` | `callId` |
 | `setMuted`, `setHeld`, `setCamera` | `callId`, `value: boolean` |
 | `switchCamera` | `callId`, `value: "front" \| "back"` |
+| `setAudioRoute` | `callId`, `value: available route id` |
+| `sendDtmf` | `callId`, `value: 1–32 keypad digits` |
+| `setDisplayName` | `callId`, `value: caller name (1–256 UTF-8 bytes)` |
 
 ## Snapshot
 
