@@ -98,7 +98,7 @@ Callx is preparing applications to public open-source funds:
 | Programme | Fit |
 |---|---|
 | [NLnet NGI Zero Commons Fund](https://nlnet.nl/commonsfund/) | Open internet commons; privacy-respecting communication infrastructure with no telemetry |
-| [FLOSS/fund](https://floss.fund/) | Annual grants for free and open-source projects, reviewed from public [`funding.json`](/callx/funding.json) manifests |
+| [FLOSS/fund](https://floss.fund/) | Annual grants for free and open-source projects, reviewed from public [`funding.json`](/funding.json) manifests |
 
 Organisations running grant programmes are welcome to contact the maintainers.
 
