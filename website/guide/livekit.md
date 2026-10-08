@@ -20,23 +20,7 @@ sharing or many participant tiles, use Callx alone and
 
 ## Install
 
-::: code-group
-
-```sh [React Native]
-npm install @bear-block/callx-livekit
-cd ios && pod install
-```
-
-```sh [Expo]
-npx expo install @bear-block/callx-livekit
-# then add "@bear-block/callx-livekit/app.plugin" after Callx's plugin and prebuild
-```
-
-```sh [Flutter]
-flutter pub add callx_livekit
-```
-
-:::
+<!--@include: ./parts/livekit-install.md-->
 
 ### Platform setup
 
@@ -94,33 +78,7 @@ after sign-in and whenever your session token changes. The configuration persist
 answered while the app was killed still gets credentials. Headers are stored encrypted (Android
 Keystore, iOS keychain).
 
-::: code-group
-
-```ts [React Native]
-import {configureLiveKit, resetLiveKit} from '@bear-block/callx-livekit';
-
-await configureLiveKit({
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
-  headers: {authorization: `Bearer ${sessionToken}`},
-});
-
-// On sign-out:
-await resetLiveKit();
-```
-
-```dart [Flutter]
-import 'package:callx_livekit/callx_livekit.dart';
-
-await CallxLiveKit.configure(LiveKitConfig(
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
-  headers: {'authorization': 'Bearer $sessionToken'},
-));
-
-// On sign-out:
-await CallxLiveKit.reset();
-```
-
-:::
+<!--@include: ./parts/livekit-configure.md-->
 
 ### Your token endpoint
 

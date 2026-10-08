@@ -34,35 +34,7 @@ The package contains native code, so rebuild the app; a JavaScript reload is not
 
 ## 2. Configure the native projects
 
-### iOS
-
-In Xcode, under **Signing & Capabilities**:
-
-- Add **Push Notifications**.
-- Add **Background Modes** and tick **Audio, AirPlay, and Picture in Picture** and
-  **Voice over IP**.
-
-Add a microphone description to `Info.plist`:
-
-```xml
-<key>NSMicrophoneUsageDescription</key>
-<string>Example uses the microphone for calls.</string>
-```
-
-### Android
-
-Add the permissions your app requests at runtime to `android/app/src/main/AndroidManifest.xml`.
-Callx's own manifest already declares `MANAGE_OWN_CALLS`, `USE_FULL_SCREEN_INTENT` and its
-incoming-call screen.
-
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-```
-
-Add Firebase to the Android app (`google-services.json`, the Google Services Gradle plugin and
-`com.google.firebase:firebase-messaging`).
+<!--@include: ./parts/native-config.md-->
 
 ## 3. Bootstrap the native core
 
@@ -96,31 +68,7 @@ or your own media. See [native host integration](/guides/native-host).
 
 ### Android: forward FCM messages
 
-```kotlin
-// android/app/src/main/java/com/example/calls/MessagingService.kt
-import com.google.firebase.messaging.FirebaseMessagingService
-import com.google.firebase.messaging.RemoteMessage
-import dev.callx.telecom.CallxBootstrap
-import dev.callx.telecom.CallxPushTokens
-
-class MessagingService : FirebaseMessagingService() {
-    override fun onMessageReceived(message: RemoteMessage) {
-        val ingress = CallxBootstrap.started?.ingress
-        if (ingress?.handlePush(message.data, message.priority, message.originalPriority) == true) return
-        // Not a Callx invitation: handle your app's other messages.
-    }
-
-    override fun onNewToken(token: String) = CallxPushTokens.updateFcm(token)
-}
-```
-
-```xml
-<service android:name=".MessagingService" android:exported="false">
-    <intent-filter>
-        <action android:name="com.google.firebase.MESSAGING_EVENT" />
-    </intent-filter>
-</service>
-```
+<!--@include: ./parts/fcm-service.md-->
 
 ::: tip Using @react-native-firebase/messaging?
 Extend its service instead of `FirebaseMessagingService`, so your other messages still reach
@@ -196,10 +144,9 @@ before the first call arrives.
 
 ## 5. Send a test call
 
-```sh
-npx -p @bear-block/callx-testkit callx-push android \
-  --service-account firebase-adminsdk.json --token <FCM token>
-```
+Push an invitation from your backend, or from your machine with the testkit:
+
+<!--@include: ./parts/test-push.md-->
 
 Kill the app, send the push, and the phone rings. The [backend guide](/backend/reference) has the
 payloads your server sends in production.

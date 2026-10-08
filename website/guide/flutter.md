@@ -30,35 +30,7 @@ must be iOS 15 or later.
 
 ## 2. Configure the native projects
 
-### iOS
-
-In Xcode, under **Signing & Capabilities** for the Runner target:
-
-- Add **Push Notifications**.
-- Add **Background Modes** and tick **Audio, AirPlay, and Picture in Picture** and
-  **Voice over IP**.
-
-Add a microphone description to `ios/Runner/Info.plist`:
-
-```xml
-<key>NSMicrophoneUsageDescription</key>
-<string>Example uses the microphone for calls.</string>
-```
-
-### Android
-
-Callx's manifest already declares `MANAGE_OWN_CALLS`, `USE_FULL_SCREEN_INTENT` and its incoming
-call screen. Add the permissions your app requests at runtime to
-`android/app/src/main/AndroidManifest.xml`:
-
-```xml
-<uses-permission android:name="android.permission.INTERNET" />
-<uses-permission android:name="android.permission.RECORD_AUDIO" />
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-```
-
-Add Firebase to the Android app as usual (`google-services.json` and the Google Services
-Gradle plugin) and the `com.google.firebase:firebase-messaging` dependency.
+<!--@include: ./parts/native-config.md-->
 
 ## 3. Bootstrap the native core
 
@@ -97,36 +69,7 @@ Register it with `android:name=".App"` on the `<application>` element.
 
 ### Android: forward FCM messages
 
-```kotlin
-// android/app/src/main/kotlin/com/example/calls/MessagingService.kt
-package com.example.calls
-
-import com.google.firebase.messaging.FirebaseMessagingService
-import com.google.firebase.messaging.RemoteMessage
-import dev.callx.telecom.CallxBootstrap
-import dev.callx.telecom.CallxPushTokens
-
-class MessagingService : FirebaseMessagingService() {
-    override fun onMessageReceived(message: RemoteMessage) {
-        val ingress = CallxBootstrap.started?.ingress
-        if (ingress?.handlePush(message.data, message.priority, message.originalPriority) == true) return
-        // Not a Callx invitation: handle your app's other messages here.
-    }
-
-    override fun onNewToken(token: String) = CallxPushTokens.updateFcm(token)
-}
-```
-
-```xml
-<service android:name=".MessagingService" android:exported="false">
-    <intent-filter>
-        <action android:name="com.google.firebase.MESSAGING_EVENT" />
-    </intent-filter>
-</service>
-```
-
-`handlePush` returns `false` for messages that are not Callx invitations, so this service can
-keep handling your other notifications.
+<!--@include: ./parts/fcm-service.md-->
 
 ::: warning One messaging service
 Android delivers FCM messages to a single service. If another plugin, such as
@@ -215,16 +158,7 @@ before the first call: the permission prompt cannot appear over the lock screen.
 
 Push an invitation from your backend, or from your machine with the testkit:
 
-```sh
-# Android (FCM): a Firebase service account and the token from Callx.pushToken()
-npx -p @bear-block/callx-testkit callx-push android \
-  --service-account firebase-adminsdk.json --token <FCM token>
-
-# iOS (APNs VoIP): your APNs auth key and the VoIP token
-npx -p @bear-block/callx-testkit callx-push ios \
-  --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
-  --bundle-id com.example.calls --token <VoIP token>
-```
+<!--@include: ./parts/test-push.md-->
 
 The [backend guide](/backend/reference) has the exact APNs and FCM payloads. Kill the app, send
 the push, and the phone rings with the system call UI.

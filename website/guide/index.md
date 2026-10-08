@@ -113,16 +113,7 @@ iOS, a high-priority FCM data message on Android. The payload is a small JSON ob
 
 Before your backend exists, send the same push from your machine with the testkit:
 
-```sh
-# Android: a Firebase service account and the FCM token from step 2
-npx -p @bear-block/callx-testkit callx-push android \
-  --service-account firebase-adminsdk.json --token <FCM token>
-
-# iOS: your APNs auth key and the VoIP token from step 2 (physical iPhone only)
-npx -p @bear-block/callx-testkit callx-push ios \
-  --key AuthKey_ABC123.p8 --key-id ABC123 --team-id TEAM123 \
-  --bundle-id com.example.calls --token <VoIP token>
-```
+<!--@include: ./parts/test-push.md-->
 
 **Done when** you kill the app, send the push, and the phone shows the system incoming-call
 screen with "Alex". Answer moves your snapshot to `connecting`; it stays there until media
@@ -135,46 +126,11 @@ Full APNs and FCM request formats: [API and push payloads](/backend/reference#io
 Install the LiveKit adapter. Callx finds it by itself and joins the call's LiveKit room natively
 when the call is answered, even from the lock screen with no Dart or JavaScript running.
 
-::: code-group
-
-```sh [React Native]
-npm install @bear-block/callx-livekit && (cd ios && pod install)
-```
-
-```sh [Expo]
-npx expo install @bear-block/callx-livekit
-# add "@bear-block/callx-livekit/app.plugin" after Callx's plugin, then prebuild
-```
-
-```sh [Flutter]
-flutter pub add callx_livekit
-```
-
-:::
+<!--@include: ./parts/livekit-install.md-->
 
 Tell the adapter where to fetch a room token, after sign-in:
 
-::: code-group
-
-```ts [React Native / Expo]
-import {configureLiveKit} from '@bear-block/callx-livekit';
-
-await configureLiveKit({
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
-  headers: {authorization: `Bearer ${sessionToken}`},
-});
-```
-
-```dart [Flutter]
-import 'package:callx_livekit/callx_livekit.dart';
-
-await CallxLiveKit.configure(LiveKitConfig(
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
-  headers: {'authorization': 'Bearer $sessionToken'},
-));
-```
-
-:::
+<!--@include: ./parts/livekit-configure.md-->
 
 When a call is answered, the adapter posts `{"callId": "…"}` to that URL; your backend answers
 `{"url": "wss://…", "token": "…"}` with a LiveKit token for the room `call-<callId>`. The

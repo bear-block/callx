@@ -17,6 +17,8 @@ export default defineConfig({
   base: '/callx/',
   lang: 'en-US',
   cleanUrls: true,
+  // Shared fragments, included with <!--@include--> into the pages that use them.
+  srcExclude: ['**/parts/**'],
   lastUpdated: true,
   sitemap: {hostname: site},
   head: [
