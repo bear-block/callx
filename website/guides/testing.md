@@ -102,6 +102,11 @@ iOS conformance needs an iPhone, because the Simulator ends CallKit calls immedi
 
 ## Acceptance checklist
 
+Verify each checkpoint on its own. A ringing phone, connected media and a rendered call screen
+are separate results: an FCM or APNs `200` means the push was accepted for delivery, not that the
+phone rang, and an emulator media callback proves a connection, not that people can hear each
+other.
+
 Run these on each platform you ship, on release builds, with the screen on, locked and off:
 
 - [ ] Incoming call with the app in use, in the background, swiped away, and after a reboot and
@@ -121,6 +126,25 @@ Run these on each platform you ship, on release builds, with the screen on, lock
 - [ ] Engine reload and process death during a call. State reconciles; nothing repeats.
 - [ ] Sign out and in as another user. Old calls and operations stay with the old account.
 - [ ] Microphone and notification permissions denied.
+- [ ] Answer moves the call to `connecting`; only real media moves it to `active`, on both
+      phones.
+
+### Call screens and video
+
+- [ ] While a call rings, your app shows no second incoming screen; Decline does not open the
+      accepted-call overlay.
+- [ ] Back minimizes to the in-app mini-call and expanding returns to the same `callId`, without
+      answering or ending again. Ending removes both.
+- [ ] Local and remote video, each checked on its own; your branding shows when both cameras are
+      off.
+- [ ] Android system PiP, separately from the in-app mini-call. iOS PiP is
+      [experimental](/guide/video#picture-in-picture-on-ios).
+- [ ] Video answered from a secure lock screen, as its own trial.
+
+### Migrating from another library
+
+Run the old and new app versions against separate backend routes, and practise the rollback
+before release. See [rollout and rollback](/guides/migration-rollout).
 
 ### Android vendors
 
@@ -129,4 +153,6 @@ one of Oppo, Vivo or OnePlus. Vendor battery managers are the most common cause 
 see [Android](/platforms/android#vendor-battery-managers).
 
 Record device, OS version, app build and outcome for each run. A simulator run never counts as a
-device pass.
+device pass, and a force-stopped Android app is an OS restriction of its own: Android delivers
+nothing to it until the user opens it again, so a killed-app test does not cover it. Compare with
+the [verification status](/project/status) before you claim a platform works.

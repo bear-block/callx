@@ -89,7 +89,7 @@ Future<void> answer(String callId) async {
 ```
 
 Your backend sends an APNs VoIP push or an FCM data message with a `callx` invitation; the
-[backend guide](https://bear-block.github.io/callx/guides/backend) has the exact payloads.
+[backend guide](https://bear-block.github.io/callx/backend/reference) has the exact payloads.
 
 ## Try it without a backend
 

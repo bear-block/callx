@@ -107,7 +107,6 @@ export default defineConfig({
       {
         text: 'Test and ship',
         items: [
-          {text: 'Verify your first call', link: '/guide/first-call'},
           {text: 'Test on devices', link: '/guides/testing'},
           {text: 'Troubleshooting', link: '/guides/troubleshooting'},
           {text: 'FAQ', link: '/guides/faq'},
@@ -118,6 +117,7 @@ export default defineConfig({
               {text: 'From react-native-callkeep', link: '/guides/migrate-callkeep'},
               {text: 'From flutter_callkit_incoming', link: '/guides/migrate-flutter-callkit-incoming'},
               {text: 'Rollout and rollback', link: '/guides/migration-rollout'},
+              {text: 'Upgrade from 0.2.2 to 0.2.3', link: '/guide/upgrade-0-2-3'},
             ],
           },
         ],
