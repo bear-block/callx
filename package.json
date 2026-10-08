@@ -12,7 +12,7 @@
     "native:ios:test": "swift test",
     "native:ios:simulator-test": "sh tool/ios-simulator-test.sh",
     "native:android:test": "native/android/gradlew -p native/android test",
-    "test": "node --test src/*.test.ts tool/*.test.mjs packages/testkit/test/*.test.mjs website/scripts/*.test.mjs website/scripts/*.test.ts",
+    "test": "node --test src/*.test.ts tool/*.test.mjs packages/testkit/test/*.test.mjs examples/backend/*.test.mjs website/scripts/*.test.mjs website/scripts/*.test.ts",
     "test:all": "sh tool/test-all.sh",
     "test:quick": "sh tool/test-all.sh quick",
     "release:version": "node tool/release.mjs version",
@@ -31,6 +31,7 @@
     "conformance:android": "node packages/testkit/src/conformance.mjs android",
     "conformance:matrix": "node tool/emulator-matrix.mjs",
     "media:server": "sh tool/media-server.sh",
+    "example:backend": "node examples/backend/server.mjs",
     "docs:dev": "npm --prefix website run dev",
     "docs:build": "npm --prefix website run build",
     "docs:preview": "npm --prefix website run preview"

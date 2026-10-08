@@ -157,7 +157,8 @@ request as the answer and sends `call.accepted` to the caller
 ### A complete call service
 
 This is the file most apps end up with. It is all the Callx code an app needs besides its
-screens.
+screens. `./backend` is your client for your server; the
+[example backend](/backend/example) has one, and runs this file end to end.
 
 ::: code-group
 
@@ -165,28 +166,28 @@ screens.
 // calls.ts
 import {Callx, reportRemoteAnswered, reportRemoteEnded, type Call} from '@bear-block/callx';
 import {configureLiveKit} from '@bear-block/callx-livekit';
-import {api, signaling, newUuid} from './backend'; // your own client and socket
+import {api, liveKitConfig, newUuid, signaling, startSignaling} from './backend'; // your client
 
 export const callx = new Callx();
 
 // Ends this phone decided. Ends that came from the backend need no report.
 const LOCAL_ENDS = new Set(['localHangup', 'declined', 'unanswered']);
 
-export async function startCalls(sessionToken: string, render: (call: Call | null) => void) {
+/** Call after sign-in. */
+export async function startCalls(render: (call: Call | null) => void) {
   const {nativeCalling} = await callx.setup();
   if (!nativeCalling) return;
 
   const token = await callx.getPushToken();
   if (token) await api.registerPushToken(token.type, token.token);
 
-  await configureLiveKit({
-    tokenUrl: 'https://api.example.com/calls/livekit-token',
-    headers: {authorization: `Bearer ${sessionToken}`},
-  });
+  // {tokenUrl, headers}: the session and the installation ID, so the request can claim the answer
+  await configureLiveKit(liveKitConfig());
 
   // Backend → Callx
   signaling.on('call.accepted', (event) => reportRemoteAnswered(event.callId));
   signaling.on('call.ended', (event) => reportRemoteEnded(event.callId, event.reason));
+  void startSignaling();
 
   // Callx → your UI, and this phone's hang-ups → backend
   let reported: string | undefined;
@@ -201,7 +202,7 @@ export async function startCalls(sessionToken: string, render: (call: Call | nul
 
 export async function callUser(user: {id: string; name: string}, video = false) {
   const callId = newUuid();
-  await api.createCall({callId, calleeUserId: user.id}); // the backend pushes the invitation
+  await api.createCall({callId, calleeUserId: user.id, video}); // the backend pushes the invitation
   const result = await callx.startCall({callId, displayName: user.name, handle: `callx:${user.id}`, video});
   if (result.status !== 'applied') await api.endCall(callId, 'failed');
 }
@@ -209,31 +210,33 @@ export async function callUser(user: {id: string; name: string}, video = false) 
 
 ```dart [Flutter]
 // calls.dart
+import 'dart:async';
+
 import 'package:callx/callx.dart';
 import 'package:callx_livekit/callx_livekit.dart';
-import 'backend.dart'; // your own client and socket
+import 'backend.dart'; // your client
 
 final callx = Callx();
 
 // Ends this phone decided. Ends that came from the backend need no report.
 const _localEnds = {EndReason.localHangup, EndReason.declined, EndReason.unanswered};
 
-Future<void> startCalls(String sessionToken, void Function(Call?) render) async {
+/// Call after sign-in.
+Future<void> startCalls(void Function(Call?) render) async {
   final capabilities = await callx.setup();
   if (!capabilities.nativeCalling) return;
 
   final token = await callx.pushToken();
   if (token != null) await api.registerPushToken(token.type, token.token);
 
-  await CallxLiveKit.configure(LiveKitConfig(
-    tokenUrl: 'https://api.example.com/calls/livekit-token',
-    headers: {'authorization': 'Bearer $sessionToken'},
-  ));
+  // tokenUrl and headers: the session and the installation ID, so the request can claim the answer
+  await CallxLiveKit.configure(liveKitConfig());
 
   // Backend → Callx
   signaling.on('call.accepted', (event) => CallxSignaling.remoteAnswered(event.callId));
   signaling.on('call.ended', (event) =>
       CallxSignaling.remoteEnded(event.callId, reason: EndReason.values.byName(event.reason)));
+  unawaited(startSignaling());
 
   // Callx → your UI, and this phone's hang-ups → backend
   String? reported;
@@ -250,7 +253,7 @@ Future<void> startCalls(String sessionToken, void Function(Call?) render) async 
 
 Future<void> callUser(User user, {bool video = false}) async {
   final callId = newUuid();
-  await api.createCall(callId: callId, calleeUserId: user.id); // the backend pushes the invitation
+  await api.createCall(callId: callId, calleeUserId: user.id, video: video); // the backend pushes the invitation
   final result = await callx.startCall(CallInput(
     callId: callId, displayName: user.name, handle: 'callx:${user.id}', video: video));
   if (result.status != CommandStatus.applied) await api.endCall(callId, 'failed');
@@ -276,17 +279,17 @@ the other.
 
 ## What your backend needs
 
-The minimum for the call service above. The [Backend section](/backend/) explains each rule
-and has a full [reference design](/backend/reference).
+The minimum for the call service above. The [example backend](/backend/example) implements all
+of it in one runnable Node file, and the [Backend section](/backend/) explains each rule.
 
 | Endpoint or job | Does |
 |---|---|
-| `PUT /push-tokens` | Stores the token from step 2 per user and installation |
-| `POST /calls` | Stores the call as ringing with an expiry, pushes the invitation to every callee device |
-| `POST /calls/livekit-token` | Checks the user belongs to the call. For the callee, the first request wins the answer and sends `call.accepted` to the caller and `call.ended` (`answeredElsewhere`) to the callee's other devices |
-| `POST /calls/{id}/end` | Marks the call ended and sends `call.ended` to the other side |
+| `PUT /v1/installations/{id}/push-token` | Stores the token from step 2 per user and installation |
+| `POST /v1/calls` | Stores the call as ringing with an expiry, pushes the invitation to every callee device |
+| `POST /v1/media-token` | The LiveKit `tokenUrl`. Checks the user belongs to the call. For the callee, the first request wins the answer and sends `call.accepted` to the caller and `call.ended` (`answeredElsewhere`) to the callee's other devices |
+| `POST /v1/calls/{id}/end` | Marks the call ended and sends `call.ended` to the other side |
 | Expiry timer | Ends calls still ringing at `expiresAtMs` as `unanswered`, on both sides |
-| Signaling socket | Delivers `call.accepted` and `call.ended` to the app |
+| `GET /v1/call-events` | Delivers `call.accepted` and `call.ended` to the app: a long poll, a WebSocket or your existing realtime channel |
 
 Use a fresh UUID for every call and never reuse it: Callx refuses to ring an ID it has seen
 end.

@@ -100,6 +100,7 @@ export default defineConfig({
         text: 'Backend',
         items: [
           {text: 'Overview and rules', link: '/backend/'},
+          {text: 'Example backend', link: '/backend/example'},
           {text: 'Call flows', link: '/backend/call-flows'},
           {text: 'API and push payloads', link: '/backend/reference'},
           {text: 'Media credentials', link: '/backend/media'},

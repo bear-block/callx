@@ -36,7 +36,8 @@ comparison with other libraries, [release notes](https://bear-block.github.io/ca
 3. [Native host integration](https://bear-block.github.io/callx/guides/native-host).
 4. [API behavior and recovery](https://bear-block.github.io/callx/concepts/commands).
 5. [Testing and acceptance](https://bear-block.github.io/callx/guides/testing).
-6. [Signaling, backend endpoints and push payloads](https://bear-block.github.io/callx/backend/).
+6. [Signaling, backend endpoints and push payloads](https://bear-block.github.io/callx/backend/). A runnable
+   [example backend](examples/backend) implements them.
 7. [RN CLI and Expo config plugin](https://bear-block.github.io/callx/guide/expo).
 8. [Building from source and contributing](https://bear-block.github.io/callx/project/contributing).
 

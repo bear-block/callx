@@ -1,0 +1,14 @@
+{
+  "name": "callx-example-backend",
+  "private": true,
+  "description": "A runnable example backend for Callx: push invitations, answer arbitration, hang-ups and call events",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  }
+}

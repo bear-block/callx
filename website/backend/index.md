@@ -11,6 +11,9 @@ answered and when a call is over. This section explains how to build that backen
 the way Callx works, and why each rule exists.
 </p>
 
+Want working code first? The [example backend](/backend/example) is a runnable Node server
+that follows every rule below.
+
 Read the pages in order the first time:
 
 1. **This page**: who owns what, and the rules that follow from it.

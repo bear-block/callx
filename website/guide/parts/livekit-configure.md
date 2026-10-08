@@ -4,7 +4,7 @@
 import {configureLiveKit, resetLiveKit} from '@bear-block/callx-livekit';
 
 await configureLiveKit({
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
+  tokenUrl: 'https://api.example.com/v1/media-token',
   headers: {authorization: `Bearer ${sessionToken}`},
 });
 
@@ -16,7 +16,7 @@ await resetLiveKit();
 import 'package:callx_livekit/callx_livekit.dart';
 
 await CallxLiveKit.configure(LiveKitConfig(
-  tokenUrl: 'https://api.example.com/calls/livekit-token',
+  tokenUrl: 'https://api.example.com/v1/media-token',
   headers: {'authorization': 'Bearer $sessionToken'},
 ));
 

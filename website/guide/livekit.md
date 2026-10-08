@@ -85,7 +85,7 @@ Keystore, iOS keychain).
 When a call is answered, the adapter sends:
 
 ```http
-POST /calls/livekit-token
+POST /v1/media-token
 authorization: Bearer <session token>
 content-type: application/json
 
@@ -104,7 +104,7 @@ subscribe audio. A minimal Node.js handler:
 ```ts
 import {AccessToken} from 'livekit-server-sdk';
 
-app.post('/calls/livekit-token', requireUser, async (req, res) => {
+app.post('/v1/media-token', requireUser, async (req, res) => {
   const {callId} = req.body;
   if (!(await calls.isParticipant(callId, req.user.id))) return res.sendStatus(403);
   const token = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, {
@@ -115,6 +115,10 @@ app.post('/calls/livekit-token', requireUser, async (req, res) => {
   res.json({url: process.env.LIVEKIT_URL, token: await token.toJwt()});
 });
 ```
+
+This handler only issues the token. The [example backend](/backend/example) also lets the
+callee's request claim the answer, as [media credentials](/backend/media#let-the-token-request-claim-the-answer)
+describes.
 
 ### Credentials from native code
 
