@@ -14,7 +14,7 @@ hero:
   actions:
     - theme: brand
       text: Get started
-      link: /guide/setup
+      link: /guide/
     - theme: alt
       text: Explore features
       link: /guide/features
@@ -55,13 +55,23 @@ fixed missed-call Call back. 3.0.0 added audio routes, DTMF, caller-name updates
 [Release notes](/project/changelog#release-3-0-1) · [What has been verified](/project/status)
 :::
 
-## Start with your app
+## Integrate in five steps
+
+<ol class="steps">
+  <li><strong>Install and bootstrap.</strong> Add the package and a few lines of native start-up code, or the Expo config plugin.</li>
+  <li><strong>Register the push token.</strong> <code>callx.setup()</code>, then send <code>getPushToken()</code> to your backend.</li>
+  <li><strong>Make it ring.</strong> Your backend sends an APNs VoIP or FCM invitation; the phone shows the system call screen, even when the app was killed.</li>
+  <li><strong>Add audio and video.</strong> Install the LiveKit adapter and give it your token URL, or connect your own media.</li>
+  <li><strong>Connect your backend.</strong> Start outgoing calls, and pass <em>accepted</em> and <em>ended</em> events to Callx.</li>
+</ol>
+
+<p><a href="/callx/guide/">Follow the steps with code →</a></p>
 
 <div class="start-paths">
 
-<a href="/callx/guide/flutter"><strong>Flutter</strong><span>Native calls, Dart API and optional call overlay →</span></a>
-<a href="/callx/guide/react-native"><strong>React Native</strong><span>Native calls, TypeScript API and optional call overlay →</span></a>
-<a href="/callx/guide/expo"><strong>Expo</strong><span>Config plugin and development build setup →</span></a>
+<a href="/callx/guide/flutter"><strong>Flutter</strong><span>Install, bootstrap and ring your first call →</span></a>
+<a href="/callx/guide/react-native"><strong>React Native</strong><span>Install, bootstrap and ring your first call →</span></a>
+<a href="/callx/guide/expo"><strong>Expo</strong><span>Config plugin, no native code →</span></a>
 
 </div>
 
@@ -105,25 +115,8 @@ await callx.answer(callId);
 | LiveKit audio/video adapter (optional) | [`callx_livekit`](https://pub.dev/packages/callx_livekit) | [`@bear-block/callx-livekit`](https://www.npmjs.com/package/@bear-block/callx-livekit) |
 | Device-trial tools: call console, test pushes, conformance | | [`@bear-block/callx-testkit`](https://www.npmjs.com/package/@bear-block/callx-testkit) |
 
-## Choose your call UI
-
-Keep your own Dart or TypeScript screens, or use the [call overlay and mini-call components](/guide/call-ui) with your colors, logo and controls.
-Native code owns the call lifecycle in either case. Picture-in-picture keeps a compact video or
-branded layout visible when the user leaves the app (experimental on iOS).
-A unified configuration for native, custom and supplied UI is [planned](/project/roadmap).
-
-## Provider adapters
-
-| Provider | Status | Scope |
-|---|---|---|
-| [LiveKit](/guide/livekit) | **Available: audio and video** | Native media adapter for Flutter and React Native |
-| Twilio Video / Programmable Voice | **Planned next** | Media adapter and a separate provider-managed signaling adapter |
-| Zoom Video SDK | **Planned** | Audio/video media adapter |
-| Agora | **Planned** | Audio/video media adapter |
-
-Only LiveKit has a Callx adapter today. Planned adapters have no installable Callx package
-or release date. See the [provider roadmap](/project/roadmap#providers-in-order) for dependencies
-and the providers queued by demand.
+Not using LiveKit? The core works with any media SDK:
+[bring your own media](/guides/own-media).
 
 ## What Callx is not
 

@@ -5,8 +5,8 @@ description: "Install callx in a Flutter app, bootstrap the native core and rece
 
 # Flutter quick start
 
-This page takes a Flutter app from nothing to a ringing incoming call. Allow about 30 minutes,
-most of it for Apple and Firebase push setup.
+This page takes a Flutter app from nothing to a ringing incoming call: steps 1 to 3 of
+[Get started](/guide/). Allow about 30 minutes, most of it for Apple and Firebase push setup.
 
 ## 1. Install
 
@@ -231,15 +231,10 @@ the push, and the phone rings with the system call UI.
 
 ## Next steps
 
-- [Add audio and video with LiveKit](/guide/livekit) with one package and no native code.
-- [Connect your own media](/guides/own-media) from the native callbacks.
-- [Commands and results](/concepts/commands): retries, deadlines and operation lookup.
+The phone rings. Continue with [Get started, step 4](/guide/#_4-add-audio-and-video): add audio
+with the LiveKit adapter, then connect outgoing calls and backend events in
+[step 5](/guide/#_5-connect-your-backend-both-ways).
+
+- Prefer ready-made screens? The [call overlay and mini-call](/guide/call-ui) render the call
+  for you.
 - [Dart API reference](/reference/dart).
-
-
-## Optional call overlay and mini-call
-
-Callx also exports an optional app UI layer. Incoming stays on Home until
-accepted, an expanded call overlays navigation, and Back minimizes to an in-app mini-call.
-The native core remains the call-state owner. See [call UI](/guide/call-ui) for the exports
-and integration.

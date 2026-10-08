@@ -5,8 +5,9 @@ description: "Install @bear-block/callx in a React Native CLI app, bootstrap the
 
 # React Native quick start
 
-This page is for React Native CLI (bare) apps. Using Expo? The [Expo quick start](/guide/expo)
-does all the native steps below for you.
+This page takes a React Native CLI (bare) app to a ringing incoming call: steps 1 to 3 of
+[Get started](/guide/). Using Expo? The [Expo quick start](/guide/expo) does all the native
+steps below for you.
 
 Callx supports React Native 0.76 and later, on the New Architecture (as a typed TurboModule)
 and on the legacy architecture.
@@ -205,14 +206,10 @@ payloads your server sends in production.
 
 ## Next steps
 
-- [Add audio and video with LiveKit](/guide/livekit).
-- [Connect your own media](/guides/own-media).
-- [JavaScript API reference](/reference/javascript).
+The phone rings. Continue with [Get started, step 4](/guide/#_4-add-audio-and-video): add audio
+with the LiveKit adapter, then connect outgoing calls and backend events in
+[step 5](/guide/#_5-connect-your-backend-both-ways).
 
-
-## Optional call overlay and mini-call
-
-Callx also exports an optional app UI layer. Incoming stays on Home until
-accepted, an expanded call overlays navigation, and Back minimizes to an in-app mini-call.
-The native core remains the call-state owner. See [call UI](/guide/call-ui) for the exports
-and integration.
+- Prefer ready-made screens? The [call overlay and mini-call](/guide/call-ui) render the call
+  for you.
+- [TypeScript API reference](/reference/javascript).

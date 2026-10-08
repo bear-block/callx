@@ -5,6 +5,12 @@ description: "Use Callx with providers that own invitations and push themselves,
 
 # Provider-managed signaling
 
+::: warning Planned, not shipped
+No signaling adapter is available yet, and you do not need this page to use Callx. If your
+backend sends the invitations (the usual case, with LiveKit or any media SDK), follow
+[Get started](/guide/) instead.
+:::
+
 Some providers carry more than media. Twilio Programmable Voice, Vonage Voice, Telnyx, Plivo,
 Sinch and SIP stacks own the invitation, the push and call control on their servers. With them,
 Callx's push ingress steps aside and the provider's events drive the core.

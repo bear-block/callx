@@ -44,7 +44,6 @@ export default defineConfig({
       {text: 'Get started', link: '/guide/'},
       {text: 'Features', link: '/guide/features'},
       {text: 'Backend', link: '/backend/'},
-      {text: 'Guides', link: '/guides/native-host'},
       {text: 'Reference', link: '/reference/javascript'},
       {
         text: 'Project',
@@ -74,36 +73,25 @@ export default defineConfig({
     ],
     sidebar: [
       {
-        text: 'Introduction',
-        items: [
-          {text: 'What you can build', link: '/guide/features'},
-          {text: 'Why Callx', link: '/why'},
-          {text: 'Compare', link: '/compare'},
-          {text: 'Two-device demo', link: '/guide/demos'},
-          {text: 'Lock-screen demo', link: '/guide/lockscreen-demo'},
-          {text: 'Status', link: '/project/status'},
-          {text: 'Work with us', link: '/services'},
-        ],
-      },
-      {
         text: 'Get started',
         items: [
-          {text: 'Overview', link: '/guide/'},
-          {text: 'Personalize your setup', link: '/guide/setup'},
+          {text: 'Quick start', link: '/guide/'},
           {text: 'Flutter', link: '/guide/flutter'},
           {text: 'React Native', link: '/guide/react-native'},
           {text: 'Expo', link: '/guide/expo'},
-          {text: 'Your first real call', link: '/guide/first-call'},
+          {text: 'Audio and video with LiveKit', link: '/guide/livekit'},
           {text: 'Try without a backend', link: '/guide/simulator'},
+          {text: 'Setup checklist generator', link: '/guide/setup'},
         ],
       },
       {
-        text: 'Features',
+        text: 'Build your calls',
         items: [
-          {text: 'Audio and video with LiveKit', link: '/guide/livekit'},
           {text: 'Video calls', link: '/guide/video'},
           {text: 'Phone features', link: '/guide/phone-features'},
           {text: 'Call overlay and mini-call', link: '/guide/call-ui'},
+          {text: 'Bring your own media', link: '/guides/own-media'},
+          {text: 'Native host integration', link: '/guides/native-host'},
         ],
       },
       {
@@ -117,24 +105,9 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Concepts',
+        text: 'Test and ship',
         items: [
-          {text: 'Architecture', link: '/concepts/architecture'},
-          {text: 'Call lifecycle', link: '/concepts/call-lifecycle'},
-          {text: 'Incoming calls and push', link: '/concepts/incoming'},
-          {text: 'Commands and results', link: '/concepts/commands'},
-          {text: 'Observation and replay', link: '/concepts/observation'},
-          {text: 'Recovery', link: '/concepts/recovery'},
-          {text: 'Media and audio ownership', link: '/concepts/media'},
-        ],
-      },
-      {
-        text: 'Guides',
-        items: [
-          {text: 'Native host integration', link: '/guides/native-host'},
-          {text: 'Bring your own media', link: '/guides/own-media'},
-          {text: 'Write a media adapter', link: '/guides/write-an-adapter'},
-          {text: 'Provider-managed signaling', link: '/guides/provider-managed'},
+          {text: 'Verify your first call', link: '/guide/first-call'},
           {text: 'Test on devices', link: '/guides/testing'},
           {text: 'Troubleshooting', link: '/guides/troubleshooting'},
           {text: 'FAQ', link: '/guides/faq'},
@@ -150,7 +123,21 @@ export default defineConfig({
         ],
       },
       {
+        text: 'Concepts',
+        collapsed: true,
+        items: [
+          {text: 'Architecture', link: '/concepts/architecture'},
+          {text: 'Call lifecycle', link: '/concepts/call-lifecycle'},
+          {text: 'Incoming calls and push', link: '/concepts/incoming'},
+          {text: 'Commands and results', link: '/concepts/commands'},
+          {text: 'Observation and replay', link: '/concepts/observation'},
+          {text: 'Recovery', link: '/concepts/recovery'},
+          {text: 'Media and audio ownership', link: '/concepts/media'},
+        ],
+      },
+      {
         text: 'Platforms',
+        collapsed: true,
         items: [
           {text: 'iOS', link: '/platforms/ios'},
           {text: 'Android', link: '/platforms/android'},
@@ -158,6 +145,7 @@ export default defineConfig({
       },
       {
         text: 'Reference',
+        collapsed: true,
         items: [
           {text: 'TypeScript API', link: '/reference/javascript'},
           {text: 'Dart API', link: '/reference/dart'},
@@ -169,14 +157,29 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Project',
+        text: 'Advanced',
+        collapsed: true,
         items: [
+          {text: 'Write a media adapter', link: '/guides/write-an-adapter'},
+          {text: 'Provider-managed signaling (planned)', link: '/guides/provider-managed'},
+        ],
+      },
+      {
+        text: 'About Callx',
+        collapsed: true,
+        items: [
+          {text: 'What you can build', link: '/guide/features'},
+          {text: 'Why Callx', link: '/why'},
+          {text: 'Compare', link: '/compare'},
+          {text: 'Two-device demo', link: '/guide/demos'},
+          {text: 'Lock-screen demo', link: '/guide/lockscreen-demo'},
           {text: 'Status', link: '/project/status'},
           {text: 'Roadmap', link: '/project/roadmap'},
           {text: 'Decisions', link: '/project/decisions'},
           {text: 'Changelog & releases', link: '/project/changelog'},
           {text: 'Contributing', link: '/project/contributing'},
           {text: 'Security', link: '/project/security'},
+          {text: 'Work with us', link: '/services'},
           {text: 'Sponsor', link: '/sponsor'},
         ],
       },

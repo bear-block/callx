@@ -34,6 +34,8 @@
   gap: 16px;
   margin: 24px 0;
 }
+/* Markdown wraps the inline links in a paragraph; let them be the grid's items. */
+.start-paths > p { display: contents; }
 .start-paths a {
   display: flex;
   flex-direction: column;
@@ -50,6 +52,36 @@
 .start-paths span { color: var(--vp-c-text-2); font-size: 14px; line-height: 1.6; }
 @media (max-width: 640px) { .start-paths { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .start-paths a { transition: none; } }
+
+.vp-doc ol.steps {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0;
+  margin: 24px 0 8px;
+}
+.vp-doc ol.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 0 44px;
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+.vp-doc ol.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .sponsor-tiers {
   display: grid;

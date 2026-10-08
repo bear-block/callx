@@ -6,7 +6,8 @@ description: "Add Callx to an Expo app with the config plugin. No native code, i
 # Expo quick start
 
 With Expo, Callx needs no native code at all. The config plugin bootstraps the native core,
-generates the Android FCM service and sets every permission and capability.
+generates the Android FCM service and sets every permission and capability. This page covers
+steps 1 to 4 of [Get started](/guide/).
 
 ::: info Development build required
 Callx contains native code, so it does not run in Expo Go. Use a
@@ -112,7 +113,9 @@ npx expo install @bear-block/callx-livekit
 }
 ```
 
-Then [configure credentials](/guide/livekit#configure-credentials) from JavaScript.
+Then [configure credentials](/guide/livekit#configure-credentials) from JavaScript, and connect
+outgoing calls and backend events with the call service in
+[Get started, step 5](/guide/#_5-connect-your-backend-both-ways).
 
 ## When you need native code anyway
 

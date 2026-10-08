@@ -5,8 +5,8 @@ description: "A checkpoint-based journey from native setup to a ringing call, re
 
 # Your first real call
 
-Start with [your personalized checklist](/guide/setup). This page explains how to tell whether
-each part works. A ringing notification, an active media connection and a rendered call screen
+Integrate with the [quick start](/guide/) first. This page explains how to tell whether
+each part works, and what to test before calling it done. A ringing notification, an active media connection and a rendered call screen
 are different checkpoints; verify them separately.
 
 ## 1. Prepare the devices and credentials
