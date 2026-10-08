@@ -5,15 +5,10 @@ description: "The framework-neutral contract that the Swift, Kotlin, Dart and Ty
 
 # Contract v0.3
 
-::: info Latest package release: 3.0.0
-Audio routes, DTMF, caller name updates and system call requests are documented in
-[phone features](/guide/phone-features). They use contract 0.3.0 and are published on npm and pub.dev.
-:::
-
 The contract defines the vocabulary every Callx layer speaks: states, commands, results, events
 and limits. Swift, Kotlin, Dart and TypeScript implement it, and shared executable fixtures check
-each of them. Contract version `0.3.0` is independent of package versions (packages are at
-`3.0.0`). Each minor version only adds optional fields, commands and capabilities, so older
+each of them. Contract version `0.3.0` is independent of package versions (see
+[packages](/reference/packages)). Each minor version only adds optional fields, commands and capabilities, so older
 wrappers keep working: 0.2 added video ([ADR-0010](/project/decisions)) with two commands, and
 0.3 adds audio routes, keypad tones and caller-name updates with three commands.
 

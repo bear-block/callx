@@ -1,6 +1,6 @@
 // Every place that names the latest release or contract must match the packages and manifest.
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readdirSync, readFileSync} from 'node:fs';
 import test from 'node:test';
 
 const root = new URL('../../', import.meta.url);
@@ -30,6 +30,16 @@ test('pages that name the latest release name the current one', () => {
   assert.match(read('website/project/status.md'), new RegExp(`\\*\\*Packages:\\*\\* \`${version}\` · \\*\\*Contract:\\*\\* \`${contract}\``));
   assert.match(read('README.md'), new RegExp(`Version \`${version}\`[\\s\\S]{0,120}contract \`${contract}\``));
   assert.match(read('website/reference/packages.md'), new RegExp(`current ${version} packages use \\[contract \`${contract}\`\\]`));
+});
+
+test('no page outside the changelog announces an older release as the latest', () => {
+  const pages = readdirSync(new URL('website/', root), {recursive: true})
+    .filter((path) => path.endsWith('.md') && !path.includes('node_modules') && path !== 'project/changelog.md');
+  for (const page of pages) {
+    for (const [, value] of read(`website/${page}`).matchAll(/[Ll]atest (?:package )?release:? `?v?(\d+\.\d+\.\d+)/g)) {
+      assert.equal(value, version, page);
+    }
+  }
 });
 
 test('pages that name the contract name the current one', () => {

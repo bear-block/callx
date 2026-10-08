@@ -5,12 +5,6 @@ description: "The complete Dart API of the callx and callx_livekit packages."
 
 # Dart API
 
-::: info Latest package release: 3.0.0
-Audio routes, DTMF, caller name updates and system call requests are documented in
-[phone features](/guide/phone-features). They use contract 0.3.0 and are published on npm and pub.dev.
-:::
-
-
 ```dart
 import 'package:callx/callx.dart';
 ```
